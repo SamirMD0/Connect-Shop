@@ -1,0 +1,60 @@
+version: '3.9'
+
+services:
+  # ───────────────────────────────────────────────────────────────────────────
+  # PostgreSQL 16
+  # ───────────────────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: elecshop_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: elecshop
+      POSTGRES_PASSWORD: elecPass4smr
+      POSTGRES_DB: elecshop_db
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - elecshop_net
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U elecshop -d elecshop_db']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # Express Backend
+  # ───────────────────────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: elecshop_backend
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      DATABASE_URL: postgresql://elecshop:elecPass4smr@postgres:5432/elecshop_dbcd 
+      SESSION_SECRET: ${SESSION_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
+      FRONTEND_URL: ${FRONTEND_URL}
+      COOKIE_MAX_AGE: ${COOKIE_MAX_AGE:-604800000}
+    ports:
+      - '5000:5000'
+    networks:
+      - elecshop_net
+
+volumes:
+  pgdata:
+    driver: local
+
+networks:
+  elecshop_net:
+    driver: bridge
