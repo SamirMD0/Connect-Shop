@@ -10,6 +10,19 @@ import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
 import { ShippingAddress, Order } from '@/lib/types';
+import DOMPurify from 'dompurify';
+import { z } from 'zod';
+
+const shippingSchema = z.object({
+  fullName: z.string().trim().min(1, 'Full name is required').max(200),
+  addressLine1: z.string().trim().min(1, 'Address line 1 is required').max(300),
+  addressLine2: z.string().trim().max(300).optional(),
+  city: z.string().trim().min(1, 'City is required').max(100),
+  state: z.string().trim().max(100).optional(),
+  zipCode: z.string().trim().min(1, 'ZIP code is required').max(20),
+  country: z.string().trim().min(1, 'Country is required').max(100),
+});
+
 
 export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
@@ -61,8 +74,19 @@ export default function CheckoutPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!form.fullName || !form.addressLine1 || !form.city || !form.zipCode || !form.country) {
-      addToast('Please fill in all required fields', 'error');
+    const sanitizedForm = {
+      fullName: DOMPurify.sanitize(form.fullName),
+      addressLine1: DOMPurify.sanitize(form.addressLine1),
+      addressLine2: form.addressLine2 ? DOMPurify.sanitize(form.addressLine2) : '',
+      city: DOMPurify.sanitize(form.city),
+      state: form.state ? DOMPurify.sanitize(form.state) : '',
+      zipCode: DOMPurify.sanitize(form.zipCode),
+      country: DOMPurify.sanitize(form.country),
+    };
+
+    const validation = shippingSchema.safeParse(sanitizedForm);
+    if (!validation.success) {
+      addToast(validation.error.issues[0].message, 'error');
       return;
     }
 
@@ -70,7 +94,7 @@ export default function CheckoutPage() {
     try {
       const res = await api.post<{ success: boolean; order: Order; message: string }>(
         '/api/orders',
-        { shippingAddress: form }
+        { shippingAddress: validation.data }
       );
       setOrderPlaced(res.order);
       clearCart();

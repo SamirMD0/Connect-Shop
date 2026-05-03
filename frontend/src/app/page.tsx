@@ -1,37 +1,32 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { ProductSkeleton } from '@/components/products/ProductSkeleton';
-import { Button } from '@/components/ui/Button';
+import { HeroCarousel } from '@/components/home/HeroCarousel';
 import { api } from '@/lib/api';
-import { Product, Category } from '@/lib/types';
-
-const categoryIcons: Record<string, string> = {
-  smartphone: '📱',
-  laptop: '💻',
-  headphones: '🎧',
-  watch: '⌚',
-  gamepad: '🎮',
-  cable: '🔌',
-};
+import { Product, Category, CarouselSlide } from '@/lib/types';
 
 export default function HomePage() {
   const [featured, setFeatured] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [slides, setSlides] = useState<CarouselSlide[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
       try {
-        const [featuredRes, catRes] = await Promise.all([
+        const [featuredRes, catRes, slidesRes] = await Promise.all([
           api.get<{ success: boolean; products: Product[] }>('/api/products/featured'),
           api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
+          api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel')
         ]);
         setFeatured(featuredRes.products || []);
         setCategories(catRes.categories || []);
+        setSlides(slidesRes.slides || []);
       } catch {
         // fail silently
       } finally {
@@ -44,35 +39,9 @@ export default function HomePage() {
   return (
     <div className="animate-fade-in">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-accent/10 via-bg-primary to-accent-glow/5" />
-        <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-accent/10 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-accent-glow/8 rounded-full blur-3xl" />
-        </div>
-
-        <Container className="relative py-24 sm:py-32 lg:py-40">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight">
-              <span className="text-gradient">Premium Electronics</span>
-              <br />
-              <span className="text-text-primary">At Your Fingertips</span>
-            </h1>
-            <p className="mt-6 text-lg text-text-muted max-w-xl mx-auto leading-relaxed">
-              Discover the latest smartphones, laptops, audio gear, and more. 
-              Curated quality, competitive prices, free shipping on every order.
-            </p>
-            <div className="mt-8 flex gap-4 justify-center">
-              <Link href="/store">
-                <Button size="lg" variant="primary">
-                  Browse Store
-                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
-                  </svg>
-                </Button>
-              </Link>
-            </div>
-          </div>
+      <section className="py-8">
+        <Container>
+          <HeroCarousel slides={slides} />
         </Container>
       </section>
 
@@ -89,10 +58,19 @@ export default function HomePage() {
                 href={`/store?category=${cat.slug}`}
                 className="glass-card p-6 text-center group"
               >
-                <span className="text-3xl block mb-3">
-                  {categoryIcons[cat.icon || ''] || '📦'}
+                <span className="block mb-4 mx-auto w-20 h-20 sm:w-28 sm:h-28 lg:w-32 lg:h-32 relative transition-transform duration-300 group-hover:scale-110">
+                  {cat.image_url ? (
+                    <Image
+                      src={cat.image_url}
+                      alt={cat.name}
+                      fill
+                      className="object-contain"
+                    />
+                  ) : (
+                    <span className="text-3xl flex items-center justify-center w-full h-full">📦</span>
+                  )}
                 </span>
-                <h3 className="text-sm font-medium text-text-primary group-hover:text-accent transition-colors">
+                <h3 className="text-base sm:text-lg font-semibold text-text-primary group-hover:text-accent transition-colors">
                   {cat.name}
                 </h3>
                 {cat.product_count !== undefined && (

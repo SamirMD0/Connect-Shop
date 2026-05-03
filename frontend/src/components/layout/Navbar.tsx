@@ -39,6 +39,14 @@ export function Navbar() {
             >
               Store
             </Link>
+            {user?.role === 'admin' && (
+              <Link 
+                href="/admin" 
+                className="text-sm text-accent hover:text-accent-glow transition-colors font-medium"
+              >
+                Dashboard
+              </Link>
+            )}
           </div>
 
           {/* Desktop Right */}

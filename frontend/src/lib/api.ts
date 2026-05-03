@@ -56,6 +56,9 @@ export const api = {
   post: <T>(endpoint: string, body?: any, options?: RequestOptions) =>
     fetchWrapper<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
 
+  put: <T>(endpoint: string, body?: any, options?: RequestOptions) =>
+    fetchWrapper<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
+
   patch: <T>(endpoint: string, body?: any, options?: RequestOptions) =>
     fetchWrapper<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
 

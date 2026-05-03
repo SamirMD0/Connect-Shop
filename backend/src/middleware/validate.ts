@@ -110,8 +110,8 @@ export const productQueryRules: ValidationChain[] = [
     .withMessage('page must be a positive integer'),
   query('limit')
     .optional()
-    .isInt({ min: 1, max: 50 })
-    .withMessage('limit must be between 1 and 50'),
+    .isInt({ min: 1, max: 1000 })
+    .withMessage('limit must be between 1 and 1000'),
   query('category')
     .optional()
     .trim()
@@ -138,4 +138,42 @@ export const orderIdRules: ValidationChain[] = [
   param('id')
     .isUUID()
     .withMessage('Order ID must be a valid UUID'),
+];
+
+/** Validate Admin Category */
+export const adminCategoryRules: ValidationChain[] = [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
+  body('slug').trim().isSlug().withMessage('Valid slug is required').isLength({ max: 100 }),
+  body('image_url').optional({ nullable: true }).trim().isLength({ max: 2048 }),
+];
+
+/** Validate Admin Product */
+export const adminProductRules: ValidationChain[] = [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 255 }),
+  body('slug').trim().isSlug().withMessage('Valid slug is required').isLength({ max: 255 }),
+  body('description').optional({ nullable: true }).trim(),
+  body('price').isFloat({ gt: 0 }).withMessage('Price must be greater than 0'),
+  body('image_url').optional({ nullable: true }).trim().isURL().withMessage('Must be a valid URL'),
+  body('category_id').isInt().withMessage('Category ID must be an integer'),
+  body('stock').isInt({ min: 0 }).withMessage('Stock must be 0 or greater'),
+  body('is_featured').optional().isBoolean(),
+];
+
+/** Validate Admin Order Status Update */
+export const adminOrderStatusRules: ValidationChain[] = [
+  param('id').isUUID().withMessage('Valid Order ID required'),
+  body('status')
+    .isIn(['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'])
+    .withMessage('Invalid status'),
+];
+
+/** Validate Carousel Slide create/update */
+export const carouselSlideRules: ValidationChain[] = [
+  body('title').trim().notEmpty().withMessage('Title is required').isLength({ max: 255 }),
+  body('subtitle').optional({ nullable: true }).trim().isLength({ max: 500 }),
+  body('image_url').trim().notEmpty().withMessage('Image URL is required'),
+  body('link_url').optional({ nullable: true }).trim(),
+  body('button_text').optional({ nullable: true }).trim().isLength({ max: 100 }),
+  body('display_order').isInt({ min: 0 }).withMessage('display_order must be a non-negative integer'),
+  body('is_active').isBoolean().withMessage('is_active must be a boolean'),
 ];

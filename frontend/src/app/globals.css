@@ -4,15 +4,15 @@
   --font-sans: "Inter", "ui-sans-serif", "system-ui", "sans-serif", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
   
   /* Brand Colors */
-  --color-bg-primary: #0a0a0f;
-  --color-bg-surface: #12121a;
-  --color-bg-elevated: #1a1a2e;
+  --color-bg-primary: #f8fafc; /* Slate 50 */
+  --color-bg-surface: #ffffff; /* White */
+  --color-bg-elevated: #f1f5f9; /* Slate 100 */
   
-  --color-accent: #6366f1; /* Indigo 500 */
-  --color-accent-glow: #818cf8; /* Indigo 400 */
+  --color-accent: #2563eb; /* Blue 600 */
+  --color-accent-glow: #60a5fa; /* Blue 400 */
   
-  --color-text-primary: #f1f5f9;
-  --color-text-muted: #94a3b8;
+  --color-text-primary: #0f172a; /* Slate 900 */
+  --color-text-muted: #64748b; /* Slate 500 */
   
   /* Status Colors */
   --color-success: #22c55e;
@@ -74,28 +74,29 @@
 /* Custom utility classes */
 @layer utilities {
   .glass {
-    @apply bg-[var(--color-bg-surface)]/70 backdrop-blur-md border border-white/5;
+    @apply bg-[var(--color-bg-surface)]/70 backdrop-blur-md border border-black/5;
   }
   
   .glass-card {
-    @apply bg-[var(--color-bg-surface)]/50 backdrop-blur-sm border border-white/5 rounded-2xl shadow-xl transition-all duration-300;
+    @apply bg-[var(--color-bg-surface)]/80 backdrop-blur-sm border border-black/5 rounded-2xl shadow-xl transition-all duration-300;
   }
   
   .glass-card:hover {
-    @apply border-white/10 shadow-[0_0_30px_rgba(99,102,241,0.15)] bg-[var(--color-bg-elevated)]/60;
+    @apply border-blue-200 shadow-[0_0_30px_rgba(37,99,235,0.15)] bg-[var(--color-bg-surface)];
+    
   }
 
   .text-gradient {
-    @apply bg-clip-text text-transparent bg-gradient-to-r from-white via-indigo-200 to-indigo-400;
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-blue-800 via-blue-600 to-blue-400;
   }
 
   /* Shimmer gradient for skeletons */
   .skeleton-shimmer {
     background: linear-gradient(
       90deg,
-      rgba(255, 255, 255, 0.03) 25%,
-      rgba(255, 255, 255, 0.08) 50%,
-      rgba(255, 255, 255, 0.03) 75%
+      rgb(0, 0, 0) 25%,
+      rgba(0, 0, 0, 0.08) 50%,
+      rgba(0, 0, 0, 0.03) 75%
     );
     background-size: 400% 100%;
     @apply animate-[shimmer_2s_linear_infinite];

@@ -12,7 +12,7 @@ export interface Category {
   id: number;
   name: string;
   slug: string;
-  icon: string | null;
+  image_url: string | null;
   product_count?: number;
 }
 
@@ -111,3 +111,33 @@ export interface ApiResponse<T> {
   message?: string;
   [key: string]: any; // Allow spreading result
 }
+
+// ─── Admin Analytics ─────────────────────────────────────────────────────────
+export interface MonthlyRevenue {
+  month: string;
+  revenue: string;
+}
+
+export interface AnalyticsSummary {
+  totalRevenue: string;
+  totalOrders: number;
+  totalCustomers: number;
+  totalProducts: number;
+  totalCategories: number;
+  monthlyRevenue: MonthlyRevenue[];
+  recentProducts: Product[];
+  recentCategories: Category[];
+}
+
+// ─── Carousel ────────────────────────────────────────────────────────────────
+export interface CarouselSlide {
+  id: number;
+  title: string;
+  subtitle: string | null;
+  image_url: string;
+  link_url: string | null;
+  button_text: string | null;
+  display_order: number;
+  is_active: boolean;
+}
+

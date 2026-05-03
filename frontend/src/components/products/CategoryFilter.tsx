@@ -8,14 +8,7 @@ interface CategoryFilterProps {
   onSelect: (slug: string | null) => void;
 }
 
-const categoryIcons: Record<string, string> = {
-  smartphone: '📱',
-  laptop: '💻',
-  headphones: '🎧',
-  watch: '⌚',
-  gamepad: '🎮',
-  cable: '🔌',
-};
+
 
 export function CategoryFilter({ categories, selected, onSelect }: CategoryFilterProps) {
   return (
@@ -42,7 +35,11 @@ export function CategoryFilter({ categories, selected, onSelect }: CategoryFilte
               : 'bg-bg-surface/50 text-text-muted border-white/10 hover:border-white/20 hover:text-text-primary'
           }`}
         >
-          <span>{categoryIcons[cat.icon || ''] || '📦'}</span>
+          {cat.image_url ? (
+            <img src={cat.image_url} alt={cat.name} className="w-5 h-5 object-contain" />
+          ) : (
+            <span>📦</span>
+          )}
           <span>{cat.name}</span>
           {cat.product_count !== undefined && (
             <span className="text-xs opacity-60">({cat.product_count})</span>

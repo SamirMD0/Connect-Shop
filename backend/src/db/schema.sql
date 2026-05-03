@@ -51,9 +51,22 @@ CREATE TABLE IF NOT EXISTS categories (
   id          SERIAL       PRIMARY KEY,
   name        VARCHAR(100) NOT NULL UNIQUE,
   slug        VARCHAR(100) NOT NULL UNIQUE,
-  icon        VARCHAR(50),
+  image_url   TEXT,
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
+
+-- Migrate icon -> image_url if the old column still exists (idempotent)
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'categories' AND column_name = 'icon'
+  ) THEN
+    ALTER TABLE categories ADD COLUMN IF NOT EXISTS image_url TEXT;
+    ALTER TABLE categories DROP COLUMN icon;
+  END IF;
+END;
+$$;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -157,6 +170,38 @@ BEGIN
   ) THEN
     CREATE TRIGGER set_products_updated_at
       BEFORE UPDATE ON products
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+END;
+$$;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- carousel_slides (homepage carousel managed by admins)
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS carousel_slides (
+  id            SERIAL       PRIMARY KEY,
+  title         VARCHAR(255) NOT NULL,
+  subtitle      TEXT,
+  image_url     TEXT         NOT NULL,
+  link_url      TEXT,
+  button_text   VARCHAR(100),
+  display_order INTEGER      NOT NULL DEFAULT 0,
+  is_active     BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at    TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_carousel_active_order
+  ON carousel_slides (is_active, display_order);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'set_carousel_updated_at'
+  ) THEN
+    CREATE TRIGGER set_carousel_updated_at
+      BEFORE UPDATE ON carousel_slides
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   END IF;
 END;

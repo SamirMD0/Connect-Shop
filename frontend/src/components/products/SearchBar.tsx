@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 
 interface SearchBarProps {
   value: string;
@@ -18,10 +19,11 @@ export function SearchBar({ value, onChange, placeholder = 'Search products...' 
   }, [value]);
 
   const handleChange = (newValue: string) => {
-    setLocalValue(newValue);
+    const sanitized = DOMPurify.sanitize(newValue);
+    setLocalValue(sanitized);
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
-      onChange(newValue);
+      onChange(sanitized);
     }, 300);
   };
 

@@ -75,13 +75,24 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
             Cart
           </Link>
           {user && (
-            <Link
-              href="/orders"
-              onClick={onClose}
-              className="block px-3 py-2.5 rounded-lg text-sm text-text-primary hover:bg-white/5 transition-colors"
-            >
-              My Orders
-            </Link>
+            <>
+              <Link
+                href="/orders"
+                onClick={onClose}
+                className="block px-3 py-2.5 rounded-lg text-sm text-text-primary hover:bg-white/5 transition-colors"
+              >
+                My Orders
+              </Link>
+              {user.role === 'admin' && (
+                <Link 
+                  href="/admin" 
+                  onClick={onClose}
+                  className="block px-3 py-2.5 rounded-lg text-sm text-accent font-medium hover:bg-accent/10 transition-colors"
+                >
+                  Dashboard
+                </Link>
+              )}
+            </>
           )}
         </nav>
 

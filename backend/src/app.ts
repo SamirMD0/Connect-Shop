@@ -3,6 +3,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
+import xss from 'xss-clean';
 import { corsOptions } from './config/cors';
 import { env } from './config/env';
 import { generalLimiter } from './middleware/rateLimiter';
@@ -13,6 +14,8 @@ import authRoutes from './routes/auth.routes';
 import productsRoutes from './routes/products.routes';
 import cartRoutes from './routes/cart.routes';
 import ordersRoutes from './routes/orders.routes';
+import adminRoutes from './routes/admin.routes';
+import carouselRoutes from './routes/carousel.routes';
 
 const app = express();
 
@@ -25,6 +28,7 @@ app.use(generalLimiter);                    // Rate limiting (100/15min)
 app.use(express.json({ limit: '10kb' }));   // Limit body size to prevent abuse
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(cookieParser(env.SESSION_SECRET));  // Signed cookies
+app.use(xss());                             // Sanitize data against XSS
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -43,6 +47,8 @@ import { listCategories } from './controllers/products.controller';
 app.get('/api/categories', listCategories);
 app.use('/api/cart', cartRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/carousel', carouselRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {
