@@ -13,20 +13,20 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 
 const variantStyles: Record<Variant, string> = {
   primary:
-    'bg-accent text-white hover:bg-accent-glow hover:shadow-[0_0_20px_rgba(99,102,241,0.4)] active:scale-[0.97]',
+    'bg-accent text-white hover:bg-accent-glow hover:shadow-[0_0_25px_rgba(37,99,235,0.35)] active:scale-[0.97]',
   secondary:
-    'bg-bg-surface border border-white/10 text-text-primary hover:bg-bg-elevated hover:border-white/20 active:scale-[0.97]',
+    'bg-bg-surface border border-slate-200 text-text-primary hover:bg-slate-50 hover:border-slate-300 active:scale-[0.97]',
   outline:
-    'border border-accent text-accent hover:bg-accent/10 active:scale-[0.97]',
+    'border border-accent text-accent hover:bg-accent/5 active:scale-[0.97]',
   ghost:
-    'text-text-muted hover:bg-white/5 hover:text-text-primary',
+    'text-text-muted hover:bg-slate-100 hover:text-text-primary',
   danger:
     'bg-danger text-white hover:brightness-110 active:scale-[0.97]',
 };
 
 const sizeStyles: Record<Size, string> = {
   sm: 'px-3 py-1.5 text-xs rounded-lg',
-  md: 'px-4 py-2 text-sm rounded-xl',
+  md: 'px-4 py-2.5 text-sm rounded-xl',
   lg: 'px-6 py-3 text-base rounded-xl',
 };
 

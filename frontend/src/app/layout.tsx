@@ -28,8 +28,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.variable} font-sans`} suppressHydrationWarning>
+    <html lang="en" className="bg-bg-primary">
+      <body className={`${inter.variable} font-sans bg-bg-primary`} suppressHydrationWarning>
         <AuthProvider>
           <CartProvider>
             <ToastProvider>

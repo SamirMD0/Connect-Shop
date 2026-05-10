@@ -10,6 +10,7 @@ import { SearchBar } from '@/components/products/SearchBar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { api } from '@/lib/api';
 import { Product, Category, PaginatedProducts } from '@/lib/types';
+import { ChevronDown, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 
 function StoreContent() {
   const searchParams = useSearchParams();
@@ -79,53 +80,58 @@ function StoreContent() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-text-primary mb-2">Store</h1>
-          <p className="text-text-muted text-sm">
-            {loading ? 'Loading...' : `${total} products found`}
+          <p className="text-text-muted">
+            {loading ? 'Loading products...' : `${total} products available`}
           </p>
         </div>
 
         {/* Filters Bar */}
-        <div className="space-y-4 mb-8">
-          <div className="flex flex-col sm:flex-row gap-4">
+        <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-4 mb-8 shadow-sm">
+          <div className="flex flex-col lg:flex-row gap-4">
+            {/* Search */}
             <div className="flex-1">
               <SearchBar
                 value={currentSearch}
                 onChange={(v) => updateParams({ search: v })}
               />
             </div>
-            <select
-              value={currentSort}
-              onChange={(e) => updateParams({ sort: e.target.value })}
-              className="px-4 py-2.5 rounded-xl bg-bg-surface/50 border border-white/10 text-sm text-text-primary focus:outline-none focus:border-accent/50 appearance-none cursor-pointer"
-            >
-              <option value="">Sort: Default</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="newest">Newest First</option>
-            </select>
+            
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <select
+                value={currentSort}
+                onChange={(e) => updateParams({ sort: e.target.value })}
+                className="appearance-none w-full lg:w-48 px-4 py-3 pr-10 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all"
+              >
+                <option value="">Sort: Default</option>
+                <option value="price_asc">Price: Low to High</option>
+                <option value="price_desc">Price: High to Low</option>
+                <option value="newest">Newest First</option>
+              </select>
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
+            </div>
           </div>
 
-          <CategoryFilter
-            categories={categories}
-            selected={currentCategory}
-            onSelect={(slug) => updateParams({ category: slug })}
-          />
+          {/* Category Chips */}
+          <div className="mt-4 pt-4 border-t border-slate-100">
+            <CategoryFilter
+              categories={categories}
+              selected={currentCategory}
+              onSelect={(slug) => updateParams({ category: slug })}
+            />
+          </div>
         </div>
 
         {/* Product Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {Array.from({ length: 12 }).map((_, i) => (
               <ProductSkeleton key={i} />
             ))}
           </div>
         ) : products.length === 0 ? (
           <EmptyState
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-10 h-10">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-              </svg>
-            }
+            icon={<Search className="w-12 h-12" />}
             title="No products found"
             description="Try adjusting your search or filter criteria."
             actionLabel="Clear Filters"
@@ -137,33 +143,39 @@ function StoreContent() {
 
         {/* Pagination */}
         {totalPages > 1 && !loading && (
-          <div className="flex items-center justify-center gap-2 mt-10">
+          <div className="flex items-center justify-center gap-2 mt-12">
             <button
               onClick={() => updateParams({ page: String(currentPage - 1) })}
               disabled={currentPage <= 1}
-              className="px-4 py-2 rounded-xl text-sm font-medium border border-white/10 bg-bg-surface/50 text-text-muted hover:text-text-primary hover:border-white/20 transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-bg-surface text-text-muted hover:text-text-primary hover:border-slate-300 transition-all disabled:opacity-40 disabled:pointer-events-none"
             >
+              <ChevronLeft className="w-4 h-4" />
               Previous
             </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-              <button
-                key={page}
-                onClick={() => updateParams({ page: String(page) })}
-                className={`w-10 h-10 rounded-xl text-sm font-medium border transition-all ${
-                  page === currentPage
-                    ? 'bg-accent text-white border-accent'
-                    : 'border-white/10 bg-bg-surface/50 text-text-muted hover:text-text-primary hover:border-white/20'
-                }`}
-              >
-                {page}
-              </button>
-            ))}
+            
+            <div className="flex gap-1">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                <button
+                  key={page}
+                  onClick={() => updateParams({ page: String(page) })}
+                  className={`w-10 h-10 rounded-xl text-sm font-medium border transition-all ${
+                    page === currentPage
+                      ? 'bg-accent text-white border-accent shadow-lg shadow-accent/25'
+                      : 'border-slate-200 bg-bg-surface text-text-muted hover:text-text-primary hover:border-slate-300'
+                  }`}
+                >
+                  {page}
+                </button>
+              ))}
+            </div>
+            
             <button
               onClick={() => updateParams({ page: String(currentPage + 1) })}
               disabled={currentPage >= totalPages}
-              className="px-4 py-2 rounded-xl text-sm font-medium border border-white/10 bg-bg-surface/50 text-text-muted hover:text-text-primary hover:border-white/20 transition-all disabled:opacity-30 disabled:pointer-events-none"
+              className="flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-medium border border-slate-200 bg-bg-surface text-text-muted hover:text-text-primary hover:border-slate-300 transition-all disabled:opacity-40 disabled:pointer-events-none"
             >
               Next
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         )}
@@ -176,7 +188,7 @@ export default function StorePage() {
   return (
     <Suspense fallback={
       <Container className="py-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {Array.from({ length: 12 }).map((_, i) => (
             <ProductSkeleton key={i} />
           ))}
