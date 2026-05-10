@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Grid } from 'lucide-react';
+import Image from 'next/image';
 import { api } from '../../../lib/api';
-import { Category, ApiResponse } from '../../../lib/types';
+import { Category } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
 
@@ -22,7 +23,6 @@ export default function AdminCategories() {
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const name = e.target.value;
     setFormData(prev => {
-      // Auto-generate slug when creating a new category
       if (!editingCategory) {
         const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
         return { ...prev, name, slug };
@@ -90,26 +90,63 @@ export default function AdminCategories() {
     }
   };
 
+  const inputClasses = "w-full bg-[#0a0a14] border border-[#1e293b] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all";
+
   const columns = [
-    { header: 'ID', accessorKey: 'id' as keyof Category },
+    { header: 'Image', cell: (c: Category) => (
+      <div className="w-10 h-10 bg-[#1e293b] rounded-lg flex items-center justify-center overflow-hidden">
+        {c.image_url ? (
+          <Image src={c.image_url} alt={c.name} width={24} height={24} className="object-contain" />
+        ) : (
+          <Grid className="w-5 h-5 text-slate-500" />
+        )}
+      </div>
+    )},
     { header: 'Name', accessorKey: 'name' as keyof Category },
-    { header: 'Slug', accessorKey: 'slug' as keyof Category },
-    { header: 'Products Count', accessorKey: 'product_count' as keyof Category },
+    { header: 'Slug', cell: (c: Category) => <span className="text-slate-400">/{c.slug}</span> },
+    { header: 'Products', cell: (c: Category) => (
+      <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-[#1e293b] text-slate-300">
+        {c.product_count || 0}
+      </span>
+    )},
     { header: 'Actions', cell: (c: Category) => (
-      <div className="flex gap-2">
-        <button onClick={() => handleOpenModal(c)} className="p-2 text-blue-400 hover:bg-blue-400/10 rounded"><Edit2 className="w-4 h-4" /></button>
-        <button onClick={() => handleDelete(c.id)} className="p-2 text-danger hover:bg-danger/10 rounded"><Trash2 className="w-4 h-4" /></button>
+      <div className="flex gap-1">
+        <button 
+          onClick={() => handleOpenModal(c)} 
+          className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+        >
+          <Edit2 className="w-4 h-4" />
+        </button>
+        <button 
+          onClick={() => handleDelete(c.id)} 
+          className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
       </div>
     )},
   ];
 
-  if (loading) return <div className="text-white">Loading categories...</div>;
+  if (loading) {
+    return (
+      <div className="space-y-6 animate-pulse">
+        <div className="h-10 bg-[#1e293b] rounded-xl w-1/4"></div>
+        <div className="h-64 bg-[#12121a] rounded-xl border border-[#1e293b]"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-primary">Categories</h1>
-        <button onClick={() => handleOpenModal()} className="flex items-center gap-2 bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-glow transition-colors">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Categories</h1>
+          <p className="text-slate-400 text-sm mt-1">{categories.length} categories in your store</p>
+        </div>
+        <button 
+          onClick={() => handleOpenModal()} 
+          className="flex items-center gap-2 bg-accent text-white px-4 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all"
+        >
           <Plus className="w-4 h-4" /> Add Category
         </button>
       </div>
@@ -117,22 +154,53 @@ export default function AdminCategories() {
       <DataTable data={categories} columns={columns} keyExtractor={(c) => c.id} />
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCategory ? 'Edit Category' : 'Add Category'}>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Name</label>
-            <input required type="text" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.name} onChange={handleNameChange} />
+            <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+            <input 
+              required 
+              type="text" 
+              className={inputClasses}
+              placeholder="Category name"
+              value={formData.name} 
+              onChange={handleNameChange} 
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Slug</label>
-            <input required type="text" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.slug} onChange={e => setFormData({...formData, slug: e.target.value})} />
+            <label className="block text-sm font-medium text-slate-300 mb-2">Slug</label>
+            <input 
+              required 
+              type="text" 
+              className={inputClasses}
+              placeholder="category-slug"
+              value={formData.slug} 
+              onChange={e => setFormData({...formData, slug: e.target.value})} 
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-muted mb-1">Image URL (optional)</label>
-            <input type="text" placeholder="/images/categories/example.png" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} />
+            <label className="block text-sm font-medium text-slate-300 mb-2">Image URL (optional)</label>
+            <input 
+              type="text" 
+              placeholder="/images/categories/example.png" 
+              className={inputClasses}
+              value={formData.image_url} 
+              onChange={e => setFormData({...formData, image_url: e.target.value})} 
+            />
           </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted hover:text-white transition-colors">Cancel</button>
-            <button type="submit" className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-glow transition-colors">Save</button>
+          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-[#1e293b]">
+            <button 
+              type="button" 
+              onClick={() => setIsModalOpen(false)} 
+              className="px-4 py-2.5 text-slate-400 hover:text-white transition-colors rounded-xl"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit" 
+              className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all"
+            >
+              Save
+            </button>
           </div>
         </form>
       </Modal>

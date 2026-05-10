@@ -12,15 +12,19 @@ interface AdminStatCardProps {
 
 export function AdminStatCard({ title, value, icon, trend }: AdminStatCardProps) {
   return (
-    <div className="bg-surface border border-slate-800 rounded-xl p-6 shadow-lg">
+    <div className="bg-[#12121a] border border-[#1e293b] rounded-xl p-6 transition-all duration-200 hover:border-[#2e3e5b]">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-muted">{title}</h3>
-        {icon && <div className="text-accent">{icon}</div>}
+        <h3 className="text-sm font-medium text-slate-400">{title}</h3>
+        {icon && (
+          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+            {icon}
+          </div>
+        )}
       </div>
       <div className="flex items-baseline gap-2">
-        <div className="text-2xl font-bold text-primary">{value}</div>
+        <div className="text-2xl font-bold text-white">{value}</div>
         {trend && (
-          <div className={`text-sm font-medium ${trend.isPositive ? 'text-success' : 'text-danger'}`}>
+          <div className={`text-sm font-medium ${trend.isPositive ? 'text-emerald-400' : 'text-red-400'}`}>
             {trend.isPositive ? '+' : '-'}{Math.abs(trend.value)}%
           </div>
         )}
