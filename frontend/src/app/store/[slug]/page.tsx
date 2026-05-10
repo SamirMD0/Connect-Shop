@@ -1,103 +1,83 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
 import { Container } from '@/components/layout/Container';
 import { ProductGrid } from '@/components/products/ProductGrid';
-import { ProductSkeleton } from '@/components/products/ProductSkeleton';
 import { RatingStars } from '@/components/products/RatingStars';
 import { StockBadge } from '@/components/products/StockBadge';
-import { Button } from '@/components/ui/Button';
-import { Skeleton } from '@/components/ui/Skeleton';
-import { useCart } from '@/hooks/useCart';
-import { useToast } from '@/hooks/useToast';
+import { AddToCartClient } from '@/components/products/AddToCartClient';
 import { api } from '@/lib/api';
 import { Product } from '@/lib/types';
-import { Minus, Plus, ShoppingCart, ChevronRight, Truck, Shield, RotateCcw } from 'lucide-react';
+import { ChevronRight, Truck, Shield, RotateCcw, Share2, Facebook, Twitter, MessageCircle } from 'lucide-react';
 
-export default function ProductDetailPage() {
-  const params = useParams();
-  const slug = params.slug as string;
+interface Props {
+  params: Promise<{ slug: string }>;
+}
 
-  const { addItem } = useCart();
-  const { addToast } = useToast();
-
-  const [product, setProduct] = useState<Product | null>(null);
-  const [related, setRelated] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
-  const [adding, setAdding] = useState(false);
-
-  useEffect(() => {
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await api.get<{ success: boolean; product: Product }>(`/api/products/${slug}`);
-        setProduct(res.product);
-
-        // Fetch related products from same category
-        if (res.product.category_slug) {
-          const relatedRes = await api.get<{ success: boolean; products: Product[] }>('/api/products', {
-            params: { category: res.product.category_slug, limit: 4 },
-          });
-          setRelated(relatedRes.products.filter(p => p.slug !== slug).slice(0, 4));
-        }
-      } catch {
-        // fail silently
-      } finally {
-        setLoading(false);
-      }
-    }
-    load();
-  }, [slug]);
-
-  const handleAddToCart = async () => {
-    if (!product || product.stock === 0) return;
-    setAdding(true);
-    try {
-      await addItem(product.id, quantity);
-      addToast(`${product.name} added to cart`, 'success');
-      setQuantity(1);
-    } catch {
-      addToast('Failed to add to cart', 'error');
-    } finally {
-      setAdding(false);
-    }
-  };
-
-  if (loading) {
-    return (
-      <Container className="py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          <Skeleton className="w-full aspect-square rounded-3xl" />
-          <div className="space-y-4">
-            <Skeleton className="h-6 w-24" />
-            <Skeleton className="h-10 w-3/4" />
-            <Skeleton className="h-5 w-32" />
-            <Skeleton className="h-12 w-40" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-        </div>
-      </Container>
-    );
+async function getProduct(slug: string) {
+  try {
+    const res = await api.get<{ success: boolean; product: Product }>(`/api/products/${slug}`);
+    return res.product;
+  } catch {
+    return null;
   }
+}
+
+export async function generateMetadata({ params }: Props): Promise<Metadata> {
+  const p = await params;
+  const product = await getProduct(p.slug);
+  
+  if (!product) {
+    return { title: 'Product Not Found | ElecSHOP' };
+  }
+  
+  return {
+    title: `${product.name} | ElecSHOP`,
+    description: product.description?.slice(0, 160) || `Buy ${product.name} at ElecSHOP`,
+    openGraph: {
+      title: product.name,
+      description: product.description || undefined,
+      images: product.image_url ? [product.image_url] : undefined,
+      type: 'website',
+    },
+  };
+}
+
+export default async function ProductDetailPage({ params }: Props) {
+  const p = await params;
+  const product = await getProduct(p.slug);
 
   if (!product) {
-    return (
-      <Container className="py-20 text-center">
-        <h1 className="text-2xl font-bold text-text-primary mb-2">Product Not Found</h1>
-        <p className="text-text-muted mb-6">The product you&apos;re looking for doesn&apos;t exist.</p>
-        <Link href="/store">
-          <Button variant="primary">Back to Store</Button>
-        </Link>
-      </Container>
-    );
+    notFound();
+  }
+
+  // Fetch related
+  let related: Product[] = [];
+  if (product.category_slug) {
+    try {
+      const relatedRes = await api.get<{ success: boolean; products: Product[] }>('/api/products', {
+        params: { category: product.category_slug, limit: 5 },
+      });
+      related = relatedRes.products.filter(p => p.slug !== product.slug).slice(0, 4);
+    } catch {
+      // ignore
+    }
   }
 
   const price = parseFloat(product.price);
   const rating = parseFloat(product.rating);
+
+  const today = new Date();
+  const deliveryStart = new Date(today);
+  deliveryStart.setDate(today.getDate() + 2);
+  const deliveryEnd = new Date(today);
+  deliveryEnd.setDate(today.getDate() + 4);
+
+  const formatDate = (date: Date) => {
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+  const deliveryText = `Order now and get it between ${formatDate(deliveryStart)} and ${formatDate(deliveryEnd)}`;
 
   return (
     <div className="animate-fade-in">
@@ -187,39 +167,38 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Quantity & Add to Cart */}
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 mb-8">
-              <div className="flex items-center bg-slate-100 rounded-xl border border-slate-200">
-                <button
-                  onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                  className="w-12 h-12 flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
-                  aria-label="Decrease quantity"
-                >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="w-12 text-center text-sm font-semibold text-text-primary">
-                  {quantity}
-                </span>
-                <button
-                  onClick={() => setQuantity(Math.min(product.stock, quantity + 1))}
-                  className="w-12 h-12 flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
-                  aria-label="Increase quantity"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
+            {/* Delivery Estimation */}
+            <div className="bg-slate-50 border border-slate-200/60 rounded-xl p-4 mb-6 flex items-start gap-3">
+              <Truck className="w-5 h-5 text-accent shrink-0 mt-0.5" />
+              <div>
+                <h4 className="text-sm font-semibold text-text-primary mb-1">Estimated Delivery</h4>
+                <p className="text-sm text-text-muted">{deliveryText}</p>
               </div>
+            </div>
 
-              <Button
-                variant="primary"
-                size="lg"
-                className="flex-1 shadow-lg shadow-accent/25 hover:shadow-accent/40"
-                onClick={handleAddToCart}
-                disabled={product.stock === 0}
-                loading={adding}
-              >
-                <ShoppingCart className="w-5 h-5" />
-                {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
-              </Button>
+            {/* Quantity & Add to Cart Client Component */}
+            <AddToCartClient 
+              productId={product.id}
+              stock={product.stock}
+              name={product.name}
+            />
+
+            {/* Share */}
+            <div className="flex items-center gap-4 mb-8 pt-6 border-t border-slate-100">
+              <span className="text-sm font-medium text-text-muted flex items-center gap-2">
+                <Share2 className="w-4 h-4" /> Share:
+              </span>
+              <div className="flex gap-2">
+                <a href={`https://www.facebook.com/sharer/sharer.php?u=https://elecshop.com/store/${product.slug}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1877F2] hover:text-white transition-colors" aria-label="Share on Facebook">
+                  <Facebook className="w-4 h-4" />
+                </a>
+                <a href={`https://twitter.com/intent/tweet?url=https://elecshop.com/store/${product.slug}&text=Check out this ${product.name}!`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1DA1F2] hover:text-white transition-colors" aria-label="Share on Twitter">
+                  <Twitter className="w-4 h-4" />
+                </a>
+                <a href={`https://wa.me/?text=Check out this ${product.name}! https://elecshop.com/store/${product.slug}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-colors" aria-label="Share on WhatsApp">
+                  <MessageCircle className="w-4 h-4" />
+                </a>
+              </div>
             </div>
 
             {/* Trust Badges */}

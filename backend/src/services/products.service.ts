@@ -49,6 +49,8 @@ export async function listProducts(options: {
   limit?: number;
   category?: string;
   search?: string;
+  sort?: string;
+  ids?: string[];
 }): Promise<ProductListResult> {
   const page = options.page ?? 1;
   const limit = options.limit ?? 12;
@@ -68,9 +70,23 @@ export async function listProducts(options: {
     values.push(`%${options.search}%`);
   }
 
+  if (options.ids && options.ids.length > 0) {
+    conditions.push(`p.id = ANY($${paramIndex++}::uuid[])`);
+    values.push(options.ids);
+  }
+
   const whereClause = conditions.length > 0
     ? 'WHERE ' + conditions.join(' AND ')
     : '';
+
+  // Build ORDER BY from sort param (whitelist to prevent SQL injection)
+  const sortMap: Record<string, string> = {
+    price_asc: 'p.price ASC',
+    price_desc: 'p.price DESC',
+    newest: 'p.created_at DESC',
+    rating: 'p.rating DESC',
+  };
+  const orderBy = sortMap[options.sort ?? ''] ?? 'p.is_featured DESC, p.created_at DESC';
 
   // Count total matching products
   const countRows = await query<{ count: string }>(
@@ -87,7 +103,7 @@ export async function listProducts(options: {
      FROM products p
      JOIN categories c ON c.id = p.category_id
      ${whereClause}
-     ORDER BY p.is_featured DESC, p.created_at DESC
+     ORDER BY ${orderBy}
      LIMIT $${paramIndex++} OFFSET $${paramIndex}`,
     [...values, limit, offset]
   );

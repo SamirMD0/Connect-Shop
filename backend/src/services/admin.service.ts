@@ -23,15 +23,37 @@ export async function getAllUsers(): Promise<User[]> {
   return query<User>(`SELECT id, google_id, email, name, avatar_url, role, created_at, updated_at FROM users ORDER BY created_at DESC`);
 }
 
-export async function getAllOrders(): Promise<Order[]> {
+export interface OrderListResult {
+  orders: Order[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export async function getAllOrders(page = 1, limit = 10): Promise<OrderListResult> {
+  const offset = (page - 1) * limit;
+
+  const countRows = await query<{ count: string }>(`SELECT COUNT(*) as count FROM orders`);
+  const total = parseInt(countRows[0].count, 10);
+
   const orders = await query<Order>(
     `SELECT o.*, u.name as customer_name, u.email as customer_email,
             (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) AS item_count
      FROM orders o
      JOIN users u ON u.id = o.user_id
-     ORDER BY o.created_at DESC`
+     ORDER BY o.created_at DESC
+     LIMIT $1 OFFSET $2`,
+    [limit, offset]
   );
-  return orders;
+
+  return {
+    orders,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit),
+  };
 }
 
 export async function updateOrderStatus(id: string, status: string): Promise<Order | null> {

@@ -9,9 +9,9 @@ services:
     container_name: elecshop_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: elecshop
-      POSTGRES_PASSWORD: elecPass4smr
-      POSTGRES_DB: elecshop_db
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-elecshop_db}
     ports:
       - '5432:5432'
     volumes:
@@ -19,7 +19,7 @@ services:
     networks:
       - elecshop_net
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U elecshop -d elecshop_db']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-elecshop_db}']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -39,7 +39,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 5000
-      DATABASE_URL: postgresql://elecshop:elecPass4smr@postgres:5432/elecshop_dbcd 
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-elecshop_db}
       SESSION_SECRET: ${SESSION_SECRET}
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}

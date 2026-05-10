@@ -5,11 +5,12 @@ import { query, withTransaction } from '../config/db';
 
 export interface ShippingAddress {
   fullName: string;
+  phone?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
   state?: string;
-  zipCode: string;
+  zipCode?: string;
   country: string;
 }
 
@@ -31,6 +32,8 @@ export interface Order {
   status: string;
   total: string;
   shipping_address: ShippingAddress;
+  payment_method: string;
+  payment_status: string;
   created_at: Date;
   items?: OrderItem[];
   item_count?: number;
@@ -50,7 +53,8 @@ export interface Order {
  */
 export async function placeOrder(
   userId: string,
-  shippingAddress: ShippingAddress
+  shippingAddress: ShippingAddress,
+  paymentMethod: string = 'cod'
 ): Promise<Order> {
   return withTransaction(async (client) => {
     // 1. Get cart items with current product prices
@@ -91,10 +95,10 @@ export async function placeOrder(
 
     // 4. Create order
     const orderResult = await client.query<Order>(
-      `INSERT INTO orders (user_id, status, total, shipping_address)
-       VALUES ($1, 'confirmed', $2, $3)
+      `INSERT INTO orders (user_id, status, total, shipping_address, payment_method, payment_status)
+       VALUES ($1, 'confirmed', $2, $3, $4, 'pending')
        RETURNING *`,
-      [userId, total, JSON.stringify(shippingAddress)]
+      [userId, total, JSON.stringify(shippingAddress), paymentMethod]
     );
 
     const order = orderResult.rows[0];

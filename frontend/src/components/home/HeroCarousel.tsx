@@ -32,7 +32,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   if (slides.length === 0) return null;
 
   return (
-    <div className="relative w-full h-[500px] rounded-3xl overflow-hidden group shadow-2xl">
+    <div className="relative w-full h-[600px] md:h-[700px] overflow-hidden group shadow-2xl">
       {/* Slides */}
       {slides.map((slide, index) => (
         <div

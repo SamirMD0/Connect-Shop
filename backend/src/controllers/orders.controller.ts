@@ -10,9 +10,9 @@ import { NotFoundError, AppError } from '../utils/errors';
  */
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { shippingAddress } = req.body;
+    const { shippingAddress, paymentMethod } = req.body;
 
-    const order = await placeOrder(req.user!.id, shippingAddress);
+    const order = await placeOrder(req.user!.id, shippingAddress, paymentMethod);
 
     res.status(201).json({
       success: true,

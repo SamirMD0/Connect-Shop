@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { Order, ApiResponse } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
@@ -10,12 +11,18 @@ export default function AdminOrders() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await api.get<ApiResponse<{ orders: Order[] }>>('/api/admin/orders');
-      if (res.success && res.data) {
-        setOrders(res.data.orders);
+      const res = await api.get<{ success: boolean; orders: Order[]; totalPages: number }>('/api/admin/orders', {
+        params: { page, limit: 10 }
+      });
+      if (res.success && res.orders) {
+        setOrders(res.orders);
+        setTotalPages(res.totalPages || 1);
       }
     } catch (error) {
       console.error('Failed to load orders:', error);
@@ -26,7 +33,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [page]);
 
   const handleStatusChange = async (orderId: string, newStatus: string) => {
     try {
@@ -83,6 +90,27 @@ export default function AdminOrders() {
         <h1 className="text-2xl font-bold text-primary">Orders</h1>
       </div>
       <DataTable data={orders} columns={columns} keyExtractor={(o) => o.id} />
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-[#1e293b] pt-4 mt-6">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-[#1e293b] disabled:opacity-50 disabled:pointer-events-none transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Previous
+          </button>
+          <span className="text-sm text-slate-400">Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-[#1e293b] disabled:opacity-50 disabled:pointer-events-none transition-colors"
+          >
+            Next <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </div>
   );
 }

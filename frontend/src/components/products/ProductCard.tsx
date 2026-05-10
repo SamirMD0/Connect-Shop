@@ -5,8 +5,9 @@ import Link from 'next/link';
 import { Product } from '@/lib/types';
 import { RatingStars } from './RatingStars';
 import { useCart } from '@/hooks/useCart';
+import { useWishlist } from '@/hooks/useWishlist';
 import { useToast } from '@/hooks/useToast';
-import { Plus, ShoppingCart } from 'lucide-react';
+import { Heart, Plus, ShoppingCart } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -14,10 +15,19 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCart();
+  const { toggleWishlist, isInWishlist } = useWishlist();
   const { addToast } = useToast();
 
   const price = parseFloat(product.price);
   const rating = parseFloat(product.rating);
+  const isNew = new Date(product.created_at).getTime() > Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const wishlisted = isInWishlist(product.id);
+
+  const handleWishlist = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleWishlist(product.id);
+  };
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,12 +67,30 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
           )}
           
-          {/* Featured Badge */}
-          {product.is_featured && (
-            <span className="absolute top-3 left-3 bg-accent text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-accent/25">
-              Featured
-            </span>
-          )}
+          {/* Badges */}
+          <div className="absolute top-3 left-3 flex flex-col items-start gap-2">
+            {/* Featured Badge */}
+            {product.is_featured && (
+              <span className="bg-accent text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-accent/25">
+                Featured
+              </span>
+            )}
+            {/* New Badge */}
+            {isNew && (
+              <span className="bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-emerald-500/25">
+                New
+              </span>
+            )}
+          </div>
+
+          {/* Wishlist Button */}
+          <button
+            onClick={handleWishlist}
+            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm shadow flex items-center justify-center text-slate-400 hover:text-red-500 transition-all duration-200"
+            aria-label={`Add ${product.name} to wishlist`}
+          >
+            <Heart className={`w-4 h-4 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+          </button>
           
           {/* Out of Stock Overlay */}
           {product.stock === 0 && (

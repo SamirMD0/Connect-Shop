@@ -1,11 +1,8 @@
-'use client';
-
-import { useEffect, useState } from 'react';
+import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
 import { ProductGrid } from '@/components/products/ProductGrid';
-import { ProductSkeleton } from '@/components/products/ProductSkeleton';
 import { HeroCarousel } from '@/components/home/HeroCarousel';
 import { ValueProps } from '@/components/home/ValueProps';
 import { Newsletter } from '@/components/home/Newsletter';
@@ -13,39 +10,50 @@ import { api } from '@/lib/api';
 import { Product, Category, CarouselSlide } from '@/lib/types';
 import { ArrowRight } from 'lucide-react';
 
-export default function HomePage() {
-  const [featured, setFeatured] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [slides, setSlides] = useState<CarouselSlide[]>([]);
-  const [loading, setLoading] = useState(true);
+export const metadata: Metadata = {
+  title: 'ElecSHOP | Premium Electronics & Gadgets',
+  description: 'Shop the latest electronics, laptops, smartphones, and accessories at ElecSHOP.',
+};
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const [featuredRes, catRes, slidesRes] = await Promise.all([
-          api.get<{ success: boolean; products: Product[] }>('/api/products/featured'),
-          api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
-          api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel')
-        ]);
-        setFeatured(featuredRes.products || []);
-        setCategories(catRes.categories || []);
-        setSlides(slidesRes.slides || []);
-      } catch {
-        // fail silently
-      } finally {
-        setLoading(false);
+export default async function HomePage() {
+  let featured: Product[] = [];
+  let categories: Category[] = [];
+  let slides: CarouselSlide[] = [];
+
+  try {
+    const [featuredRes, catRes, slidesRes] = await Promise.all([
+      api.get<{ success: boolean; products: Product[] }>('/api/products/featured'),
+      api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
+      api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel').catch(() => ({ success: false, slides: [] }))
+    ]);
+    featured = featuredRes.products || [];
+    categories = catRes.categories || [];
+    slides = slidesRes.slides || [];
+  } catch (error) {
+    console.error('Error fetching homepage data:', error);
+  }
+
+  // Provide fallback slides if API fails or is not implemented yet
+  if (slides.length === 0) {
+    slides = [
+      {
+        id: 1,
+        image_url: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&q=80&w=2000',
+        title: 'Next-Gen Electronics',
+        subtitle: 'Discover the latest in tech innovation with our premium selection of devices.',
+        link_url: '/store',
+        button_text: 'Shop Now',
+        display_order: 1,
+        is_active: true
       }
-    }
-    load();
-  }, []);
+    ];
+  }
 
   return (
     <div className="animate-fade-in">
       {/* Hero Carousel - Full Width */}
-      <section className="py-6">
-        <Container>
-          <HeroCarousel slides={slides} />
-        </Container>
+      <section className="pb-8">
+        <HeroCarousel slides={slides} />
       </section>
 
       {/* Shop by Category */}
@@ -67,7 +75,7 @@ export default function HomePage() {
                 href={`/store?category=${cat.slug}`}
                 className="group"
               >
-                <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-5 text-center transition-all duration-300 hover:shadow-xl hover:border-slate-300 hover:-translate-y-1">
+                <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-5 text-center transition-all duration-300 hover:shadow-xl hover:border-slate-300 hover:-translate-y-1 h-full">
                   <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110">
                     {cat.image_url ? (
                       <Image
@@ -116,15 +124,7 @@ export default function HomePage() {
             </Link>
           </div>
 
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <ProductSkeleton key={i} />
-              ))}
-            </div>
-          ) : (
-            <ProductGrid products={featured} />
-          )}
+          <ProductGrid products={featured} />
 
           <div className="mt-8 text-center sm:hidden">
             <Link 

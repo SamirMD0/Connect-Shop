@@ -18,8 +18,11 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
     const category = req.query.category as string | undefined;
     const search = req.query.search as string | undefined;
+    const sort = req.query.sort as string | undefined;
+    const idsString = req.query.ids as string | undefined;
+    const ids = idsString ? idsString.split(',').filter(Boolean) : undefined;
 
-    const result = await listProducts({ page, limit, category, search });
+    const result = await listProducts({ page, limit, category, search, sort, ids });
 
     res.json({ success: true, ...result });
   } catch (err) {

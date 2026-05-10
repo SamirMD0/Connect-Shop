@@ -92,10 +92,12 @@ export async function listUsers(_req: Request, res: Response, next: NextFunction
 
 // ─── Orders ──────────────────────────────────────────────────────────────────
 
-export async function listOrders(_req: Request, res: Response, next: NextFunction): Promise<void> {
+export async function listOrders(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const orders = await adminService.getAllOrders();
-    res.json({ success: true, orders });
+    const page = parseInt(req.query.page as string || '1', 10);
+    const limit = parseInt(req.query.limit as string || '10', 10);
+    const result = await adminService.getAllOrders(page, limit);
+    res.json({ success: true, ...result });
   } catch (err) {
     next(err);
   }

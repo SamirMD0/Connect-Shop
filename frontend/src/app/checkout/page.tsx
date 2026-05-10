@@ -18,12 +18,14 @@ import { CheckCircle2, ShoppingBag, Package, ArrowLeft, Lock } from 'lucide-reac
 
 const shippingSchema = z.object({
   fullName: z.string().trim().min(1, 'Full name is required').max(200),
+  phone: z.string().trim().min(7, 'Phone number must be at least 7 characters').max(20, 'Phone number is too long'),
   addressLine1: z.string().trim().min(1, 'Address line 1 is required').max(300),
   addressLine2: z.string().trim().max(300).optional(),
   city: z.string().trim().min(1, 'City is required').max(100),
   state: z.string().trim().max(100).optional(),
-  zipCode: z.string().trim().min(1, 'ZIP code is required').max(20),
+  zipCode: z.string().trim().max(20).optional(),
   country: z.string().trim().min(1, 'Country is required').max(100),
+  paymentMethod: z.enum(['cod', 'bank_transfer']).default('cod'),
 });
 
 export default function CheckoutPage() {
@@ -34,14 +36,16 @@ export default function CheckoutPage() {
 
   const [placing, setPlacing] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState<Order | null>(null);
-  const [form, setForm] = useState<ShippingAddress>({
+  const [form, setForm] = useState<ShippingAddress & { paymentMethod: 'cod' | 'bank_transfer' }>({
     fullName: '',
+    phone: '',
     addressLine1: '',
     addressLine2: '',
     city: '',
     state: '',
     zipCode: '',
-    country: '',
+    country: 'Lebanon',
+    paymentMethod: 'cod',
   });
 
   // Route guard
@@ -78,12 +82,14 @@ export default function CheckoutPage() {
 
     const sanitizedForm = {
       fullName: DOMPurify.sanitize(form.fullName),
+      phone: DOMPurify.sanitize(form.phone || ''),
       addressLine1: DOMPurify.sanitize(form.addressLine1),
       addressLine2: form.addressLine2 ? DOMPurify.sanitize(form.addressLine2) : '',
       city: DOMPurify.sanitize(form.city),
       state: form.state ? DOMPurify.sanitize(form.state) : '',
-      zipCode: DOMPurify.sanitize(form.zipCode),
+      zipCode: form.zipCode ? DOMPurify.sanitize(form.zipCode) : '',
       country: DOMPurify.sanitize(form.country),
+      paymentMethod: form.paymentMethod,
     };
 
     const validation = shippingSchema.safeParse(sanitizedForm);
@@ -96,7 +102,19 @@ export default function CheckoutPage() {
     try {
       const res = await api.post<{ success: boolean; order: Order; message: string }>(
         '/api/orders',
-        { shippingAddress: validation.data }
+        { 
+          shippingAddress: {
+            fullName: validation.data.fullName,
+            phone: validation.data.phone,
+            addressLine1: validation.data.addressLine1,
+            addressLine2: validation.data.addressLine2,
+            city: validation.data.city,
+            state: validation.data.state,
+            zipCode: validation.data.zipCode,
+            country: validation.data.country,
+          },
+          paymentMethod: validation.data.paymentMethod,
+        }
       );
       setOrderPlaced(res.order);
       clearCart();
@@ -123,9 +141,18 @@ export default function CheckoutPage() {
           <p className="text-sm text-text-muted mb-8">
             Order ID: <span className="text-accent font-mono font-medium">{orderPlaced.id.slice(0, 8).toUpperCase()}</span>
           </p>
-          <div className="flex gap-4 justify-center">
+          <div className="flex gap-4 justify-center flex-wrap">
+            <a 
+              href={`https://wa.me/96181000000?text=Hello,%20I%20just%20placed%20order%20${orderPlaced.id.slice(0, 8).toUpperCase()}.`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+            >
+              <Button variant="primary" size="lg" className="bg-[#25D366] hover:bg-[#1ebd5a] text-white border-none">
+                Contact via WhatsApp
+              </Button>
+            </a>
             <Link href="/orders">
-              <Button variant="primary" size="lg">
+              <Button variant="secondary" size="lg">
                 <Package className="w-4 h-4 mr-2" />
                 View Orders
               </Button>
@@ -173,16 +200,29 @@ export default function CheckoutPage() {
               <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-6 shadow-lg">
                 <h2 className="text-lg font-bold text-text-primary mb-6">Shipping Address</h2>
                 <div className="space-y-5">
-                  <div>
-                    <label className="block text-sm font-medium text-text-primary mb-2">Full Name *</label>
-                    <input 
-                      name="fullName" 
-                      value={form.fullName} 
-                      onChange={handleChange} 
-                      className="input-field" 
-                      placeholder="John Doe" 
-                      required 
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">Full Name *</label>
+                      <input 
+                        name="fullName" 
+                        value={form.fullName} 
+                        onChange={handleChange} 
+                        className="input-field" 
+                        placeholder="John Doe" 
+                        required 
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">Phone Number *</label>
+                      <input 
+                        name="phone" 
+                        value={form.phone} 
+                        onChange={handleChange} 
+                        className="input-field" 
+                        placeholder="+961 XX XXX XXX" 
+                        required 
+                      />
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-text-primary mb-2">Address Line 1 *</label>
@@ -245,10 +285,44 @@ export default function CheckoutPage() {
                       name="country" 
                       value={form.country} 
                       onChange={handleChange} 
-                      className="input-field" 
-                      placeholder="United States" 
-                      required 
+                      className="input-field bg-slate-50 cursor-not-allowed" 
+                      placeholder="Lebanon" 
+                      readOnly 
                     />
+                  </div>
+                </div>
+
+                <div className="mt-8">
+                  <h2 className="text-lg font-bold text-text-primary mb-4">Payment Method</h2>
+                  <div className="space-y-3">
+                    <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
+                      <input 
+                        type="radio" 
+                        name="paymentMethod" 
+                        value="cod" 
+                        checked={form.paymentMethod === 'cod'} 
+                        onChange={handleChange}
+                        className="w-4 h-4 text-accent"
+                      />
+                      <div>
+                        <p className="font-medium text-text-primary">Cash on Delivery (COD)</p>
+                        <p className="text-sm text-text-muted">Pay when your order arrives.</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
+                      <input 
+                        type="radio" 
+                        name="paymentMethod" 
+                        value="bank_transfer" 
+                        checked={form.paymentMethod === 'bank_transfer'} 
+                        onChange={handleChange}
+                        className="w-4 h-4 text-accent"
+                      />
+                      <div>
+                        <p className="font-medium text-text-primary">Bank Transfer (Whish / OMT)</p>
+                        <p className="text-sm text-text-muted">We will contact you with payment details.</p>
+                      </div>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -310,7 +384,7 @@ export default function CheckoutPage() {
                 </Button>
 
                 <p className="text-xs text-text-muted text-center mt-4">
-                  Your payment info is secure and encrypted.
+                  Your order details are secure.
                 </p>
               </div>
             </div>

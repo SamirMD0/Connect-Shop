@@ -73,11 +73,12 @@ export interface GuestCartItem {
 // ─── Order ───────────────────────────────────────────────────────────────────
 export interface ShippingAddress {
   fullName: string;
+  phone?: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
   state: string;
-  zipCode: string;
+  zipCode?: string;
   country: string;
 }
 
@@ -98,6 +99,8 @@ export interface Order {
   status: 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
   total: string;
   shipping_address: ShippingAddress;
+  payment_method: string;
+  payment_status: string;
   created_at: string;
   items?: OrderItem[];
   item_count?: number;

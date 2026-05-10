@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { Product, Category } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
@@ -13,6 +13,12 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Pagination & Search
+  const [page, setPage] = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [totalPages, setTotalPages] = useState(1);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -30,11 +36,18 @@ export default function AdminProducts() {
     try {
       setLoading(true);
       const [prodRes, catRes] = await Promise.all([
-        api.get<{ success: boolean; products: Product[]; total: number; page: number; limit: number; totalPages: number }>('/api/products?limit=1000'),
+        api.get<{ success: boolean; products: Product[]; total: number; page: number; limit: number; totalPages: number }>('/api/products', {
+          params: { page, limit: 10, search: searchQuery || undefined }
+        }),
         api.get<{ success: boolean; categories: Category[] }>('/api/categories')
       ]);
-      if (prodRes.success && prodRes.products) setProducts(prodRes.products);
-      if (catRes.success && catRes.categories) setCategories(catRes.categories);
+      if (prodRes.success && prodRes.products) {
+        setProducts(prodRes.products);
+        setTotalPages(prodRes.totalPages || 1);
+      }
+      if (catRes.success && catRes.categories) {
+        setCategories(catRes.categories);
+      }
     } catch (error) {
       console.error('Failed to load products:', error);
     } finally {
@@ -44,7 +57,13 @@ export default function AdminProducts() {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+  }, [page, searchQuery]);
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setPage(1);
+    setSearchQuery(searchInput);
+  };
 
   const handleOpenModal = (product?: Product) => {
     if (product) {
@@ -145,20 +164,55 @@ export default function AdminProducts() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Products</h1>
-          <p className="text-slate-400 text-sm mt-1">{products.length} products in your store</p>
+          <p className="text-slate-400 text-sm mt-1">Manage your store's inventory</p>
         </div>
-        <button 
-          onClick={() => handleOpenModal()} 
-          className="flex items-center gap-2 bg-accent text-white px-4 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all"
-        >
-          <Plus className="w-4 h-4" /> Add Product
-        </button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <form onSubmit={handleSearch} className="relative w-full sm:w-64">
+            <input
+              type="text"
+              placeholder="Search products..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full bg-[#0a0a14] border border-[#1e293b] rounded-xl pl-4 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+            />
+            <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-accent">
+              <Search className="w-4 h-4" />
+            </button>
+          </form>
+          <button 
+            onClick={() => handleOpenModal()} 
+            className="flex items-center gap-2 bg-accent text-white px-4 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Add
+          </button>
+        </div>
       </div>
 
       <DataTable data={products} columns={columns} keyExtractor={(p) => p.id} />
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between border-t border-[#1e293b] pt-4 mt-6">
+          <button
+            onClick={() => setPage(p => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-[#1e293b] disabled:opacity-50 disabled:pointer-events-none transition-colors"
+          >
+            <ChevronLeft className="w-4 h-4" /> Previous
+          </button>
+          <span className="text-sm text-slate-400">Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+            disabled={page === totalPages}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-[#1e293b] disabled:opacity-50 disabled:pointer-events-none transition-colors"
+          >
+            Next <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingProduct ? 'Edit Product' : 'Add Product'}>
         <form onSubmit={handleSubmit} className="space-y-5">

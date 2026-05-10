@@ -106,8 +106,23 @@ CREATE TABLE IF NOT EXISTS orders (
                                   CHECK (status IN ('confirmed', 'processing', 'shipped', 'delivered', 'cancelled')),
   total            DECIMAL(10, 2) NOT NULL CHECK (total >= 0),
   shipping_address JSONB          NOT NULL,
+  payment_method   VARCHAR(30)    NOT NULL DEFAULT 'cod',
+  payment_status   VARCHAR(30)    NOT NULL DEFAULT 'pending',
   created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
+
+-- Add payment columns if they don't exist (for existing DBs)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_name = 'orders' AND column_name = 'payment_method'
+  ) THEN
+    ALTER TABLE orders ADD COLUMN payment_method VARCHAR(30) NOT NULL DEFAULT 'cod';
+    ALTER TABLE orders ADD COLUMN payment_status VARCHAR(30) NOT NULL DEFAULT 'pending';
+  END IF;
+END;
+$$;
 
 CREATE INDEX IF NOT EXISTS idx_orders_user_id   ON orders (user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status    ON orders (status);

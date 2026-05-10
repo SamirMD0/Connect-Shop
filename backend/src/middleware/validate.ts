@@ -64,6 +64,13 @@ export const placeOrderRules: ValidationChain[] = [
     .isLength({ max: 200 })
     .withMessage('Full name must be under 200 characters')
     .escape(),
+  body('shippingAddress.phone')
+    .trim()
+    .notEmpty()
+    .withMessage('Phone number is required')
+    .isLength({ min: 7, max: 20 })
+    .withMessage('Phone number must be 7-20 characters')
+    .escape(),
   body('shippingAddress.addressLine1')
     .trim()
     .notEmpty()
@@ -89,9 +96,8 @@ export const placeOrderRules: ValidationChain[] = [
     .isLength({ max: 100 })
     .escape(),
   body('shippingAddress.zipCode')
+    .optional()
     .trim()
-    .notEmpty()
-    .withMessage('ZIP code is required')
     .isLength({ max: 20 })
     .escape(),
   body('shippingAddress.country')
@@ -100,6 +106,10 @@ export const placeOrderRules: ValidationChain[] = [
     .withMessage('Country is required')
     .isLength({ max: 100 })
     .escape(),
+  body('paymentMethod')
+    .optional()
+    .isIn(['cod', 'bank_transfer'])
+    .withMessage('Payment method must be cod or bank_transfer'),
 ];
 
 /** Validate product listing query params */
@@ -123,6 +133,10 @@ export const productQueryRules: ValidationChain[] = [
     .isLength({ max: 100 })
     .withMessage('search must be under 100 characters')
     .escape(),
+  query('sort')
+    .optional()
+    .isIn(['price_asc', 'price_desc', 'newest', 'rating', ''])
+    .withMessage('sort must be one of: price_asc, price_desc, newest, rating'),
 ];
 
 /** Validate product slug param */

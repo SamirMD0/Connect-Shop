@@ -9,7 +9,8 @@ import { UserMenu } from '@/components/auth/UserMenu';
 import { MobileMenu } from './MobileMenu';
 import { useAuth } from '@/hooks/useAuth';
 import { APP_NAME } from '@/lib/constants';
-import { Menu, Zap } from 'lucide-react';
+import { Menu, Zap, Search } from 'lucide-react';
+import { WishlistIcon } from '@/components/wishlist/WishlistIcon';
 
 export function Navbar() {
   const { user, loading } = useAuth();
@@ -47,8 +48,24 @@ export function Navbar() {
             )}
           </div>
 
+          {/* Middle: Search Bar */}
+          <div className="hidden lg:flex flex-1 max-w-md mx-8 relative">
+            <form action="/store" method="GET" className="w-full relative">
+              <input
+                type="text"
+                name="search"
+                placeholder="Search products..."
+                className="w-full bg-slate-100 border-none rounded-xl pl-4 pr-10 py-2.5 text-sm focus:ring-2 focus:ring-accent focus:bg-white transition-all"
+              />
+              <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-accent">
+                <Search className="w-4 h-4" />
+              </button>
+            </form>
+          </div>
+
           {/* Desktop Right */}
           <div className="hidden md:flex items-center gap-4">
+            <WishlistIcon />
             <CartIcon />
             {loading ? (
               <div className="w-10 h-10 rounded-full bg-slate-100 skeleton-shimmer" />
@@ -61,6 +78,7 @@ export function Navbar() {
 
           {/* Mobile Right */}
           <div className="flex md:hidden items-center gap-3">
+            <WishlistIcon />
             <CartIcon />
             <button
               onClick={() => setMobileOpen(true)}
