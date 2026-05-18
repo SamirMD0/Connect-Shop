@@ -35,6 +35,9 @@ const envSchema = z.object({
   // CORS
   FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL'),
 
+  // Redis
+  REDIS_URL: z.string().url().default('redis://localhost:6379'),
+
   // Cookie
   COOKIE_MAX_AGE: z
     .string()

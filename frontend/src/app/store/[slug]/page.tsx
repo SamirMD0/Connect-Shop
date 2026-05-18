@@ -7,6 +7,7 @@ import { ProductGrid } from '@/components/products/ProductGrid';
 import { RatingStars } from '@/components/products/RatingStars';
 import { StockBadge } from '@/components/products/StockBadge';
 import { AddToCartClient } from '@/components/products/AddToCartClient';
+import { ProductReviews } from '@/components/products/ProductReviews';
 import { api } from '@/lib/api';
 import { Product } from '@/lib/types';
 import { ChevronRight, Truck, Shield, RotateCcw, Share2, Facebook, Twitter, MessageCircle } from 'lucide-react';
@@ -216,6 +217,9 @@ export default async function ProductDetailPage({ params }: Props) {
             </div>
           </div>
         </div>
+
+        {/* Product Reviews */}
+        <ProductReviews productId={product.id} />
 
         {/* Related Products */}
         {related.length > 0 && (

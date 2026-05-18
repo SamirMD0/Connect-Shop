@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Container } from './Container';
 import { APP_NAME } from '@/lib/constants';
 import { Zap } from 'lucide-react';
+import type { JSX } from 'react';
 
 const footerLinks = [
   {

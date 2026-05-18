@@ -25,6 +25,25 @@ services:
       retries: 5
 
   # ───────────────────────────────────────────────────────────────────────────
+  # Redis
+  # ───────────────────────────────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: elecshop_redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    networks:
+      - elecshop_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ───────────────────────────────────────────────────────────────────────────
   # Express Backend
   # ───────────────────────────────────────────────────────────────────────────
   backend:
@@ -36,6 +55,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       PORT: 5000
@@ -46,6 +67,7 @@ services:
       GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
       FRONTEND_URL: ${FRONTEND_URL}
       COOKIE_MAX_AGE: ${COOKIE_MAX_AGE:-604800000}
+      REDIS_URL: redis://redis:6379
     ports:
       - '5000:5000'
     networks:
@@ -53,6 +75,8 @@ services:
 
 volumes:
   pgdata:
+    driver: local
+  redisdata:
     driver: local
 
 networks:

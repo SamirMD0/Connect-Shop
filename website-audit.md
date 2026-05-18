@@ -90,7 +90,7 @@
 - [ ] Tax calculation
 - [ ] Shipping cost calculation (by region: Beirut, Mount Lebanon, North, South, Bekaa)
 - [ ] Coupon/promo code system
-- [ ] Order confirmation email / WhatsApp notification
+- [x] Order confirmation email / WhatsApp notification
 - [ ] Guest checkout (without account)
 - [ ] Save address from checkout
 - [ ] Multiple payment methods (COD, bank transfer, OMT, Whish Money)
@@ -114,9 +114,9 @@
 - [ ] WhatsApp order updates (standard in Lebanese eCommerce)
 
 ## Wishlist & Social
-- [ ] Wishlist (save for later)
+- [x] Wishlist (save for later)
 - [ ] Share product (social media)
-- [ ] Product reviews & ratings submission
+- [x] Product reviews & ratings submission
 - [ ] Review moderation (admin)
 
 ## Admin Dashboard
@@ -140,7 +140,7 @@
 - [ ] Mobile-responsive admin layout
 
 ## Notifications & Communication
-- [ ] Email system (transactional emails)
+- [x] Email system (transactional emails)
 - [ ] In-app notifications
 - [ ] SMS integration
 - [ ] Push notifications
@@ -820,12 +820,12 @@ jobs:
 | 1 | **COD checkout flow** (payment method select, phone number, WhatsApp link) | Easy | 🔴 Critical | 3 days |
 | 2 | **Convert pages to Server Components** (homepage, product detail, store) | Medium | 🔴 Critical | 1 week |
 | 3 | **Add `generateMetadata` to all pages** | Easy | 🔴 Critical | 2 days |
-| 4 | **Order notifications** (email + WhatsApp confirmation) | Medium | 🔴 Critical | 1 week |
+| 4 | **Order notifications** (email + WhatsApp confirmation) | Medium | 🔴 Critical | Done |
 | 5 | **Implement sort parameter in backend** | Easy | 🟡 High | 2 hours |
 | 6 | **Fix admin dashboard mobile responsiveness** | Easy | 🟡 High | 1 day |
 | 7 | **Add sitemap.xml + robots.txt** | Easy | 🟡 High | 2 hours |
 | 8 | **Remove hardcoded credentials from docker-compose** | Easy | 🔴 Critical | 1 hour |
-| 9 | **Restrict image remotePatterns** | Easy | 🟡 High | 30 min |
+| 9 | **Restrict image remotePatterns** | Easy | 🟡 High | Done |
 | 10 | **Delete orphaned `src/UI/` directory** | Easy | 🟡 High | 15 min |
 
 ## Phase 2 — Production Ready (Weeks 5–10)
@@ -833,8 +833,8 @@ jobs:
 
 | # | Task | Difficulty | Importance | Time |
 |---|------|-----------|------------|------|
-| 11 | Product reviews & ratings system | Medium | 🟡 High | 1 week |
-| 12 | Wishlist system | Easy | 🟡 High | 3 days |
+| 11 | Product reviews & ratings system | Medium | 🟡 High | Done |
+| 12 | Wishlist system | Easy | 🟡 High | Done |
 | 13 | Database migration system (node-pg-migrate) | Medium | 🟡 High | 2 days |
 | 14 | Multiple product images | Medium | 🟡 High | 3 days |
 | 15 | Image upload (Cloudinary) | Medium | 🟡 High | 3 days |

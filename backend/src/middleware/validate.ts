@@ -191,3 +191,10 @@ export const carouselSlideRules: ValidationChain[] = [
   body('display_order').isInt({ min: 0 }).withMessage('display_order must be a non-negative integer'),
   body('is_active').isBoolean().withMessage('is_active must be a boolean'),
 ];
+
+/** Validate Review create */
+export const reviewRules: ValidationChain[] = [
+  body('rating').isInt({ min: 1, max: 5 }).withMessage('Rating must be between 1 and 5'),
+  body('title').optional({ nullable: true }).trim().isLength({ max: 255 }),
+  body('body').optional({ nullable: true }).trim(),
+];

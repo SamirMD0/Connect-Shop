@@ -1,6 +1,7 @@
 // backend/src/config/db.ts
 import { Pool, PoolClient } from 'pg';
 import { env } from './env';
+import { logger } from '../utils/logger';
 
 // Single connection pool shared across the application
 export const pool = new Pool({
@@ -12,7 +13,7 @@ export const pool = new Pool({
 
 // Log pool errors to prevent unhandled rejections
 pool.on('error', (err) => {
-  console.error('❌ Unexpected PostgreSQL pool error:', err.message);
+  logger.error({ err }, '❌ Unexpected PostgreSQL pool error');
 });
 
 /**
@@ -25,10 +26,10 @@ export async function connectDB(): Promise<void> {
     client = await pool.connect();
     const result = await client.query('SELECT NOW() AS now, current_database() AS db');
     const { now, db } = result.rows[0] as { now: string; db: string };
-    console.log(`✅ PostgreSQL connected — database: "${db}" at ${now}`);
+    logger.info(`✅ PostgreSQL connected — database: "${db}" at ${now}`);
   } catch (err) {
-    console.error('❌ Failed to connect to PostgreSQL:', (err as Error).message);
-    throw err;
+    logger.error({ err }, '❌ Failed to connect to PostgreSQL');
+    process.exit(1);
   } finally {
     client?.release();
   }

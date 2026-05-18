@@ -2,6 +2,7 @@
 import app from './app';
 import { env } from './config/env';
 import { connectDB, pool } from './config/db';
+import { logger } from './utils/logger';
 import fs from 'fs';
 import path from 'path';
 
@@ -24,15 +25,15 @@ async function initializeDatabase(): Promise<void> {
     const schemaSql = fs.readFileSync(schemaFile, 'utf-8');
     const seedSql = fs.readFileSync(seedFile, 'utf-8');
 
-    console.log('📦 Running database schema initialization...');
+    logger.info('📦 Running database schema initialization...');
     await pool.query(schemaSql);
-    console.log('✅ Database schema initialized');
+    logger.info('✅ Database schema initialized');
 
-    console.log('🌱 Running database seed...');
+    logger.info('🌱 Running database seed...');
     await pool.query(seedSql);
-    console.log('✅ Database seeded');
+    logger.info('✅ Database seeded');
   } catch (err) {
-    console.error('❌ Database initialization failed:', (err as Error).message);
+    logger.error({ err }, '❌ Database initialization failed');
     throw err;
   }
 }
@@ -50,32 +51,36 @@ async function main(): Promise<void> {
 
     // 3. Start HTTP server
     const server = app.listen(env.PORT, () => {
-      console.log(`\n🚀 ElecSHOP API server listening on port ${env.PORT}`);
-      console.log(`   Environment: ${env.NODE_ENV}`);
-      console.log(`   Frontend:    ${env.FRONTEND_URL}`);
-      console.log(`   Health:      http://localhost:${env.PORT}/api/health\n`);
+      logger.info(`\n🚀 ElecSHOP API server listening on port ${env.PORT}`);
+      logger.info(`   Environment: ${env.NODE_ENV}`);
+      logger.info(`   Frontend:    ${env.FRONTEND_URL}`);
+      logger.info(`   Health:      http://localhost:${env.PORT}/api/health\n`);
     });
 
     // Graceful shutdown
-    const shutdown = async (signal: string) => {
-      console.log(`\n⏳ Received ${signal}. Shutting down gracefully...`);
-      server.close(async () => {
-        await pool.end();
-        console.log('👋 Server shut down.');
-        process.exit(0);
+    const signals = ['SIGINT', 'SIGTERM'];
+    signals.forEach((signal) => {
+      process.on(signal, () => {
+        logger.info(`\n⏳ Received ${signal}. Shutting down gracefully...`);
+        if (server) {
+          server.close(async () => {
+            await pool.end();
+            logger.info('👋 Server shut down.');
+            process.exit(0);
+          });
+
+          // Force shutdown after 10 seconds
+          setTimeout(() => {
+            logger.error('⚠️  Forced shutdown after timeout');
+            process.exit(1);
+          }, 10_000);
+        } else {
+          process.exit(0);
+        }
       });
-
-      // Force shutdown after 10 seconds
-      setTimeout(() => {
-        console.error('⚠️  Forced shutdown after timeout');
-        process.exit(1);
-      }, 10_000);
-    };
-
-    process.on('SIGTERM', () => shutdown('SIGTERM'));
-    process.on('SIGINT', () => shutdown('SIGINT'));
+    });
   } catch (err) {
-    console.error('💥 Fatal startup error:', err);
+    logger.error({ err }, '💥 Fatal startup error');
     process.exit(1);
   }
 }

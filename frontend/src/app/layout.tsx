@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/context/AuthContext';
 import { CartProvider } from '@/context/CartContext';
+import { WishlistProvider } from '@/context/WishlistContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
@@ -31,13 +32,15 @@ export default function RootLayout({
     <html lang="en" className="bg-bg-primary">
       <body className={`${inter.variable} font-sans bg-bg-primary`} suppressHydrationWarning>
         <AuthProvider>
-          <CartProvider>
-            <ToastProvider>
-              <Navbar />
-              <main className="flex-1">{children}</main>
-              <Footer />
-            </ToastProvider>
-          </CartProvider>
+          <WishlistProvider>
+            <CartProvider>
+              <ToastProvider>
+                <Navbar />
+                <main className="flex-1">{children}</main>
+                <Footer />
+              </ToastProvider>
+            </CartProvider>
+          </WishlistProvider>
         </AuthProvider>
       </body>
     </html>

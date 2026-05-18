@@ -68,34 +68,45 @@ export async function updateOrderStatus(id: string, status: string): Promise<Ord
 }
 
 export async function getMonthlyAnalytics(): Promise<AnalyticsSummary> {
-  // Aggregate totals
-  const revRow = await query<{ sum: string }>(`SELECT SUM(total) as sum FROM orders WHERE status != 'cancelled'`);
-  const ordersRow = await query<{ count: string }>(`SELECT COUNT(*) as count FROM orders`);
-  const customersRow = await query<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE role = 'customer'`);
-  const productsRow = await query<{ count: string }>(`SELECT COUNT(*) as count FROM products`);
-  const categoriesRow = await query<{ count: string }>(`SELECT COUNT(*) as count FROM categories`);
+  const [
+    revRow,
+    ordersRow,
+    customersRow,
+    productsRow,
+    categoriesRow,
+    recentProducts,
+    recentCategories,
+    monthlyRows
+  ] = await Promise.all([
+    // Aggregate totals
+    query<{ sum: string }>(`SELECT SUM(total) as sum FROM orders WHERE status != 'cancelled'`),
+    query<{ count: string }>(`SELECT COUNT(*) as count FROM orders`),
+    query<{ count: string }>(`SELECT COUNT(*) as count FROM users WHERE role = 'customer'`),
+    query<{ count: string }>(`SELECT COUNT(*) as count FROM products`),
+    query<{ count: string }>(`SELECT COUNT(*) as count FROM categories`),
 
-  // Recent additions
-  const recentProducts = await query(`SELECT id, name, price, stock, image_url FROM products ORDER BY created_at DESC LIMIT 5`);
-  const recentCategories = await query(`
-    SELECT c.id, c.name, c.slug, c.image_url, COUNT(p.id)::int as product_count
-    FROM categories c
-    LEFT JOIN products p ON p.category_id = c.id
-    GROUP BY c.id
-    ORDER BY c.id DESC
-    LIMIT 5
-  `);
+    // Recent additions
+    query(`SELECT id, name, price, stock, image_url FROM products ORDER BY created_at DESC LIMIT 5`),
+    query(`
+      SELECT c.id, c.name, c.slug, c.image_url, COUNT(p.id)::int as product_count
+      FROM categories c
+      LEFT JOIN products p ON p.category_id = c.id
+      GROUP BY c.id
+      ORDER BY c.id DESC
+      LIMIT 5
+    `),
 
-  // Monthly revenue for the past 12 months (grouped by month)
-  const monthlyRows = await query<MonthlyRevenue>(
-    `SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
-            SUM(total) AS revenue
-     FROM orders
-     WHERE status != 'cancelled'
-     GROUP BY date_trunc('month', created_at)
-     ORDER BY date_trunc('month', created_at) ASC
-     LIMIT 12`
-  );
+    // Monthly revenue
+    query<MonthlyRevenue>(
+      `SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS month,
+              SUM(total) AS revenue
+       FROM orders
+       WHERE status != 'cancelled'
+       GROUP BY date_trunc('month', created_at)
+       ORDER BY date_trunc('month', created_at) ASC
+       LIMIT 12`
+    )
+  ]);
 
   return {
     totalRevenue: revRow[0].sum || '0.00',

@@ -12,7 +12,8 @@ interface RequestOptions extends RequestInit {
 }
 
 async function fetchWrapper<T>(endpoint: string, options: RequestOptions = {}): Promise<T> {
-  let url = `${API_URL}${endpoint}`;
+  const versionedEndpoint = endpoint.startsWith('/api/') ? endpoint.replace('/api/', '/api/v1/') : endpoint;
+  let url = `${API_URL}${versionedEndpoint}`;
 
   if (options.params) {
     const searchParams = new URLSearchParams();

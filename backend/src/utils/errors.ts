@@ -1,5 +1,7 @@
 // backend/src/utils/errors.ts
 import { Request, Response, NextFunction } from 'express';
+import { ZodError } from 'zod';
+import { logger } from './logger';
 
 // ─── Custom Error Classes ────────────────────────────────────────────────────
 
@@ -69,11 +71,9 @@ export function errorHandler(
   } else if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
-  }
-
-  // Log unexpected (non-operational) errors with full stack trace
-  if (!(err instanceof AppError) || !err.isOperational) {
-    console.error('❌ Unexpected error:', err);
+  } else {
+    logger.error({ err }, '❌ Unexpected error');
+    statusCode = 500;
   }
 
   res.status(statusCode).json({

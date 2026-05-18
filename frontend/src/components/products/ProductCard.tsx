@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { Product } from '@/lib/types';
 import { RatingStars } from './RatingStars';
 import { useCart } from '@/hooks/useCart';
-import { useWishlist } from '@/hooks/useWishlist';
+import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/useToast';
 import { Heart, Plus, ShoppingCart } from 'lucide-react';
 

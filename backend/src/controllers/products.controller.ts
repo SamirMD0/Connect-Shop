@@ -1,5 +1,6 @@
 // backend/src/controllers/products.controller.ts
 import { Request, Response, NextFunction } from 'express';
+import { redisClient } from '../config/redis';
 import {
   listProducts,
   getProductBySlug,
@@ -37,7 +38,16 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
 export async function featured(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 8;
+    const cacheKey = `products:featured:${limit}`;
+    
+    const cached = await redisClient.get(cacheKey);
+    if (cached) {
+      res.json({ success: true, products: JSON.parse(cached) });
+      return;
+    }
+
     const products = await getFeaturedProducts(limit);
+    await redisClient.setex(cacheKey, 1800, JSON.stringify(products)); // 30 min cache
 
     res.json({ success: true, products });
   } catch (err) {
@@ -69,7 +79,17 @@ export async function getBySlug(req: Request, res: Response, next: NextFunction)
  */
 export async function listCategories(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const cacheKey = 'categories:all';
+    const cached = await redisClient.get(cacheKey);
+    
+    if (cached) {
+      res.json({ success: true, categories: JSON.parse(cached) });
+      return;
+    }
+
     const categories = await getCategories();
+    await redisClient.setex(cacheKey, 3600, JSON.stringify(categories)); // 1 hr cache
+
     res.json({ success: true, categories });
   } catch (err) {
     next(err);

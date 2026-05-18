@@ -4,6 +4,9 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import xss from 'xss-clean';
+import pinoHttp from 'pino-http';
+import { v4 as uuidv4 } from 'uuid';
+import { logger } from './utils/logger';
 import { corsOptions } from './config/cors';
 import { env } from './config/env';
 import { generalLimiter } from './middleware/rateLimiter';
@@ -16,6 +19,9 @@ import cartRoutes from './routes/cart.routes';
 import ordersRoutes from './routes/orders.routes';
 import adminRoutes from './routes/admin.routes';
 import carouselRoutes from './routes/carousel.routes';
+import categoriesRoutes from './routes/categories.routes';
+import reviewRoutes from './routes/review.routes';
+import wishlistRoutes from './routes/wishlist.routes';
 
 const app = express();
 
@@ -23,6 +29,16 @@ const app = express();
 app.use(helmet());                          // Secure HTTP headers
 app.use(cors(corsOptions));                 // Strict CORS
 app.use(generalLimiter);                    // Rate limiting (100/15min)
+
+// ─── Request Logging ─────────────────────────────────────────────────────────
+app.use(pinoHttp({
+  logger,
+  genReqId: function (req, res) {
+    const id = req.id || req.headers['x-request-id'] || uuidv4();
+    res.setHeader('X-Request-ID', id);
+    return id;
+  }
+}));
 
 // ─── Body Parsing ────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10kb' }));   // Limit body size to prevent abuse
@@ -41,14 +57,15 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productsRoutes);
-import { listCategories } from './controllers/products.controller';
-app.get('/api/categories', listCategories);
-app.use('/api/cart', cartRoutes);
-app.use('/api/orders', ordersRoutes);
-app.use('/api/admin', adminRoutes);
-app.use('/api/carousel', carouselRoutes);
+app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/products', productsRoutes);
+app.use('/api/v1/categories', categoriesRoutes);
+app.use('/api/v1/cart', cartRoutes);
+app.use('/api/v1/orders', ordersRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/carousel', carouselRoutes);
+app.use('/api/v1/reviews', reviewRoutes);
+app.use('/api/v1/wishlist', wishlistRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

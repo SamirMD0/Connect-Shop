@@ -5,7 +5,9 @@ import { Minus, Plus, ShoppingCart, Zap } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/Button';
 import { useCart } from '@/hooks/useCart';
+import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/useToast';
+import { Heart } from 'lucide-react';
 
 interface AddToCartClientProps {
   productId: string;
@@ -21,6 +23,9 @@ export function AddToCartClient({ productId, stock, name }: AddToCartClientProps
   const [quantity, setQuantity] = useState(1);
   const [adding, setAdding] = useState(false);
   const [buyingNow, setBuyingNow] = useState(false);
+
+  const { toggleWishlist, isInWishlist } = useWishlist();
+  const wishlisted = isInWishlist(productId);
 
   const handleAddToCart = async () => {
     if (stock === 0) return;
@@ -45,6 +50,14 @@ export function AddToCartClient({ productId, stock, name }: AddToCartClientProps
     } catch {
       addToast('Failed to process', 'error');
       setBuyingNow(false);
+    }
+  };
+
+  const handleWishlist = async () => {
+    try {
+      await toggleWishlist(productId);
+    } catch {
+      addToast('Please login to use wishlist', 'error');
     }
   };
 
@@ -95,6 +108,14 @@ export function AddToCartClient({ productId, stock, name }: AddToCartClientProps
           Buy Now
         </Button>
       </div>
+
+      <button
+        onClick={handleWishlist}
+        className="w-12 h-12 rounded-xl border border-slate-200 flex items-center justify-center text-slate-400 hover:text-red-500 hover:border-red-200 hover:bg-red-50 transition-all shrink-0"
+        aria-label="Toggle Wishlist"
+      >
+        <Heart className={`w-5 h-5 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+      </button>
     </div>
   );
 }

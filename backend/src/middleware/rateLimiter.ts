@@ -1,5 +1,7 @@
 // backend/src/middleware/rateLimiter.ts
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import { redisClient } from '../config/redis';
 
 /**
  * General rate limiter — applies to all routes.
@@ -7,9 +9,12 @@ import rateLimit from 'express-rate-limit';
  */
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100,
+  limit: 100,
   standardHeaders: true,    // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false,     // Disable `X-RateLimit-*` headers
+  store: new RedisStore({
+    sendCommand: (...args: string[]) => redisClient.call(...args),
+  }),
   message: {
     success: false,
     message: 'Too many requests, please try again later.',
@@ -22,9 +27,12 @@ export const generalLimiter = rateLimit({
  */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
+  store: new RedisStore({
+    sendCommand: (...args: string[]) => redisClient.call(...args),
+  }),
   message: {
     success: false,
     message: 'Too many authentication attempts, please try again later.',

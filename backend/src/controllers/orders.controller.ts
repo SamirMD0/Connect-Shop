@@ -1,6 +1,7 @@
 // backend/src/controllers/orders.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { placeOrder, getUserOrders, getOrderById } from '../services/orders.service';
+import { EmailService } from '../services/email.service';
 import { NotFoundError, AppError } from '../utils/errors';
 
 /**
@@ -11,8 +12,12 @@ import { NotFoundError, AppError } from '../utils/errors';
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { shippingAddress, paymentMethod } = req.body;
+    const user = req.user!;
 
-    const order = await placeOrder(req.user!.id, shippingAddress, paymentMethod);
+    const order = await placeOrder(user.id, shippingAddress, paymentMethod);
+
+    // Send confirmation email asynchronously
+    EmailService.sendOrderConfirmation(user.email, order.id, Number(order.total)).catch(console.error);
 
     res.status(201).json({
       success: true,

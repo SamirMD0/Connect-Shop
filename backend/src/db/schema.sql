@@ -236,3 +236,67 @@ BEGIN
   RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql;
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- wishlists
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS wishlists (
+  user_id     UUID        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  product_id  UUID        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, product_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_wishlists_user_id ON wishlists (user_id);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- reviews
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS reviews (
+  id          UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  product_id  UUID        NOT NULL REFERENCES products (id) ON DELETE CASCADE,
+  user_id     UUID        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  rating      INTEGER     NOT NULL CHECK (rating BETWEEN 1 AND 5),
+  title       VARCHAR(255),
+  body        TEXT,
+  is_verified BOOLEAN     NOT NULL DEFAULT FALSE,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(product_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON reviews (product_id);
+
+-- Trigger to update product rating
+CREATE OR REPLACE FUNCTION update_product_rating()
+RETURNS TRIGGER AS $$
+BEGIN
+  IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
+    UPDATE products
+    SET 
+      rating = (SELECT COALESCE(AVG(rating), 0.0) FROM reviews WHERE product_id = NEW.product_id),
+      review_count = (SELECT COUNT(*) FROM reviews WHERE product_id = NEW.product_id)
+    WHERE id = NEW.product_id;
+  ELSIF TG_OP = 'DELETE' THEN
+    UPDATE products
+    SET 
+      rating = (SELECT COALESCE(AVG(rating), 0.0) FROM reviews WHERE product_id = OLD.product_id),
+      review_count = (SELECT COUNT(*) FROM reviews WHERE product_id = OLD.product_id)
+    WHERE id = OLD.product_id;
+  END IF;
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'trigger_update_product_rating'
+  ) THEN
+    CREATE TRIGGER trigger_update_product_rating
+      AFTER INSERT OR UPDATE OR DELETE ON reviews
+      FOR EACH ROW EXECUTE FUNCTION update_product_rating();
+  END IF;
+END;
+$$;
