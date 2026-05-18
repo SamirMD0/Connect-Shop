@@ -58,6 +58,7 @@ export default function WishlistPage() {
     category_name: '',
     category_slug: '',
     is_featured: false,
+    specs: null,
     description: '',
     created_at: item.created_at,
     updated_at: item.created_at,

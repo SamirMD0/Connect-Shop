@@ -47,7 +47,9 @@ async function main(): Promise<void> {
     await connectDB();
 
     // 2. Run schema + seed (idempotent)
-    // await initializeDatabase(); // Disabled by user request to prevent auto-seeding on restart
+    if (process.env.INITIALIZE_DATABASE === 'true') {
+      await initializeDatabase();
+    }
 
     // 3. Start HTTP server
     const server = app.listen(env.PORT, () => {

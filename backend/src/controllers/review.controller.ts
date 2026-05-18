@@ -1,7 +1,6 @@
 // backend/src/controllers/review.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import { ReviewService } from '../services/review.service';
-import { AppError } from '../utils/errors';
 
 export const getProductReviews = async (req: Request, res: Response, next: NextFunction) => {
   try {

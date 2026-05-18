@@ -1,14 +1,26 @@
 // backend/src/controllers/auth.controller.ts
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, CookieOptions } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env';
 import {
   upsertUser,
   createSession,
   destroySession,
+  destroyAllUserSessions,
   GoogleProfile,
+  getUserSessions,
+  revokeUserSession,
+  revokeAllUserSessions,
+  registerWithPassword,
+  loginWithPassword,
+  verifyEmailToken,
+  requestPasswordReset,
+  resetPassword,
 } from '../services/auth.service';
-import { AppError } from '../utils/errors';
+import { AppError, ForbiddenError, NotFoundError } from '../utils/errors';
+import { generateBrowserToken } from '../utils/crypto';
+import { issueCsrfToken } from '../middleware/csrf';
+import { createMfaSetup, verifyMfaCode } from '../services/mfa.service';
 
 const oauthClient = new OAuth2Client(
   env.GOOGLE_CLIENT_ID,
@@ -18,8 +30,19 @@ const oauthClient = new OAuth2Client(
 
 // Cookie configuration
 const COOKIE_NAME = 'elecshop_session';
+const OAUTH_STATE_COOKIE_NAME = 'elecshop_oauth_state';
+const OAUTH_STATE_MAX_AGE = 10 * 60 * 1000;
 
-function getSessionCookieOptions() {
+function getClientIp(req: Request): string | undefined {
+  const forwardedFor = req.headers['x-forwarded-for'];
+  if (typeof forwardedFor === 'string') {
+    return forwardedFor.split(',')[0].trim();
+  }
+
+  return req.ip;
+}
+
+function getSessionCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
     secure: env.NODE_ENV === 'production',
@@ -30,13 +53,29 @@ function getSessionCookieOptions() {
   };
 }
 
+function getOAuthStateCookieOptions(): CookieOptions {
+  return {
+    httpOnly: true,
+    secure: env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: OAUTH_STATE_MAX_AGE,
+    path: '/',
+    signed: true,
+  };
+}
+
 /**
  * GET /api/auth/google
  * Redirect user to Google OAuth consent screen.
  */
 export async function googleLogin(_req: Request, res: Response): Promise<void> {
+  const state = generateBrowserToken();
+
+  res.cookie(OAUTH_STATE_COOKIE_NAME, state, getOAuthStateCookieOptions());
+
   const authorizeUrl = oauthClient.generateAuthUrl({
     access_type: 'offline',
+    state,
     scope: [
       'https://www.googleapis.com/auth/userinfo.profile',
       'https://www.googleapis.com/auth/userinfo.email',
@@ -45,6 +84,32 @@ export async function googleLogin(_req: Request, res: Response): Promise<void> {
   });
 
   res.redirect(authorizeUrl);
+}
+
+function assertPassword(password: unknown): string {
+  if (typeof password !== 'string' || password.length < 8 || password.length > 128) {
+    throw new AppError('Password must be between 8 and 128 characters', 400);
+  }
+
+  return password;
+}
+
+function assertEmail(email: unknown): string {
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    throw new AppError('Valid email is required', 400);
+  }
+
+  return email;
+}
+
+async function setSessionForUser(req: Request, res: Response, userId: string): Promise<void> {
+  await destroyAllUserSessions(userId);
+  const sessionToken = await createSession(userId, {
+    userAgent: req.get('user-agent'),
+    ipAddress: getClientIp(req),
+  });
+
+  res.cookie(COOKIE_NAME, sessionToken, getSessionCookieOptions());
 }
 
 /**
@@ -59,10 +124,29 @@ export async function googleCallback(
 ): Promise<void> {
   try {
     const { code } = req.query;
+    const state = req.query.state;
+    const expectedState = req.signedCookies?.[OAUTH_STATE_COOKIE_NAME];
 
     if (!code || typeof code !== 'string') {
       throw new AppError('Missing authorization code', 400);
     }
+
+    if (!state || typeof state !== 'string' || !expectedState || state !== expectedState) {
+      res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
+        httpOnly: true,
+        secure: env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
+      throw new AppError('Invalid OAuth state', 400);
+    }
+
+    res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
+      httpOnly: true,
+      secure: env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
 
     // Exchange authorization code for tokens
     const { tokens } = await oauthClient.getToken(code);
@@ -93,14 +177,103 @@ export async function googleCallback(
     // Upsert user in database
     const user = await upsertUser(profile);
 
-    // Create a session
-    const sessionToken = await createSession(user.id);
-
-    // Set secure httpOnly cookie
-    res.cookie(COOKIE_NAME, sessionToken, getSessionCookieOptions());
+    await setSessionForUser(req, res, user.id);
 
     // Redirect to frontend
     res.redirect(`${env.FRONTEND_URL}/auth/callback?success=true`);
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function register(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const email = assertEmail(req.body.email);
+    const password = assertPassword(req.body.password);
+    const name = typeof req.body.name === 'string' ? req.body.name.trim() : '';
+
+    if (!name || name.length > 255) {
+      throw new AppError('Name is required and must be under 255 characters', 400);
+    }
+
+    const user = await registerWithPassword({
+      email,
+      password,
+      name,
+      phone: typeof req.body.phone === 'string' ? req.body.phone : undefined,
+    });
+
+    await setSessionForUser(req, res, user.id);
+
+    res.status(201).json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarUrl: user.avatar_url,
+        role: user.role,
+        phone: user.phone || null,
+        emailVerified: Boolean(user.email_verified_at),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const user = await loginWithPassword(assertEmail(req.body.email), assertPassword(req.body.password));
+    await setSessionForUser(req, res, user.id);
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        avatarUrl: user.avatar_url,
+        role: user.role,
+        phone: user.phone || null,
+        emailVerified: Boolean(user.email_verified_at),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function verifyEmail(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const token = typeof req.body.token === 'string' ? req.body.token : '';
+    if (!token) throw new AppError('Verification token is required', 400);
+
+    const verified = await verifyEmailToken(token);
+    if (!verified) throw new AppError('Invalid or expired verification token', 400);
+
+    res.json({ success: true, message: 'Email verified' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await requestPasswordReset(assertEmail(req.body.email));
+    res.json({ success: true, message: 'If an account exists, a reset link has been sent' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function handleResetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const token = typeof req.body.token === 'string' ? req.body.token : '';
+    if (!token) throw new AppError('Reset token is required', 400);
+
+    await resetPassword(token, assertPassword(req.body.password));
+    res.json({ success: true, message: 'Password reset successfully' });
   } catch (err) {
     next(err);
   }
@@ -127,8 +300,109 @@ export async function getMe(req: Request, res: Response): Promise<void> {
       name: user.name,
       avatarUrl: user.avatar_url,
       role: user.role,
+      phone: user.phone || null,
+      emailVerified: Boolean(user.email_verified_at),
+      mfaEnabled: Boolean(user.mfa_enabled),
+      mfaVerified: Boolean(user.mfa_verified_at),
     },
   });
+}
+
+/**
+ * GET /api/auth/csrf
+ * Issue a CSRF token for unsafe cookie-authenticated requests.
+ */
+export async function getCsrfToken(_req: Request, res: Response): Promise<void> {
+  const csrfToken = issueCsrfToken(res);
+
+  res.json({
+    success: true,
+    csrfToken,
+  });
+}
+
+/**
+ * GET /api/auth/sessions
+ * List the authenticated user's active sessions.
+ */
+export async function listSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const sessions = await getUserSessions(req.user!.id, req.user!.session_id);
+    res.json({ success: true, sessions });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * DELETE /api/auth/sessions/:id
+ * Revoke one active session for the authenticated user.
+ */
+export async function revokeSession(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const revoked = await revokeUserSession(req.user!.id, req.params.id);
+    if (!revoked) throw new NotFoundError('Session');
+    res.json({ success: true, message: 'Session revoked' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * DELETE /api/auth/sessions
+ * Revoke every active session for the authenticated user.
+ */
+export async function revokeAllSessions(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const revokedCount = await revokeAllUserSessions(req.user!.id);
+    res.json({ success: true, revokedCount });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/auth/mfa/setup
+ * Generate or return an admin user's TOTP setup secret.
+ */
+export async function setupMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (req.user!.role !== 'admin') {
+      throw new ForbiddenError('MFA setup is only required for admin accounts');
+    }
+
+    if (req.user!.mfa_enabled) {
+      throw new ForbiddenError('MFA is already configured for this account');
+    }
+
+    const setup = await createMfaSetup(req.user!.id);
+    res.json({ success: true, ...setup });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /api/auth/mfa/verify
+ * Verify a TOTP code and mark the current session as MFA-verified.
+ */
+export async function verifyMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const code = typeof req.body.code === 'string' ? req.body.code.trim() : '';
+
+    if (!/^\d{6}$/.test(code)) {
+      throw new AppError('MFA code must be 6 digits', 400);
+    }
+
+    const verified = await verifyMfaCode(req.user!.id, req.user!.session_id!, code);
+    if (!verified) {
+      throw new ForbiddenError('Invalid MFA code');
+    }
+
+    res.json({ success: true, message: 'MFA verified' });
+  } catch (err) {
+    next(err);
+  }
 }
 
 /**

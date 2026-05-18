@@ -14,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS "pg_trgm"; -- For full-text search on product nam
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS users (
   id          UUID         PRIMARY KEY DEFAULT uuid_generate_v4(),
-  google_id   VARCHAR(255) NOT NULL UNIQUE,
+  google_id   VARCHAR(255) UNIQUE,
   email       VARCHAR(255) NOT NULL UNIQUE,
   name        VARCHAR(255) NOT NULL,
   avatar_url  TEXT,
@@ -26,6 +26,16 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE INDEX IF NOT EXISTS idx_users_google_id ON users (google_id);
 CREATE INDEX IF NOT EXISTS idx_users_email     ON users (email);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_secret TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_confirmed_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone VARCHAR(30);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMPTZ;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ;
+
+ALTER TABLE users ALTER COLUMN google_id DROP NOT NULL;
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -39,9 +49,79 @@ CREATE TABLE IF NOT EXISTS sessions (
   created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS user_agent TEXT;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS ip_address INET;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS revoked_at TIMESTAMPTZ;
+ALTER TABLE sessions ADD COLUMN IF NOT EXISTS mfa_verified_at TIMESTAMPTZ;
+
 CREATE INDEX IF NOT EXISTS idx_sessions_token      ON sessions (token);
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id    ON sessions (user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions (expires_at);
+CREATE INDEX IF NOT EXISTS idx_sessions_revoked_at ON sessions (revoked_at);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- admin_audit_logs
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS admin_audit_logs (
+  id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  actor_id     UUID        REFERENCES users (id) ON DELETE SET NULL,
+  action       VARCHAR(20) NOT NULL,
+  target_type  VARCHAR(100) NOT NULL,
+  target_id    TEXT,
+  request_id   TEXT,
+  ip_address   INET,
+  user_agent   TEXT,
+  status_code  INTEGER,
+  payload      JSONB,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_admin_audit_actor_id ON admin_audit_logs (actor_id);
+CREATE INDEX IF NOT EXISTS idx_admin_audit_created_at ON admin_audit_logs (created_at DESC);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- email/password auth tokens
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS auth_tokens (
+  id          UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     UUID        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  token_hash  TEXT        NOT NULL UNIQUE,
+  purpose     VARCHAR(30) NOT NULL CHECK (purpose IN ('email_verification', 'password_reset')),
+  expires_at  TIMESTAMPTZ NOT NULL,
+  used_at     TIMESTAMPTZ,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_user_id ON auth_tokens (user_id);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_purpose ON auth_tokens (purpose);
+CREATE INDEX IF NOT EXISTS idx_auth_tokens_expires_at ON auth_tokens (expires_at);
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- user_addresses
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS user_addresses (
+  id              UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id          UUID        NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  label            VARCHAR(80) NOT NULL DEFAULT 'Home',
+  recipient_name   VARCHAR(200) NOT NULL,
+  phone            VARCHAR(30) NOT NULL,
+  address_line1    TEXT NOT NULL,
+  address_line2    TEXT,
+  city             VARCHAR(120) NOT NULL,
+  state            VARCHAR(120),
+  zip_code         VARCHAR(30),
+  country          VARCHAR(120) NOT NULL DEFAULT 'Lebanon',
+  notes            TEXT,
+  is_default       BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_addresses_user_id ON user_addresses (user_id);
 
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -185,6 +265,14 @@ BEGIN
   ) THEN
     CREATE TRIGGER set_products_updated_at
       BEFORE UPDATE ON products
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'set_user_addresses_updated_at'
+  ) THEN
+    CREATE TRIGGER set_user_addresses_updated_at
+      BEFORE UPDATE ON user_addresses
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   END IF;
 END;

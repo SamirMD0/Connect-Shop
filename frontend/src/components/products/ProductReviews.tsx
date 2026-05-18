@@ -152,7 +152,7 @@ export function ProductReviews({ productId }: { productId: string }) {
                     </p>
                   </div>
                 </div>
-                <RatingStars rating={review.rating} reviewCount={0} showCount={false} />
+                <RatingStars rating={review.rating} />
               </div>
               {review.title && <h4 className="font-semibold text-text-primary mb-2">{review.title}</h4>}
               {review.body && <p className="text-text-muted leading-relaxed">{review.body}</p>}

@@ -10,6 +10,7 @@ import { logger } from './utils/logger';
 import { corsOptions } from './config/cors';
 import { env } from './config/env';
 import { generalLimiter } from './middleware/rateLimiter';
+import { csrfProtection } from './middleware/csrf';
 import { errorHandler } from './utils/errors';
 
 // Route imports
@@ -22,6 +23,7 @@ import carouselRoutes from './routes/carousel.routes';
 import categoriesRoutes from './routes/categories.routes';
 import reviewRoutes from './routes/review.routes';
 import wishlistRoutes from './routes/wishlist.routes';
+import usersRoutes from './routes/users.routes';
 
 const app = express();
 
@@ -34,7 +36,7 @@ app.use(generalLimiter);                    // Rate limiting (100/15min)
 app.use(pinoHttp({
   logger,
   genReqId: function (req, res) {
-    const id = req.id || req.headers['x-request-id'] || uuidv4();
+    const id = String(req.id || req.headers['x-request-id'] || uuidv4());
     res.setHeader('X-Request-ID', id);
     return id;
   }
@@ -45,6 +47,7 @@ app.use(express.json({ limit: '10kb' }));   // Limit body size to prevent abuse
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(cookieParser(env.SESSION_SECRET));  // Signed cookies
 app.use(xss());                             // Sanitize data against XSS
+app.use(csrfProtection);                    // CSRF protection for unsafe cookie-authenticated requests
 
 // ─── Health Check ────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
@@ -66,6 +69,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/carousel', carouselRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
+app.use('/api/v1/users', usersRoutes);
 
 // ─── 404 Handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

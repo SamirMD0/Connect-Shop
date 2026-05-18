@@ -1,5 +1,5 @@
 // backend/src/services/review.service.ts
-import { db } from '../db';
+import { pool as db } from '../config/db';
 import { NotFoundError, ConflictError } from '../utils/errors';
 
 export interface Review {

@@ -2,6 +2,8 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { isAdmin } from '../middleware/admin';
+import { requireAdminMfa } from '../middleware/mfa';
+import { adminAudit } from '../middleware/adminAudit';
 import { validate, adminProductRules, adminCategoryRules, adminOrderStatusRules } from '../middleware/validate';
 import * as adminController from '../controllers/admin.controller';
 
@@ -10,6 +12,8 @@ const router = Router();
 // Apply auth and admin check to all admin routes
 router.use(requireAuth);
 router.use(isAdmin);
+router.use(requireAdminMfa);
+router.use(adminAudit);
 
 // Analytics
 router.get('/analytics/monthly-revenue', adminController.getAnalytics);

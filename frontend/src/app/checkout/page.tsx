@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
-import { ShippingAddress, Order } from '@/lib/types';
+import { ShippingAddress, Order, UserAddress } from '@/lib/types';
 import DOMPurify from 'dompurify';
 import { z } from 'zod';
 import { CheckCircle2, ShoppingBag, Package, ArrowLeft, Lock } from 'lucide-react';
@@ -36,6 +36,8 @@ export default function CheckoutPage() {
 
   const [placing, setPlacing] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState<Order | null>(null);
+  const [addresses, setAddresses] = useState<UserAddress[]>([]);
+  const [saveAddress, setSaveAddress] = useState(false);
   const [form, setForm] = useState<ShippingAddress & { paymentMethod: 'cod' | 'bank_transfer' }>({
     fullName: '',
     phone: '',
@@ -54,6 +56,13 @@ export default function CheckoutPage() {
       router.replace('/');
     }
   }, [user, authLoading, router]);
+
+  useEffect(() => {
+    if (!user) return;
+    api.get<{ success: boolean; addresses: UserAddress[] }>('/api/users/me/addresses')
+      .then((res) => setAddresses(res.addresses))
+      .catch(() => setAddresses([]));
+  }, [user]);
 
   if (authLoading) {
     return (
@@ -75,6 +84,23 @@ export default function CheckoutPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const applyAddress = (addressId: string) => {
+    const address = addresses.find((item) => item.id === addressId);
+    if (!address) return;
+
+    setForm((prev) => ({
+      ...prev,
+      fullName: address.recipient_name,
+      phone: address.phone,
+      addressLine1: address.address_line1,
+      addressLine2: address.address_line2 || '',
+      city: address.city,
+      state: address.state || '',
+      zipCode: address.zip_code || '',
+      country: address.country,
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -117,6 +143,20 @@ export default function CheckoutPage() {
         }
       );
       setOrderPlaced(res.order);
+      if (saveAddress) {
+        await api.post('/api/users/me/addresses', {
+          label: 'Checkout',
+          recipientName: validation.data.fullName,
+          phone: validation.data.phone,
+          addressLine1: validation.data.addressLine1,
+          addressLine2: validation.data.addressLine2,
+          city: validation.data.city,
+          state: validation.data.state,
+          zipCode: validation.data.zipCode,
+          country: validation.data.country,
+          isDefault: addresses.length === 0,
+        });
+      }
       clearCart();
       addToast('Order placed successfully!', 'success');
     } catch {
@@ -200,6 +240,19 @@ export default function CheckoutPage() {
               <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-6 shadow-lg">
                 <h2 className="text-lg font-bold text-text-primary mb-6">Shipping Address</h2>
                 <div className="space-y-5">
+                  {addresses.length > 0 && (
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">Saved Address</label>
+                      <select className="input-field" defaultValue="" onChange={(event) => applyAddress(event.target.value)}>
+                        <option value="">Use a saved address</option>
+                        {addresses.map((address) => (
+                          <option key={address.id} value={address.id}>
+                            {address.label} - {address.address_line1}, {address.city}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-text-primary mb-2">Full Name *</label>
@@ -290,6 +343,10 @@ export default function CheckoutPage() {
                       readOnly 
                     />
                   </div>
+                  <label className="flex items-center gap-2 text-sm text-text-muted">
+                    <input type="checkbox" checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />
+                    Save this address to my account
+                  </label>
                 </div>
 
                 <div className="mt-8">

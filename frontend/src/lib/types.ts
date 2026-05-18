@@ -5,6 +5,27 @@ export interface User {
   name: string;
   avatarUrl: string | null;
   role: string;
+  phone?: string | null;
+  emailVerified?: boolean;
+  mfaEnabled?: boolean;
+  mfaVerified?: boolean;
+}
+
+export interface UserAddress {
+  id: string;
+  label: string;
+  recipient_name: string;
+  phone: string;
+  address_line1: string;
+  address_line2: string | null;
+  city: string;
+  state: string | null;
+  zip_code: string | null;
+  country: string;
+  notes: string | null;
+  is_default: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 // ─── Category ────────────────────────────────────────────────────────────────
@@ -143,4 +164,3 @@ export interface CarouselSlide {
   display_order: number;
   is_active: boolean;
 }
-

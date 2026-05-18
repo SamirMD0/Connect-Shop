@@ -1,6 +1,5 @@
 // backend/src/utils/errors.ts
 import { Request, Response, NextFunction } from 'express';
-import { ZodError } from 'zod';
 import { logger } from './logger';
 
 // ─── Custom Error Classes ────────────────────────────────────────────────────

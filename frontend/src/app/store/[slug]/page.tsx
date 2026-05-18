@@ -10,7 +10,7 @@ import { AddToCartClient } from '@/components/products/AddToCartClient';
 import { ProductReviews } from '@/components/products/ProductReviews';
 import { api } from '@/lib/api';
 import { Product } from '@/lib/types';
-import { ChevronRight, Truck, Shield, RotateCcw, Share2, Facebook, Twitter, MessageCircle } from 'lucide-react';
+import { ChevronRight, Truck, Shield, RotateCcw, Share2, MessageCircle } from 'lucide-react';
 
 interface Props {
   params: Promise<{ slug: string }>;
@@ -191,10 +191,10 @@ export default async function ProductDetailPage({ params }: Props) {
               </span>
               <div className="flex gap-2">
                 <a href={`https://www.facebook.com/sharer/sharer.php?u=https://elecshop.com/store/${product.slug}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1877F2] hover:text-white transition-colors" aria-label="Share on Facebook">
-                  <Facebook className="w-4 h-4" />
+                  <span className="text-sm font-bold" aria-hidden="true">f</span>
                 </a>
                 <a href={`https://twitter.com/intent/tweet?url=https://elecshop.com/store/${product.slug}&text=Check out this ${product.name}!`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1DA1F2] hover:text-white transition-colors" aria-label="Share on Twitter">
-                  <Twitter className="w-4 h-4" />
+                  <span className="text-xs font-bold" aria-hidden="true">X</span>
                 </a>
                 <a href={`https://wa.me/?text=Check out this ${product.name}! https://elecshop.com/store/${product.slug}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-colors" aria-label="Share on WhatsApp">
                   <MessageCircle className="w-4 h-4" />
