@@ -5,6 +5,14 @@ import { useState } from 'react';
 import { Container } from '@/components/layout/Container';
 import { Button } from '@/components/ui/Button';
 import { api, ApiError } from '@/lib/api';
+import { z } from 'zod';
+
+const registerSchema = z.object({
+  name: z.string().trim().min(1, 'Full name is required').max(255),
+  email: z.string().trim().email('Enter a valid email address').max(255),
+  phone: z.string().trim().max(30, 'Phone must be under 30 characters').optional().or(z.literal('')),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+});
 
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
@@ -17,7 +25,13 @@ export default function RegisterPage() {
     setError('');
 
     try {
-      await api.post('/api/auth/register', form);
+      const validation = registerSchema.safeParse(form);
+      if (!validation.success) {
+        setError(validation.error.issues[0].message);
+        return;
+      }
+
+      await api.post('/api/auth/register', validation.data);
       window.location.href = '/account';
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Registration failed');

@@ -6,6 +6,12 @@ import { Container } from '@/components/layout/Container';
 import { Button } from '@/components/ui/Button';
 import { LoginButton } from '@/components/auth/LoginButton';
 import { api, ApiError } from '@/lib/api';
+import { z } from 'zod';
+
+const loginSchema = z.object({
+  email: z.string().trim().email('Enter a valid email address').max(255),
+  password: z.string().min(8, 'Password must be at least 8 characters').max(128),
+});
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -19,7 +25,13 @@ export default function LoginPage() {
     setError('');
 
     try {
-      await api.post('/api/auth/login', { email, password });
+      const validation = loginSchema.safeParse({ email, password });
+      if (!validation.success) {
+        setError(validation.error.issues[0].message);
+        return;
+      }
+
+      await api.post('/api/auth/login', validation.data);
       window.location.href = '/store';
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Login failed');

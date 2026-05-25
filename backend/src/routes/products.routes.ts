@@ -1,7 +1,9 @@
 // backend/src/routes/products.routes.ts
 import { Router } from 'express';
 import { list, featured, getBySlug, listCategories } from '../controllers/products.controller';
-import { productQueryRules, productSlugRules, validate } from '../middleware/validate';
+import { listQuestions, createQuestion } from '../controllers/productQuestions.controller';
+import { requireAuth } from '../middleware/auth';
+import { productQueryRules, productSlugRules, productQuestionRules, validate } from '../middleware/validate';
 
 const router = Router();
 
@@ -11,6 +13,8 @@ router.get('/categories', listCategories);
 // Products
 router.get('/featured', featured);
 router.get('/', ...productQueryRules, validate, list);
+router.get('/:slug/questions', ...productSlugRules, validate, listQuestions);
+router.post('/:slug/questions', requireAuth, ...productSlugRules, ...productQuestionRules, validate, createQuestion);
 router.get('/:slug', ...productSlugRules, validate, getBySlug);
 
 export default router;

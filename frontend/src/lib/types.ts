@@ -34,10 +34,33 @@ export interface Category {
   name: string;
   slug: string;
   image_url: string | null;
+  parent_id: number | null;
+  depth: number;
   product_count?: number;
 }
 
 // ─── Product ─────────────────────────────────────────────────────────────────
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  sku: string;
+  name: string;
+  price: string;
+  stock: number;
+  attributes: Record<string, any>;
+  image_url: string | null;
+  created_at: string;
+}
+
+export interface ProductImage {
+  id: number;
+  product_id: string;
+  image_url: string;
+  alt_text: string | null;
+  sort_order: number;
+  is_primary: boolean;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -53,6 +76,14 @@ export interface Product {
   review_count: number;
   is_featured: boolean;
   specs: Record<string, string> | null;
+  brand: string | null;
+  sku: string | null;
+  compare_at_price: string | null;
+  weight_grams: number | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  variants?: ProductVariant[];
+  gallery_images?: ProductImage[];
   created_at: string;
   updated_at: string;
 }
@@ -70,12 +101,14 @@ export interface CartItem {
   id: number;
   user_id: string;
   product_id: string;
+  variant_id?: string | null;
   quantity: number;
   name: string;
   slug: string;
   price: string;
   image_url: string | null;
   stock: number;
+  variant_name?: string | null;
   created_at: string;
 }
 
@@ -88,7 +121,9 @@ export interface Cart {
 // Guest cart item (stored in localStorage)
 export interface GuestCartItem {
   product_id: string;
+  variant_id?: string | null;
   quantity: number;
+  expires_at?: string;
 }
 
 // ─── Order ───────────────────────────────────────────────────────────────────
@@ -107,24 +142,40 @@ export interface OrderItem {
   id: number;
   order_id: string;
   product_id: string;
+  variant_id?: string | null;
   quantity: number;
   price_at_purchase: string;
   name?: string;
   slug?: string;
   image_url?: string | null;
+  variant_name?: string | null;
 }
 
 export interface Order {
   id: string;
-  user_id: string;
+  user_id: string | null;
+  guest_email?: string | null;
   status: 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  subtotal?: string;
+  tax_amount?: string;
+  shipping_cost?: string;
+  discount_amount?: string;
+  coupon_code?: string | null;
+  tracking_carrier?: string | null;
+  tracking_number?: string | null;
+  tracking_url?: string | null;
+  estimated_delivery_date?: string | null;
+  cancelled_at?: string | null;
   total: string;
   shipping_address: ShippingAddress;
   payment_method: string;
   payment_status: string;
+  delivery_slot?: string | null;
   created_at: string;
   items?: OrderItem[];
   item_count?: number;
+  status_history?: Array<{ id: number; status: string; note: string | null; created_at: string }>;
+  return_requests?: Array<{ id: string; reason: string; status: string; created_at: string }>;
 }
 
 // ─── API Responses ───────────────────────────────────────────────────────────

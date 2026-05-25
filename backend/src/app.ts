@@ -11,6 +11,7 @@ import { corsOptions } from './config/cors';
 import { env } from './config/env';
 import { generalLimiter } from './middleware/rateLimiter';
 import { csrfProtection } from './middleware/csrf';
+import { sanitizeInput } from './middleware/sanitize';
 import { errorHandler } from './utils/errors';
 
 // Route imports
@@ -46,6 +47,7 @@ app.use(pinoHttp({
 app.use(express.json({ limit: '10kb' }));   // Limit body size to prevent abuse
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(cookieParser(env.SESSION_SECRET));  // Signed cookies
+app.use(sanitizeInput);                      // Normalize and strip control characters from all input
 app.use(xss());                             // Sanitize data against XSS
 app.use(csrfProtection);                    // CSRF protection for unsafe cookie-authenticated requests
 

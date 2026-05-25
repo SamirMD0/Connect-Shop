@@ -18,6 +18,7 @@ export default function AdminCategories() {
     name: '',
     slug: '',
     image_url: '',
+    parent_id: '',
   });
 
   const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,10 +57,11 @@ export default function AdminCategories() {
         name: category.name,
         slug: category.slug,
         image_url: category.image_url || '',
+        parent_id: category.parent_id?.toString() || '',
       });
     } else {
       setEditingCategory(null);
-      setFormData({ name: '', slug: '', image_url: '' });
+      setFormData({ name: '', slug: '', image_url: '', parent_id: '' });
     }
     setIsModalOpen(true);
   };
@@ -67,10 +69,15 @@ export default function AdminCategories() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        image_url: formData.image_url.trim() || null,
+        parent_id: formData.parent_id ? parseInt(formData.parent_id, 10) : null,
+      };
       if (editingCategory) {
-        await api.put(`/api/admin/categories/${editingCategory.id}`, formData);
+        await api.put(`/api/admin/categories/${editingCategory.id}`, payload);
       } else {
-        await api.post('/api/admin/categories', formData);
+        await api.post('/api/admin/categories', payload);
       }
       setIsModalOpen(false);
       fetchCategories();
@@ -104,6 +111,7 @@ export default function AdminCategories() {
     )},
     { header: 'Name', accessorKey: 'name' as keyof Category },
     { header: 'Slug', cell: (c: Category) => <span className="text-slate-400">/{c.slug}</span> },
+    { header: 'Depth', cell: (c: Category) => <span className="text-slate-400">{c.depth}</span> },
     { header: 'Products', cell: (c: Category) => (
       <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-[#1e293b] text-slate-300">
         {c.product_count || 0}
@@ -186,6 +194,19 @@ export default function AdminCategories() {
               value={formData.image_url} 
               onChange={e => setFormData({...formData, image_url: e.target.value})} 
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-300 mb-2">Parent Category</label>
+            <select
+              className={inputClasses}
+              value={formData.parent_id}
+              onChange={e => setFormData({...formData, parent_id: e.target.value})}
+            >
+              <option value="">None</option>
+              {categories
+                .filter(c => c.id !== editingCategory?.id)
+                .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
           </div>
           <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-[#1e293b]">
             <button 

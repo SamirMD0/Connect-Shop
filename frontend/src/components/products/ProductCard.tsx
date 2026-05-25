@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Product } from '@/lib/types';
@@ -7,7 +8,7 @@ import { RatingStars } from './RatingStars';
 import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/useToast';
-import { Heart, Plus, ShoppingCart } from 'lucide-react';
+import { Heart, Plus, Scale, ShoppingCart } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -21,7 +22,24 @@ export function ProductCard({ product }: ProductCardProps) {
   const price = parseFloat(product.price);
   const rating = parseFloat(product.rating);
   const isNew = new Date(product.created_at).getTime() > Date.now() - 14 * 24 * 60 * 60 * 1000;
+  const isBestseller = product.review_count >= 10 && rating >= 4;
   const wishlisted = isInWishlist(product.id);
+  const [isCompared, setIsCompared] = useState(false);
+
+  useEffect(() => {
+    const syncCompareState = () => {
+      try {
+        const ids = JSON.parse(localStorage.getItem('compare_products') || '[]') as string[];
+        setIsCompared(ids.includes(product.id));
+      } catch {
+        setIsCompared(false);
+      }
+    };
+
+    syncCompareState();
+    window.addEventListener('compare-products-updated', syncCompareState);
+    return () => window.removeEventListener('compare-products-updated', syncCompareState);
+  }, [product.id]);
 
   const handleWishlist = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -43,6 +61,24 @@ export function ProductCard({ product }: ProductCardProps) {
       addToast(`${product.name} added to cart`, 'success');
     } catch {
       addToast('Failed to add to cart', 'error');
+    }
+  };
+
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    try {
+      const ids = JSON.parse(localStorage.getItem('compare_products') || '[]') as string[];
+      const next = ids.includes(product.id)
+        ? ids.filter(id => id !== product.id)
+        : [product.id, ...ids].slice(0, 4);
+      localStorage.setItem('compare_products', JSON.stringify(next));
+      setIsCompared(next.includes(product.id));
+      window.dispatchEvent(new Event('compare-products-updated'));
+      addToast(next.includes(product.id) ? 'Added to comparison' : 'Removed from comparison', 'success');
+    } catch {
+      addToast('Could not update comparison', 'error');
     }
   };
 
@@ -81,6 +117,17 @@ export function ProductCard({ product }: ProductCardProps) {
                 New
               </span>
             )}
+            {/* Sale Badge */}
+            {product.compare_at_price && parseFloat(product.compare_at_price) > price && (
+              <span className="bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-red-500/25">
+                Sale
+              </span>
+            )}
+            {isBestseller && (
+              <span className="bg-amber-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-amber-500/25">
+                Bestseller
+              </span>
+            )}
           </div>
 
           {/* Wishlist Button */}
@@ -90,6 +137,13 @@ export function ProductCard({ product }: ProductCardProps) {
             aria-label={`Add ${product.name} to wishlist`}
           >
             <Heart className={`w-4 h-4 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+          </button>
+          <button
+            onClick={handleCompare}
+            className="absolute top-12 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm shadow flex items-center justify-center text-slate-400 hover:text-accent transition-all duration-200"
+            aria-label={`Compare ${product.name}`}
+          >
+            <Scale className={`w-4 h-4 ${isCompared ? 'fill-accent text-accent' : ''}`} />
           </button>
           
           {/* Out of Stock Overlay */}
@@ -114,7 +168,15 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Info */}
         <div className="p-4 flex flex-col flex-1">
-          <p className="text-xs font-medium text-accent mb-1.5">{product.category_name}</p>
+          <div className="flex items-center gap-2 mb-1.5">
+            {product.brand && (
+              <>
+                <span className="text-xs font-bold text-text-primary">{product.brand}</span>
+                <span className="text-slate-300 text-[10px]">•</span>
+              </>
+            )}
+            <p className="text-xs font-medium text-accent">{product.category_name}</p>
+          </div>
           <h3 className="text-sm font-semibold text-text-primary line-clamp-2 group-hover:text-accent transition-colors leading-snug">
             {product.name}
           </h3>
@@ -124,9 +186,16 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
 
           <div className="flex items-center justify-between mt-auto pt-4">
-            <span className="text-lg font-bold text-text-primary">
-              ${price.toFixed(2)}
-            </span>
+            <div className="flex flex-col">
+              <span className="text-lg font-bold text-text-primary">
+                ${price.toFixed(2)}
+              </span>
+              {product.compare_at_price && parseFloat(product.compare_at_price) > price && (
+                <span className="text-xs text-text-muted line-through">
+                  ${parseFloat(product.compare_at_price).toFixed(2)}
+                </span>
+              )}
+            </div>
             <button
               onClick={handleAddToCart}
               disabled={product.stock === 0}

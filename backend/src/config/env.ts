@@ -21,6 +21,10 @@ const envSchema = z.object({
     .refine((url) => url.startsWith('postgresql://') || url.startsWith('postgres://'), {
       message: 'DATABASE_URL must be a valid PostgreSQL connection string',
     }),
+  DB_STATEMENT_TIMEOUT_MS: z
+    .string()
+    .default('10000')
+    .transform((v) => parseInt(v, 10)),
 
   // Session
   SESSION_SECRET: z
@@ -36,7 +40,7 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL'),
 
   // Redis
-  REDIS_URL: z.string().url().default('redis://localhost:6379'),
+  REDIS_URL: z.string().url().optional(),
 
   // Cookie
   COOKIE_MAX_AGE: z

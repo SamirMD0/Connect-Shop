@@ -2,16 +2,17 @@
 
 import Link from 'next/link';
 import { useCart } from '@/hooks/useCart';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
 import { Truck, ShieldCheck, ArrowRight } from 'lucide-react';
 
 export function CartSummary() {
   const { itemCount, subtotal } = useCart();
-  const { user } = useAuth();
 
   const subtotalNum = parseFloat(subtotal) || 0;
-  const freeShippingThreshold = 50;
+  const freeShippingThreshold = 150;
+  const estimatedShipping = subtotalNum >= freeShippingThreshold || subtotalNum === 0 ? 0 : 4;
+  const estimatedTax = Math.round(subtotalNum * 0.11 * 100) / 100;
+  const estimatedTotal = (subtotalNum + estimatedShipping + estimatedTax).toFixed(2);
   const progressPercent = Math.min((subtotalNum / freeShippingThreshold) * 100, 100);
   const amountToFreeShipping = Math.max(freeShippingThreshold - subtotalNum, 0);
 
@@ -50,35 +51,30 @@ export function CartSummary() {
           <span className="text-text-primary font-medium">${subtotal}</span>
         </div>
         <div className="flex justify-between text-text-muted">
+          <span>Tax estimate</span>
+          <span className="text-text-primary font-medium">${estimatedTax.toFixed(2)}</span>
+        </div>
+        <div className="flex justify-between text-text-muted">
           <span>Shipping</span>
-          <span className="text-success font-medium">Free</span>
+          <span className="text-text-primary font-medium">${estimatedShipping.toFixed(2)}</span>
         </div>
         <div className="border-t border-slate-200 pt-4 flex justify-between font-bold text-text-primary text-lg">
           <span>Total</span>
-          <span>${subtotal}</span>
+          <span>${estimatedTotal}</span>
         </div>
       </div>
 
-      {user ? (
-        <Link href="/checkout" className="block mt-6">
-          <Button 
-            variant="primary" 
-            size="lg"
-            className="w-full shadow-lg shadow-accent/25"
-            disabled={itemCount === 0}
-          >
-            Proceed to Checkout
-            <ArrowRight className="w-4 h-4 ml-1" />
-          </Button>
-        </Link>
-      ) : (
-        <div className="mt-6 p-4 bg-slate-50 rounded-xl text-center">
-          <p className="text-sm text-text-muted mb-2">Sign in to checkout</p>
-          <Link href="/auth/login" className="text-sm font-medium text-accent hover:text-accent-glow transition-colors">
-            Sign in or create account
-          </Link>
-        </div>
-      )}
+      <Link href="/checkout" className="block mt-6">
+        <Button 
+          variant="primary" 
+          size="lg"
+          className="w-full shadow-lg shadow-accent/25"
+          disabled={itemCount === 0}
+        >
+          Proceed to Checkout
+          <ArrowRight className="w-4 h-4 ml-1" />
+        </Button>
+      </Link>
     </div>
   );
 }

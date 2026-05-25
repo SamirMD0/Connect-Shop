@@ -1,0 +1,10 @@
+{
+  "mssql.intelliSense.enableErrorChecking": false,
+  "cSpell.words": [
+    "Elec",
+    "ossp",
+    "plpgsql",
+    "tgname",
+    "trgm"
+  ]
+}

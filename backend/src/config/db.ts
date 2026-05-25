@@ -9,6 +9,7 @@ export const pool = new Pool({
   max: 20,               // Maximum pool size
   idleTimeoutMillis: 30_000,  // Close idle clients after 30s
   connectionTimeoutMillis: 5_000, // Fail fast if a connection can't be acquired
+  statement_timeout: env.DB_STATEMENT_TIMEOUT_MS,
 });
 
 // Log pool errors to prevent unhandled rejections

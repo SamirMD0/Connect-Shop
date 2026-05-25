@@ -1,6 +1,15 @@
 // backend/src/controllers/orders.controller.ts
 import { Request, Response, NextFunction } from 'express';
-import { placeOrder, getUserOrders, getOrderById } from '../services/orders.service';
+import {
+  placeOrder,
+  placeGuestOrder,
+  getUserOrders,
+  getOrderById,
+  cancelOrder,
+  createReturnRequest,
+  reorder,
+  generateInvoicePdf,
+} from '../services/orders.service';
 import { EmailService } from '../services/email.service';
 import { NotFoundError, AppError } from '../utils/errors';
 
@@ -11,13 +20,18 @@ import { NotFoundError, AppError } from '../utils/errors';
  */
 export async function create(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { shippingAddress, paymentMethod } = req.body;
-    const user = req.user!;
+    const { shippingAddress, paymentMethod, couponCode, deliverySlot, guestEmail, items } = req.body;
+    const user = req.user;
 
-    const order = await placeOrder(user.id, shippingAddress, paymentMethod);
+    const order = user
+      ? await placeOrder(user.id, shippingAddress, paymentMethod, { couponCode, deliverySlot })
+      : await placeGuestOrder(guestEmail, items || [], shippingAddress, paymentMethod, { couponCode, deliverySlot });
 
     // Send confirmation email asynchronously
-    EmailService.sendOrderConfirmation(user.email, order.id, Number(order.total)).catch(console.error);
+    const confirmationEmail = user?.email || guestEmail;
+    if (confirmationEmail) {
+      EmailService.sendOrderConfirmation(confirmationEmail, order.id, Number(order.total)).catch(console.error);
+    }
 
     res.status(201).json({
       success: true,
@@ -59,6 +73,48 @@ export async function getById(req: Request, res: Response, next: NextFunction): 
     }
 
     res.json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function cancel(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const order = await cancelOrder(req.user!.id, req.params.id);
+    res.json({ success: true, order });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function requestReturn(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const reason = String(req.body.reason || '').trim();
+    if (reason.length < 5) {
+      throw new AppError('Return reason must be at least 5 characters.', 400);
+    }
+    const returnRequest = await createReturnRequest(req.user!.id, req.params.id, reason);
+    res.status(201).json({ success: true, returnRequest });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function reorderItems(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    await reorder(req.user!.id, req.params.id);
+    res.json({ success: true, message: 'Order items added to cart.' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function invoice(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const pdf = await generateInvoicePdf(req.user!.id, req.params.id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${req.params.id.slice(0, 8)}.pdf"`);
+    res.send(pdf);
   } catch (err) {
     next(err);
   }

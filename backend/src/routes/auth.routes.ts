@@ -19,6 +19,16 @@ import {
 } from '../controllers/auth.controller';
 import { optionalAuth, requireAuth } from '../middleware/auth';
 import { authLimiter } from '../middleware/rateLimiter';
+import {
+  emailRules,
+  loginRules,
+  mfaVerifyRules,
+  registerRules,
+  resetPasswordRules,
+  sessionIdRules,
+  tokenRules,
+  validate,
+} from '../middleware/validate';
 
 const router = Router();
 
@@ -30,20 +40,20 @@ router.get('/google', googleLogin);
 router.get('/google/callback', googleCallback);
 
 // Email/password auth
-router.post('/register', register);
-router.post('/login', login);
-router.post('/verify-email', verifyEmail);
-router.post('/forgot-password', forgotPassword);
-router.post('/reset-password', handleResetPassword);
+router.post('/register', ...registerRules, validate, register);
+router.post('/login', ...loginRules, validate, login);
+router.post('/verify-email', ...tokenRules, validate, verifyEmail);
+router.post('/forgot-password', ...emailRules, validate, forgotPassword);
+router.post('/reset-password', ...resetPasswordRules, validate, handleResetPassword);
 
 // Session
 router.get('/csrf', getCsrfToken);
 router.get('/me', optionalAuth, getMe);
 router.get('/sessions', requireAuth, listSessions);
-router.delete('/sessions/:id', requireAuth, revokeSession);
+router.delete('/sessions/:id', requireAuth, ...sessionIdRules, validate, revokeSession);
 router.delete('/sessions', requireAuth, revokeAllSessions);
 router.post('/mfa/setup', requireAuth, setupMfa);
-router.post('/mfa/verify', requireAuth, verifyMfa);
+router.post('/mfa/verify', requireAuth, ...mfaVerifyRules, validate, verifyMfa);
 router.post('/logout', requireAuth, logout);
 
 export default router;

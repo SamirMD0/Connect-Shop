@@ -1,9 +1,32 @@
 // backend/src/services/products.service.ts
-import { ConflictError } from '../utils/errors';
+import { AppError, ConflictError } from '../utils/errors';
 import { ProductRepository } from '../repositories/product.repository';
+import type { ProductImageInput, ProductVariantInput } from '../repositories/product.repository';
 import { CategoryRepository } from '../repositories/category.repository';
+import { cacheDel } from '../config/redis';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+export interface ProductVariant {
+  id: string;
+  product_id: string;
+  sku: string;
+  name: string;
+  price: string;
+  stock: number;
+  attributes: Record<string, any>;
+  image_url: string | null;
+  created_at: Date;
+}
+
+export interface ProductImage {
+  id: number;
+  product_id: string;
+  image_url: string;
+  alt_text: string | null;
+  sort_order: number;
+  is_primary: boolean;
+}
 
 export interface Product {
   id: string;
@@ -20,8 +43,16 @@ export interface Product {
   review_count: number;
   is_featured: boolean;
   specs: Record<string, string> | null;
+  brand: string | null;
+  sku: string | null;
+  compare_at_price: string | null;
+  weight_grams: number | null;
+  meta_title: string | null;
+  meta_description: string | null;
   created_at: Date;
   updated_at: Date;
+  variants?: ProductVariant[];
+  gallery_images?: ProductImage[];
 }
 
 export interface Category {
@@ -29,6 +60,8 @@ export interface Category {
   name: string;
   slug: string;
   image_url: string | null;
+  parent_id: number | null;
+  depth: number;
   product_count?: number;
 }
 
@@ -52,6 +85,12 @@ export async function listProducts(options: {
   search?: string;
   sort?: string;
   ids?: string[];
+  brand?: string;
+  min_price?: number;
+  max_price?: number;
+  parent_id?: number;
+  min_rating?: number;
+  specs?: Record<string, string>;
 }): Promise<ProductListResult> {
   const page = options.page ?? 1;
   const limit = options.limit ?? 12;
@@ -62,8 +101,14 @@ export async function listProducts(options: {
   let paramIndex = 1;
 
   if (options.category) {
-    conditions.push(`c.slug = $${paramIndex++}`);
+    conditions.push(`(c.slug = $${paramIndex} OR pc.slug = $${paramIndex})`);
     values.push(options.category);
+    paramIndex++;
+  }
+
+  if (options.parent_id !== undefined) {
+    conditions.push(`c.parent_id = $${paramIndex++}`);
+    values.push(options.parent_id);
   }
 
   if (options.search) {
@@ -74,6 +119,34 @@ export async function listProducts(options: {
   if (options.ids && options.ids.length > 0) {
     conditions.push(`p.id = ANY($${paramIndex++}::uuid[])`);
     values.push(options.ids);
+  }
+
+  if (options.brand) {
+    conditions.push(`p.brand = $${paramIndex++}`);
+    values.push(options.brand);
+  }
+
+  if (options.min_price !== undefined) {
+    conditions.push(`p.price >= $${paramIndex++}`);
+    values.push(options.min_price);
+  }
+
+  if (options.max_price !== undefined) {
+    conditions.push(`p.price <= $${paramIndex++}`);
+    values.push(options.max_price);
+  }
+
+  if (options.min_rating !== undefined) {
+    conditions.push(`p.rating >= $${paramIndex++}`);
+    values.push(options.min_rating);
+  }
+
+  if (options.specs) {
+    Object.entries(options.specs).forEach(([key, value]) => {
+      if (!key || !value) return;
+      conditions.push(`p.specs ->> $${paramIndex++} ILIKE $${paramIndex++}`);
+      values.push(key, `%${value}%`);
+    });
   }
 
   const whereClause = conditions.length > 0
@@ -126,9 +199,12 @@ export async function getCategories(): Promise<Category[]> {
 
 // ─── Admin Mutations ─────────────────────────────────────────────────────────
 
-export async function createCategory(data: { name: string; slug: string; image_url: string | null }): Promise<Category> {
+export async function createCategory(data: { name: string; slug: string; image_url: string | null; parent_id?: number | null; depth?: number }): Promise<Category> {
   try {
-    return await CategoryRepository.create(data);
+    const category = await normalizeCategoryInput(data);
+    const created = await CategoryRepository.create(category);
+    await cacheDel('categories:all');
+    return created;
   } catch (error: any) {
     if (error.code === '23505') {
       throw new ConflictError('A category with this name or slug already exists.');
@@ -137,9 +213,15 @@ export async function createCategory(data: { name: string; slug: string; image_u
   }
 }
 
-export async function updateCategory(id: number, data: { name: string; slug: string; image_url: string | null }): Promise<Category | null> {
+export async function updateCategory(id: number, data: { name: string; slug: string; image_url: string | null; parent_id?: number | null; depth?: number }): Promise<Category | null> {
   try {
-    return await CategoryRepository.update(id, data);
+    if (data.parent_id === id) {
+      throw new AppError('A category cannot be its own parent.', 400);
+    }
+    const category = await normalizeCategoryInput(data);
+    const updated = await CategoryRepository.update(id, category);
+    await cacheDel('categories:all');
+    return updated;
   } catch (error: any) {
     if (error.code === '23505') {
       throw new ConflictError('A category with this name or slug already exists.');
@@ -153,7 +235,9 @@ export async function deleteCategory(id: number): Promise<boolean> {
   if (count > 0) {
     throw new ConflictError('Cannot delete category: It has existing products. Please reassign or delete the products first.');
   }
-  return CategoryRepository.delete(id);
+  const deleted = await CategoryRepository.delete(id);
+  if (deleted) await cacheDel('categories:all');
+  return deleted;
 }
 
 export async function createProduct(data: {
@@ -165,8 +249,18 @@ export async function createProduct(data: {
   category_id: number;
   stock: number;
   is_featured: boolean;
+  brand?: string | null;
+  sku?: string | null;
+  compare_at_price?: number | null;
+  weight_grams?: number | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  gallery_images?: ProductImageInput[];
+  variants?: ProductVariantInput[];
 }): Promise<Product> {
-  return ProductRepository.create(data);
+  const product = await ProductRepository.create(data);
+  await cacheDel('categories:all', `products:featured:8`, `products:slug:${product.slug}`);
+  return product;
 }
 
 export async function updateProduct(id: string, data: {
@@ -178,14 +272,56 @@ export async function updateProduct(id: string, data: {
   category_id: number;
   stock: number;
   is_featured: boolean;
+  brand?: string | null;
+  sku?: string | null;
+  compare_at_price?: number | null;
+  weight_grams?: number | null;
+  meta_title?: string | null;
+  meta_description?: string | null;
+  gallery_images?: ProductImageInput[];
+  variants?: ProductVariantInput[];
 }): Promise<Product | null> {
-  return ProductRepository.update(id, data);
+  const existing = await ProductRepository.getById(id);
+  const product = await ProductRepository.update(id, data);
+  await cacheDel(
+    'categories:all',
+    `products:featured:8`,
+    ...(existing ? [`products:slug:${existing.slug}`] : []),
+    ...(product ? [`products:slug:${product.slug}`] : [])
+  );
+  return product;
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
+  const existing = await ProductRepository.getById(id);
   const count = await ProductRepository.countInOrders(id);
   if (count > 0) {
     throw new ConflictError('Cannot delete product: It is referenced in existing orders.');
   }
-  return ProductRepository.delete(id);
+  const deleted = await ProductRepository.delete(id);
+  if (deleted) {
+    await cacheDel(
+      'categories:all',
+      `products:featured:8`,
+      ...(existing ? [`products:slug:${existing.slug}`] : [])
+    );
+  }
+  return deleted;
+}
+
+async function normalizeCategoryInput(data: { name: string; slug: string; image_url: string | null; parent_id?: number | null; depth?: number }) {
+  if (!data.parent_id) {
+    return { ...data, parent_id: null, depth: 0 };
+  }
+
+  const parent = await CategoryRepository.getById(data.parent_id);
+  if (!parent) {
+    throw new AppError('Parent category not found.', 400);
+  }
+
+  return {
+    ...data,
+    parent_id: data.parent_id,
+    depth: parent.depth + 1,
+  };
 }

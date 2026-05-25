@@ -7,6 +7,27 @@ import { Button } from '@/components/ui/Button';
 import { api, ApiError } from '@/lib/api';
 import { UserAddress } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
+import { z } from 'zod';
+
+const profileSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(255),
+  phone: z.string().trim().max(30, 'Phone must be under 30 characters').optional().or(z.literal('')),
+});
+
+const addressSchema = z.object({
+  id: z.string().uuid().optional(),
+  label: z.string().trim().max(80).optional().or(z.literal('')),
+  recipientName: z.string().trim().min(1, 'Recipient name is required').max(200),
+  phone: z.string().trim().min(7, 'Phone must be at least 7 characters').max(30),
+  addressLine1: z.string().trim().min(1, 'Address line 1 is required').max(300),
+  addressLine2: z.string().trim().max(300).optional().or(z.literal('')),
+  city: z.string().trim().min(1, 'City is required').max(120),
+  state: z.string().trim().max(120).optional().or(z.literal('')),
+  zipCode: z.string().trim().max(30).optional().or(z.literal('')),
+  country: z.string().trim().max(120).optional().or(z.literal('')),
+  notes: z.string().trim().max(1000).optional().or(z.literal('')),
+  isDefault: z.boolean(),
+});
 
 interface AddressForm {
   id?: string;
@@ -95,7 +116,13 @@ export default function AccountPage() {
     setMessage('');
 
     try {
-      await api.patch('/api/users/me', { name, phone });
+      const validation = profileSchema.safeParse({ name, phone });
+      if (!validation.success) {
+        setError(validation.error.issues[0].message);
+        return;
+      }
+
+      await api.patch('/api/users/me', validation.data);
       setMessage('Profile updated.');
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Profile update failed');
@@ -111,10 +138,16 @@ export default function AccountPage() {
     setMessage('');
 
     try {
+      const validation = addressSchema.safeParse(addressForm);
+      if (!validation.success) {
+        setError(validation.error.issues[0].message);
+        return;
+      }
+
       if (addressForm.id) {
-        await api.put(`/api/users/me/addresses/${addressForm.id}`, addressForm);
+        await api.put(`/api/users/me/addresses/${addressForm.id}`, validation.data);
       } else {
-        await api.post('/api/users/me/addresses', addressForm);
+        await api.post('/api/users/me/addresses', validation.data);
       }
       const res = await api.get<{ success: boolean; addresses: UserAddress[] }>('/api/users/me/addresses');
       setAddresses(res.addresses);

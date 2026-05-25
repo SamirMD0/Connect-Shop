@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { createAdminAuditLog } from '../services/adminAudit.service';
 import { logger } from '../utils/logger';
+import { hasAdminPermission } from './admin';
 
 const AUDITED_METHODS = new Set(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']);
 
@@ -39,10 +40,11 @@ export function adminAudit(req: Request, res: Response, next: NextFunction): voi
   }
 
   res.on('finish', () => {
-    if (!req.user || req.user.role !== 'admin') return;
+    const actor = req.user;
+    if (!actor || !hasAdminPermission(actor)) return;
 
     void createAdminAuditLog({
-      actorId: req.user.id,
+      actorId: actor.id,
       action: req.method,
       targetType: getTargetType(req),
       targetId: req.params.id,

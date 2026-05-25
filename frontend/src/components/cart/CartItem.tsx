@@ -70,6 +70,9 @@ export function CartItemCard({ item }: CartItemProps) {
             {item.name}
           </h3>
         </Link>
+        {item.variant_name && (
+          <p className="text-xs text-text-muted mt-0.5">{item.variant_name}</p>
+        )}
         <p className="text-sm text-accent font-bold mt-1">${price.toFixed(2)}</p>
 
         <div className="flex items-center gap-4 mt-3">

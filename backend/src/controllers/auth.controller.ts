@@ -16,6 +16,8 @@ import {
   verifyEmailToken,
   requestPasswordReset,
   resetPassword,
+  createOAuthState,
+  consumeOAuthState,
 } from '../services/auth.service';
 import { AppError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { generateBrowserToken } from '../utils/crypto';
@@ -70,6 +72,7 @@ function getOAuthStateCookieOptions(): CookieOptions {
  */
 export async function googleLogin(_req: Request, res: Response): Promise<void> {
   const state = generateBrowserToken();
+  await createOAuthState(state, OAUTH_STATE_MAX_AGE);
 
   res.cookie(OAUTH_STATE_COOKIE_NAME, state, getOAuthStateCookieOptions());
 
@@ -132,6 +135,16 @@ export async function googleCallback(
     }
 
     if (!state || typeof state !== 'string' || !expectedState || state !== expectedState) {
+      res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
+        httpOnly: true,
+        secure: env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+      });
+      throw new AppError('Invalid OAuth state', 400);
+    }
+
+    if (!(await consumeOAuthState(state))) {
       res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
         httpOnly: true,
         secure: env.NODE_ENV === 'production',
@@ -367,7 +380,7 @@ export async function revokeAllSessions(req: Request, res: Response, next: NextF
  */
 export async function setupMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    if (req.user!.role !== 'admin') {
+    if (!['support', 'manager', 'admin', 'super_admin'].includes(req.user!.role)) {
       throw new ForbiddenError('MFA setup is only required for admin accounts');
     }
 

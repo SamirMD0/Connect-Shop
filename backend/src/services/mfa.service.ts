@@ -138,5 +138,5 @@ export async function verifyMfaCode(userId: string, sessionId: string, code: str
 
 export function getMfaRequiredForAdmin(user: { role: string; mfa_enabled?: boolean; mfa_verified_at?: Date | null }): boolean {
   if (env.NODE_ENV === 'test') return false;
-  return user.role === 'admin' && (!user.mfa_enabled || !user.mfa_verified_at);
+  return ['support', 'manager', 'admin', 'super_admin'].includes(user.role) && (!user.mfa_enabled || !user.mfa_verified_at);
 }

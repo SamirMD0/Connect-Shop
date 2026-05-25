@@ -5,6 +5,7 @@ import {
   addToCart,
   updateCartItemQuantity,
   removeCartItem,
+  queueAbandonedCartRecovery,
 } from '../services/cart.service';
 import { NotFoundError, AppError } from '../utils/errors';
 import { query } from '../config/db';
@@ -29,24 +30,39 @@ export async function get(req: Request, res: Response, next: NextFunction): Prom
  */
 export async function add(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const { productId, quantity } = req.body;
+    const { productId, quantity, variantId } = req.body;
 
-    // Verify product exists and has sufficient stock
-    const products = await query<{ stock: number }>(
-      'SELECT stock FROM products WHERE id = $1',
-      [productId]
-    );
+    let stockToCheck = 0;
 
-    if (products.length === 0) {
-      throw new NotFoundError('Product');
+    if (variantId) {
+      const variants = await query<{ stock: number }>(
+        'SELECT stock FROM product_variants WHERE id = $1 AND product_id = $2',
+        [variantId, productId]
+      );
+      if (variants.length === 0) {
+        throw new NotFoundError('Product Variant');
+      }
+      stockToCheck = variants[0].stock;
+    } else {
+      // Verify product exists and has sufficient stock
+      const products = await query<{ stock: number }>(
+        'SELECT stock FROM products WHERE id = $1',
+        [productId]
+      );
+
+      if (products.length === 0) {
+        throw new NotFoundError('Product');
+      }
+      stockToCheck = products[0].stock;
     }
 
-    if (products[0].stock < quantity) {
-      throw new AppError(`Insufficient stock. Only ${products[0].stock} available.`, 400);
+    if (stockToCheck < quantity) {
+      throw new AppError(`Insufficient stock. Only ${stockToCheck} available.`, 400);
     }
 
-    const item = await addToCart(req.user!.id, productId, quantity);
+    const item = await addToCart(req.user!.id, productId, quantity, variantId);
     const cart = await getCart(req.user!.id);
+    queueAbandonedCartRecovery(req.user!.id).catch(console.error);
 
     res.status(201).json({ success: true, item, cart });
   } catch (err) {
@@ -71,6 +87,7 @@ export async function update(req: Request, res: Response, next: NextFunction): P
     }
 
     const cart = await getCart(req.user!.id);
+    queueAbandonedCartRecovery(req.user!.id).catch(console.error);
     res.json({ success: true, item, cart });
   } catch (err) {
     next(err);

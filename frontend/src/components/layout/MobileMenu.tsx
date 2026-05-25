@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
+import { hasAdminAccess } from '@/lib/adminPermissions';
 
 interface MobileMenuProps {
   isOpen: boolean;
@@ -83,7 +84,7 @@ export function MobileMenu({ isOpen, onClose }: MobileMenuProps) {
               >
                 My Orders
               </Link>
-              {user.role === 'admin' && (
+              {hasAdminAccess(user.role) && (
                 <Link 
                   href="/admin" 
                   onClick={onClose}

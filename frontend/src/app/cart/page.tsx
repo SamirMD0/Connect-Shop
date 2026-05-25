@@ -13,7 +13,7 @@ import { ShoppingBag, ArrowLeft } from 'lucide-react';
 
 export default function CartPage() {
   const { items, loading } = useCart();
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
 
   if (loading || authLoading) {
     return (
@@ -28,24 +28,6 @@ export default function CartPage() {
           <Skeleton className="h-72 rounded-2xl" />
         </div>
       </Container>
-    );
-  }
-
-  // Guest users
-  if (!user) {
-    return (
-      <div className="animate-fade-in">
-        <Container className="py-12">
-          <h1 className="text-3xl font-bold text-text-primary mb-8">Your Cart</h1>
-          <EmptyState
-            icon={<ShoppingBag className="w-16 h-16" />}
-            title="Sign in to view your cart"
-            description="Create an account or sign in to start shopping and save your items."
-            actionLabel="Browse Store"
-            actionHref="/store"
-          />
-        </Container>
-      </div>
     );
   }
 

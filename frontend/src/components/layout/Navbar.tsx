@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Container } from './Container';
 import { CartIcon } from '@/components/cart/CartIcon';
@@ -9,12 +9,24 @@ import { UserMenu } from '@/components/auth/UserMenu';
 import { MobileMenu } from './MobileMenu';
 import { useAuth } from '@/hooks/useAuth';
 import { APP_NAME } from '@/lib/constants';
-import { Menu, Zap, Search } from 'lucide-react';
+import { ChevronDown, Menu, Zap, Search } from 'lucide-react';
 import { WishlistIcon } from '@/components/wishlist/WishlistIcon';
+import { hasAdminAccess } from '@/lib/adminPermissions';
+import { api } from '@/lib/api';
+import { Category } from '@/lib/types';
 
 export function Navbar() {
   const { user, loading } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    api.get<{ success: boolean; categories: Category[] }>('/api/categories')
+      .then((res) => setCategories(res.categories || []))
+      .catch(() => setCategories([]));
+  }, []);
+
+  const parentCategories = categories.filter(category => !category.parent_id);
 
   return (
     <header className="sticky top-0 z-50 navbar-glass">
@@ -32,13 +44,54 @@ export function Navbar() {
 
           {/* Desktop Nav */}
           <div className="hidden md:flex items-center gap-8">
-            <Link
-              href="/store"
-              className="text-sm font-medium text-text-muted hover:text-text-primary transition-colors"
-            >
-              Store
-            </Link>
-            {user?.role === 'admin' && (
+            <div className="group relative">
+              <Link
+                href="/store"
+                className="inline-flex items-center gap-1 text-sm font-medium text-text-muted hover:text-text-primary transition-colors"
+              >
+                Store
+                {parentCategories.length > 0 && <ChevronDown className="h-4 w-4" />}
+              </Link>
+              {parentCategories.length > 0 && (
+                <div className="invisible absolute left-0 top-full z-50 mt-3 w-[520px] rounded-2xl border border-slate-200/70 bg-white p-5 opacity-0 shadow-2xl shadow-slate-900/10 transition-all duration-200 group-hover:visible group-hover:opacity-100">
+                  <div className="grid grid-cols-2 gap-3">
+                    {parentCategories.slice(0, 8).map((category) => {
+                      const children = categories.filter(child => child.parent_id === category.id);
+                      return (
+                        <div key={category.id} className="rounded-xl p-3 hover:bg-slate-50">
+                          <Link
+                            href={`/store?category=${category.slug}`}
+                            className="text-sm font-semibold capitalize text-text-primary hover:text-accent"
+                          >
+                            {category.name}
+                          </Link>
+                          {children.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              {children.slice(0, 4).map((child) => (
+                                <Link
+                                  key={child.id}
+                                  href={`/store?category=${child.slug}`}
+                                  className="text-xs text-text-muted hover:text-accent"
+                                >
+                                  {child.name}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <Link
+                    href="/store"
+                    className="mt-3 block rounded-xl bg-slate-50 px-3 py-2 text-sm font-medium text-accent hover:bg-accent/10"
+                  >
+                    View all products
+                  </Link>
+                </div>
+              )}
+            </div>
+            {user && hasAdminAccess(user.role) && (
               <Link 
                 href="/admin" 
                 className="text-sm font-medium text-accent hover:text-accent-glow transition-colors"

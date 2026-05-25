@@ -1,6 +1,7 @@
 // backend/src/controllers/products.controller.ts
 import { Request, Response, NextFunction } from 'express';
-import { redisClient } from '../config/redis';
+import crypto from 'crypto';
+import { cacheGet, cacheSetEx } from '../config/redis';
 import {
   listProducts,
   getProductBySlug,
@@ -8,6 +9,25 @@ import {
   getCategories,
 } from '../services/products.service';
 import { NotFoundError } from '../utils/errors';
+
+function buildWeakEtag(payload: string): string {
+  return `W/"${crypto.createHash('sha1').update(payload).digest('hex')}"`;
+}
+
+function sendCachedJson(req: Request, res: Response, body: unknown, maxAgeSeconds: number): void {
+  const payload = JSON.stringify(body);
+  const etag = buildWeakEtag(payload);
+
+  res.setHeader('ETag', etag);
+  res.setHeader('Cache-Control', `public, max-age=${maxAgeSeconds}, stale-while-revalidate=300`);
+
+  if (req.headers['if-none-match'] === etag) {
+    res.status(304).end();
+    return;
+  }
+
+  res.type('application/json').send(payload);
+}
 
 /**
  * GET /api/products
@@ -22,8 +42,35 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
     const sort = req.query.sort as string | undefined;
     const idsString = req.query.ids as string | undefined;
     const ids = idsString ? idsString.split(',').filter(Boolean) : undefined;
+    const brand = req.query.brand as string | undefined;
+    const min_price = req.query.min_price ? parseFloat(req.query.min_price as string) : undefined;
+    const max_price = req.query.max_price ? parseFloat(req.query.max_price as string) : undefined;
+    const parent_id = req.query.parent_id ? parseInt(req.query.parent_id as string, 10) : undefined;
+    const min_rating = req.query.min_rating ? parseFloat(req.query.min_rating as string) : undefined;
+    const specsString = req.query.specs as string | undefined;
+    const specs = specsString
+      ? Object.fromEntries(
+          specsString
+            .split(',')
+            .map((entry) => entry.split(':').map((part) => part.trim()))
+            .filter(([key, value]) => key && value)
+        )
+      : undefined;
 
-    const result = await listProducts({ page, limit, category, search, sort, ids });
+    const result = await listProducts({
+      page,
+      limit,
+      category,
+      search,
+      sort,
+      ids,
+      brand,
+      min_price,
+      max_price,
+      parent_id,
+      min_rating,
+      specs,
+    });
 
     res.json({ success: true, ...result });
   } catch (err) {
@@ -40,16 +87,16 @@ export async function featured(req: Request, res: Response, next: NextFunction):
     const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 8;
     const cacheKey = `products:featured:${limit}`;
     
-    const cached = await redisClient.get(cacheKey);
+    const cached = await cacheGet(cacheKey);
     if (cached) {
-      res.json({ success: true, products: JSON.parse(cached) });
+      sendCachedJson(req, res, { success: true, products: JSON.parse(cached) }, 300);
       return;
     }
 
     const products = await getFeaturedProducts(limit);
-    await redisClient.setex(cacheKey, 1800, JSON.stringify(products)); // 30 min cache
+    await cacheSetEx(cacheKey, 1800, JSON.stringify(products)); // 30 min cache
 
-    res.json({ success: true, products });
+    sendCachedJson(req, res, { success: true, products }, 300);
   } catch (err) {
     next(err);
   }
@@ -61,13 +108,21 @@ export async function featured(req: Request, res: Response, next: NextFunction):
  */
 export async function getBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const cacheKey = `products:slug:${req.params.slug}`;
+    const cached = await cacheGet(cacheKey);
+    if (cached) {
+      sendCachedJson(req, res, { success: true, product: JSON.parse(cached) }, 300);
+      return;
+    }
+
     const product = await getProductBySlug(req.params.slug);
 
     if (!product) {
       throw new NotFoundError('Product');
     }
 
-    res.json({ success: true, product });
+    await cacheSetEx(cacheKey, 600, JSON.stringify(product));
+    sendCachedJson(req, res, { success: true, product }, 300);
   } catch (err) {
     next(err);
   }
@@ -80,17 +135,17 @@ export async function getBySlug(req: Request, res: Response, next: NextFunction)
 export async function listCategories(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const cacheKey = 'categories:all';
-    const cached = await redisClient.get(cacheKey);
+    const cached = await cacheGet(cacheKey);
     
     if (cached) {
-      res.json({ success: true, categories: JSON.parse(cached) });
+      sendCachedJson(_req, res, { success: true, categories: JSON.parse(cached) }, 600);
       return;
     }
 
     const categories = await getCategories();
-    await redisClient.setex(cacheKey, 3600, JSON.stringify(categories)); // 1 hr cache
+    await cacheSetEx(cacheKey, 3600, JSON.stringify(categories)); // 1 hr cache
 
-    res.json({ success: true, categories });
+    sendCachedJson(_req, res, { success: true, categories }, 600);
   } catch (err) {
     next(err);
   }

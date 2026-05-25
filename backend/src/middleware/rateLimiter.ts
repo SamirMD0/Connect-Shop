@@ -3,6 +3,16 @@ import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { redisClient } from '../config/redis';
 
+const redisStore = (() => {
+  if (!redisClient) return undefined;
+
+  const client = redisClient;
+  return new RedisStore({
+    sendCommand: (command: string, ...args: string[]) =>
+      client.call(command, ...args) as Promise<any>,
+  });
+})();
+
 /**
  * General rate limiter — applies to all routes.
  * 100 requests per 15-minute window per IP.
@@ -12,10 +22,8 @@ export const generalLimiter = rateLimit({
   limit: 100,
   standardHeaders: true,    // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false,     // Disable `X-RateLimit-*` headers
-  store: new RedisStore({
-    sendCommand: (command: string, ...args: string[]) =>
-      redisClient.call(command, ...args) as Promise<any>,
-  }),
+  store: redisStore,
+  passOnStoreError: true,
   message: {
     success: false,
     message: 'Too many requests, please try again later.',
@@ -31,10 +39,8 @@ export const authLimiter = rateLimit({
   limit: 20,
   standardHeaders: true,
   legacyHeaders: false,
-  store: new RedisStore({
-    sendCommand: (command: string, ...args: string[]) =>
-      redisClient.call(command, ...args) as Promise<any>,
-  }),
+  store: redisStore,
+  passOnStoreError: true,
   message: {
     success: false,
     message: 'Too many authentication attempts, please try again later.',

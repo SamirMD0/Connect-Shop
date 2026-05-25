@@ -13,9 +13,10 @@ interface AddToCartClientProps {
   productId: string;
   stock: number;
   name: string;
+  variantId?: string | null;
 }
 
-export function AddToCartClient({ productId, stock, name }: AddToCartClientProps) {
+export function AddToCartClient({ productId, stock, name, variantId }: AddToCartClientProps) {
   const { addItem } = useCart();
   const { addToast } = useToast();
   const router = useRouter();
@@ -31,7 +32,7 @@ export function AddToCartClient({ productId, stock, name }: AddToCartClientProps
     if (stock === 0) return;
     setAdding(true);
     try {
-      await addItem(productId, quantity);
+      await addItem(productId, quantity, variantId);
       addToast(`${name} added to cart`, 'success');
       setQuantity(1);
     } catch {
@@ -45,7 +46,7 @@ export function AddToCartClient({ productId, stock, name }: AddToCartClientProps
     if (stock === 0) return;
     setBuyingNow(true);
     try {
-      await addItem(productId, quantity);
+      await addItem(productId, quantity, variantId);
       router.push('/checkout');
     } catch {
       addToast('Failed to process', 'error');

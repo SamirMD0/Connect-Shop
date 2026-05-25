@@ -3,6 +3,7 @@ import app from './app';
 import { env } from './config/env';
 import { connectDB, pool } from './config/db';
 import { logger } from './utils/logger';
+import { startMaintenanceScheduler } from './services/maintenance.service';
 import fs from 'fs';
 import path from 'path';
 
@@ -51,7 +52,10 @@ async function main(): Promise<void> {
       await initializeDatabase();
     }
 
-    // 3. Start HTTP server
+    // 3. Start scheduled cleanup jobs
+    const maintenanceTimer = startMaintenanceScheduler();
+
+    // 4. Start HTTP server
     const server = app.listen(env.PORT, () => {
       logger.info(`\n🚀 ElecSHOP API server listening on port ${env.PORT}`);
       logger.info(`   Environment: ${env.NODE_ENV}`);
@@ -66,6 +70,7 @@ async function main(): Promise<void> {
         logger.info(`\n⏳ Received ${signal}. Shutting down gracefully...`);
         if (server) {
           server.close(async () => {
+            clearInterval(maintenanceTimer);
             await pool.end();
             logger.info('👋 Server shut down.');
             process.exit(0);

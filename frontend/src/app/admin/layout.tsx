@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { AdminSidebar } from '../../components/admin/AdminSidebar';
 import { useAuth } from '../../hooks/useAuth';
 import { api, ApiError } from '../../lib/api';
+import { hasAdminAccess } from '../../lib/adminPermissions';
 import { Button } from '../../components/ui/Button';
 import { KeyRound, Menu, ShieldCheck } from 'lucide-react';
 
@@ -22,10 +23,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mfaSetup, setMfaSetup] = useState<MfaSetup | null>(null);
   const [mfaLoading, setMfaLoading] = useState(false);
   const [mfaError, setMfaError] = useState('');
+  const canAccessAdmin = hasAdminAccess(user?.role);
 
   useEffect(() => {
     if (!loading) {
-      if (!user || user.role !== 'admin') {
+      if (!user || !hasAdminAccess(user.role)) {
         router.replace('/');
       }
     }
@@ -38,7 +40,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   
   // A better way is to pass onClose to AdminSidebar and have the sidebar close it on nav.
 
-  if (loading || !user || user.role !== 'admin') {
+  if (loading || !user || !canAccessAdmin) {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
         <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>

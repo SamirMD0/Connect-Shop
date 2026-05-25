@@ -1,10 +1,19 @@
 // backend/src/routes/admin.routes.ts
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
-import { isAdmin } from '../middleware/admin';
+import { isAdmin, requireAdminPermission } from '../middleware/admin';
 import { requireAdminMfa } from '../middleware/mfa';
 import { adminAudit } from '../middleware/adminAudit';
-import { validate, adminProductRules, adminCategoryRules, adminOrderStatusRules } from '../middleware/validate';
+import {
+  validate,
+  adminProductRules,
+  adminCategoryRules,
+  adminOrderStatusRules,
+  reviewIdRules,
+  reviewModerationRules,
+  returnStatusRules,
+  trackingRules,
+} from '../middleware/validate';
 import * as adminController from '../controllers/admin.controller';
 
 const router = Router();
@@ -16,23 +25,50 @@ router.use(requireAdminMfa);
 router.use(adminAudit);
 
 // Analytics
-router.get('/analytics/monthly-revenue', adminController.getAnalytics);
+router.get('/analytics/monthly-revenue', requireAdminPermission('analytics'), adminController.getAnalytics);
+router.get('/inventory/alerts', requireAdminPermission('products'), adminController.getInventoryAlerts);
+router.get('/search', requireAdminPermission('analytics'), adminController.searchAdmin);
+router.post('/uploads/image', requireAdminPermission('products'), adminController.uploadImage);
 
 // Products
-router.post('/products', ...adminProductRules, validate, adminController.createProduct);
-router.put('/products/:id', ...adminProductRules, validate, adminController.updateProduct);
-router.delete('/products/:id', adminController.deleteProduct);
+router.get('/products/export', requireAdminPermission('products'), adminController.exportProductsCsv);
+router.post('/products/import', requireAdminPermission('products'), adminController.importProductsCsv);
+router.post('/products', requireAdminPermission('products'), ...adminProductRules, validate, adminController.createProduct);
+router.put('/products/:id', requireAdminPermission('products'), ...adminProductRules, validate, adminController.updateProduct);
+router.delete('/products/:id', requireAdminPermission('products'), adminController.deleteProduct);
 
 // Categories
-router.post('/categories', ...adminCategoryRules, validate, adminController.createCategory);
-router.put('/categories/:id', ...adminCategoryRules, validate, adminController.updateCategory);
-router.delete('/categories/:id', adminController.deleteCategory);
+router.post('/categories', requireAdminPermission('products'), ...adminCategoryRules, validate, adminController.createCategory);
+router.put('/categories/:id', requireAdminPermission('products'), ...adminCategoryRules, validate, adminController.updateCategory);
+router.delete('/categories/:id', requireAdminPermission('products'), adminController.deleteCategory);
 
 // Users
-router.get('/users', adminController.listUsers);
+router.get('/users', requireAdminPermission('users'), adminController.listUsers);
+router.get('/users/:id', requireAdminPermission('users'), adminController.getUserDetail);
+router.put('/users/:id/role', requireAdminPermission('users'), adminController.updateUserRole);
 
 // Orders
-router.get('/orders', adminController.listOrders);
-router.put('/orders/:id/status', ...adminOrderStatusRules, validate, adminController.updateOrderStatus);
+router.get('/orders', requireAdminPermission('orders'), adminController.listOrders);
+router.get('/orders/:id', requireAdminPermission('orders'), adminController.getOrderDetail);
+router.put('/orders/:id/status', requireAdminPermission('orders'), ...adminOrderStatusRules, validate, adminController.updateOrderStatus);
+router.put('/orders/:id/tracking', requireAdminPermission('orders'), ...trackingRules, validate, adminController.updateOrderTracking);
+router.put('/returns/:id/status', requireAdminPermission('orders'), ...returnStatusRules, validate, adminController.updateReturnRequestStatus);
+
+// Reviews
+router.get('/reviews', requireAdminPermission('reviews'), adminController.listReviews);
+router.put('/reviews/:id/status', requireAdminPermission('reviews'), ...reviewModerationRules, validate, adminController.moderateReview);
+router.delete('/reviews/:id', requireAdminPermission('reviews'), ...reviewIdRules, validate, adminController.deleteReview);
+
+// Promotions
+router.get('/promotions', requireAdminPermission('marketing'), adminController.listPromotions);
+router.post('/promotions', requireAdminPermission('marketing'), adminController.createPromotion);
+router.put('/promotions/:id', requireAdminPermission('marketing'), adminController.updatePromotion);
+router.delete('/promotions/:id', requireAdminPermission('marketing'), adminController.deletePromotion);
+
+// Coupons
+router.get('/coupons', requireAdminPermission('marketing'), adminController.listCoupons);
+router.post('/coupons', requireAdminPermission('marketing'), adminController.createCoupon);
+router.put('/coupons/:id', requireAdminPermission('marketing'), adminController.updateCoupon);
+router.delete('/coupons/:id', requireAdminPermission('marketing'), adminController.deleteCoupon);
 
 export default router;

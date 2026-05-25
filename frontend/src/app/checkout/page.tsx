@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
@@ -14,9 +13,10 @@ import { api } from '@/lib/api';
 import { ShippingAddress, Order, UserAddress } from '@/lib/types';
 import DOMPurify from 'dompurify';
 import { z } from 'zod';
-import { CheckCircle2, ShoppingBag, Package, ArrowLeft, Lock } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, Package, ArrowLeft, Lock, TicketPercent } from 'lucide-react';
 
 const shippingSchema = z.object({
+  guestEmail: z.string().email('Valid email is required for guest checkout').optional().or(z.literal('')),
   fullName: z.string().trim().min(1, 'Full name is required').max(200),
   phone: z.string().trim().min(7, 'Phone number must be at least 7 characters').max(20, 'Phone number is too long'),
   addressLine1: z.string().trim().min(1, 'Address line 1 is required').max(300),
@@ -25,20 +25,39 @@ const shippingSchema = z.object({
   state: z.string().trim().max(100).optional(),
   zipCode: z.string().trim().max(20).optional(),
   country: z.string().trim().min(1, 'Country is required').max(100),
-  paymentMethod: z.enum(['cod', 'bank_transfer']).default('cod'),
+  paymentMethod: z.enum(['cod', 'bank_transfer', 'omt', 'whish_money']).default('cod'),
+  couponCode: z.string().trim().max(50).optional(),
+  deliverySlot: z.string().trim().min(1, 'Delivery time slot is required').max(100),
 });
+
+const shippingByRegion: Record<string, number> = {
+  Beirut: 3,
+  'Mount Lebanon': 4,
+  North: 5,
+  South: 5,
+  Bekaa: 5,
+};
+
+const deliverySlots = [
+  'Morning (9:00 AM - 12:00 PM)',
+  'Afternoon (12:00 PM - 4:00 PM)',
+  'Evening (4:00 PM - 8:00 PM)',
+];
 
 export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const { items, subtotal, itemCount, clearCart } = useCart();
   const { addToast } = useToast();
-  const router = useRouter();
 
   const [placing, setPlacing] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState<Order | null>(null);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
   const [saveAddress, setSaveAddress] = useState(false);
-  const [form, setForm] = useState<ShippingAddress & { paymentMethod: 'cod' | 'bank_transfer' }>({
+  const [acceptTerms, setAcceptTerms] = useState(false);
+  const [couponCode, setCouponCode] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
+  const [deliverySlot, setDeliverySlot] = useState(deliverySlots[0]);
+  const [form, setForm] = useState<ShippingAddress & { paymentMethod: 'cod' | 'bank_transfer' | 'omt' | 'whish_money' }>({
     fullName: '',
     phone: '',
     addressLine1: '',
@@ -49,13 +68,6 @@ export default function CheckoutPage() {
     country: 'Lebanon',
     paymentMethod: 'cod',
   });
-
-  // Route guard
-  useEffect(() => {
-    if (!authLoading && !user) {
-      router.replace('/');
-    }
-  }, [user, authLoading, router]);
 
   useEffect(() => {
     if (!user) return;
@@ -79,8 +91,6 @@ export default function CheckoutPage() {
       </Container>
     );
   }
-
-  if (!user) return null;
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -116,6 +126,9 @@ export default function CheckoutPage() {
       zipCode: form.zipCode ? DOMPurify.sanitize(form.zipCode) : '',
       country: DOMPurify.sanitize(form.country),
       paymentMethod: form.paymentMethod,
+      couponCode: DOMPurify.sanitize(couponCode),
+      deliverySlot: DOMPurify.sanitize(deliverySlot),
+      guestEmail: user ? '' : DOMPurify.sanitize(guestEmail),
     };
 
     const validation = shippingSchema.safeParse(sanitizedForm);
@@ -124,11 +137,27 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (!user && !validation.data.guestEmail) {
+      addToast('Email is required for guest checkout.', 'error');
+      return;
+    }
+
+    if (!acceptTerms) {
+      addToast('Please accept the terms and delivery policy.', 'error');
+      return;
+    }
+
     setPlacing(true);
     try {
       const res = await api.post<{ success: boolean; order: Order; message: string }>(
         '/api/orders',
         { 
+          guestEmail: user ? undefined : validation.data.guestEmail,
+          items: user ? undefined : items.map(item => ({
+            productId: item.product_id,
+            variantId: item.variant_id,
+            quantity: item.quantity,
+          })),
           shippingAddress: {
             fullName: validation.data.fullName,
             phone: validation.data.phone,
@@ -140,10 +169,12 @@ export default function CheckoutPage() {
             country: validation.data.country,
           },
           paymentMethod: validation.data.paymentMethod,
+          couponCode: validation.data.couponCode || undefined,
+          deliverySlot: validation.data.deliverySlot,
         }
       );
       setOrderPlaced(res.order);
-      if (saveAddress) {
+      if (user && saveAddress) {
         await api.post('/api/users/me/addresses', {
           label: 'Checkout',
           recipientName: validation.data.fullName,
@@ -159,12 +190,17 @@ export default function CheckoutPage() {
       }
       clearCart();
       addToast('Order placed successfully!', 'success');
-    } catch {
-      addToast('Failed to place order. Please try again.', 'error');
+    } catch (error: any) {
+      addToast(error.message || 'Failed to place order. Please try again.', 'error');
     } finally {
       setPlacing(false);
     }
   };
+
+  const subtotalValue = parseFloat(subtotal || '0');
+  const shippingCost = subtotalValue >= 150 ? 0 : shippingByRegion[form.state || form.city] ?? 4;
+  const taxAmount = Math.round(subtotalValue * 0.11 * 100) / 100;
+  const estimatedTotal = (subtotalValue + shippingCost + taxAmount).toFixed(2);
 
   // Success screen
   if (orderPlaced) {
@@ -181,9 +217,25 @@ export default function CheckoutPage() {
           <p className="text-sm text-text-muted mb-8">
             Order ID: <span className="text-accent font-mono font-medium">{orderPlaced.id.slice(0, 8).toUpperCase()}</span>
           </p>
+          <div className="mb-8 rounded-2xl border border-slate-200/60 bg-bg-surface p-4 text-left">
+            <div className="flex justify-between text-sm text-text-muted">
+              <span>Payment</span>
+              <span className="font-medium text-text-primary">{orderPlaced.payment_method}</span>
+            </div>
+            <div className="mt-2 flex justify-between text-sm text-text-muted">
+              <span>Total</span>
+              <span className="font-bold text-text-primary">${orderPlaced.total}</span>
+            </div>
+            {orderPlaced.delivery_slot && (
+              <div className="mt-2 flex justify-between text-sm text-text-muted">
+                <span>Delivery</span>
+                <span className="text-text-primary">{orderPlaced.delivery_slot}</span>
+              </div>
+            )}
+          </div>
           <div className="flex gap-4 justify-center flex-wrap">
             <a 
-              href={`https://wa.me/96181000000?text=Hello,%20I%20just%20placed%20order%20${orderPlaced.id.slice(0, 8).toUpperCase()}.`} 
+              href={`https://wa.me/96181000000?text=Hello,%20I%20just%20placed%20order%20${orderPlaced.id.slice(0, 8).toUpperCase()}%20for%20$${orderPlaced.total}.`} 
               target="_blank" 
               rel="noopener noreferrer"
             >
@@ -253,6 +305,20 @@ export default function CheckoutPage() {
                       </select>
                     </div>
                   )}
+                  {!user && (
+                    <div>
+                      <label className="block text-sm font-medium text-text-primary mb-2">Email *</label>
+                      <input
+                        name="guestEmail"
+                        type="email"
+                        value={guestEmail}
+                        onChange={(event) => setGuestEmail(event.target.value)}
+                        className="input-field"
+                        placeholder="you@example.com"
+                        required
+                      />
+                    </div>
+                  )}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-text-primary mb-2">Full Name *</label>
@@ -311,24 +377,28 @@ export default function CheckoutPage() {
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-text-primary mb-2">State</label>
-                      <input 
-                        name="state" 
-                        value={form.state} 
-                        onChange={handleChange} 
-                        className="input-field" 
-                        placeholder="NY" 
-                      />
+                      <label className="block text-sm font-medium text-text-primary mb-2">Region *</label>
+                      <select
+                        name="state"
+                        value={form.state}
+                        onChange={handleChange}
+                        className="input-field"
+                        required
+                      >
+                        <option value="">Select region</option>
+                        {Object.keys(shippingByRegion).map(region => (
+                          <option key={region} value={region}>{region}</option>
+                        ))}
+                      </select>
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-text-primary mb-2">ZIP Code *</label>
+                      <label className="block text-sm font-medium text-text-primary mb-2">ZIP Code</label>
                       <input 
                         name="zipCode" 
                         value={form.zipCode} 
                         onChange={handleChange} 
                         className="input-field" 
                         placeholder="10001" 
-                        required 
                       />
                     </div>
                   </div>
@@ -344,9 +414,28 @@ export default function CheckoutPage() {
                     />
                   </div>
                   <label className="flex items-center gap-2 text-sm text-text-muted">
-                    <input type="checkbox" checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />
+                    <input type="checkbox" disabled={!user} checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />
                     Save this address to my account
                   </label>
+                  <label className="flex items-start gap-2 text-sm text-text-muted">
+                    <input
+                      type="checkbox"
+                      checked={acceptTerms}
+                      onChange={(event) => setAcceptTerms(event.target.checked)}
+                      className="mt-1"
+                      required
+                    />
+                    <span>
+                      I agree to the store terms, delivery coordination, and return policy.
+                    </span>
+                  </label>
+                </div>
+
+                <div className="mt-8">
+                  <h2 className="text-lg font-bold text-text-primary mb-4">Delivery Time</h2>
+                  <select className="input-field" value={deliverySlot} onChange={(event) => setDeliverySlot(event.target.value)}>
+                    {deliverySlots.map(slot => <option key={slot} value={slot}>{slot}</option>)}
+                  </select>
                 </div>
 
                 <div className="mt-8">
@@ -378,6 +467,20 @@ export default function CheckoutPage() {
                       <div>
                         <p className="font-medium text-text-primary">Bank Transfer (Whish / OMT)</p>
                         <p className="text-sm text-text-muted">We will contact you with payment details.</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
+                      <input type="radio" name="paymentMethod" value="omt" checked={form.paymentMethod === 'omt'} onChange={handleChange} className="w-4 h-4 text-accent" />
+                      <div>
+                        <p className="font-medium text-text-primary">OMT Money Transfer</p>
+                        <p className="text-sm text-text-muted">Reserve the order and pay by OMT before delivery.</p>
+                      </div>
+                    </label>
+                    <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
+                      <input type="radio" name="paymentMethod" value="whish_money" checked={form.paymentMethod === 'whish_money'} onChange={handleChange} className="w-4 h-4 text-accent" />
+                      <div>
+                        <p className="font-medium text-text-primary">Whish Money</p>
+                        <p className="text-sm text-text-muted">Reserve the order and pay by Whish Money before delivery.</p>
                       </div>
                     </label>
                   </div>
@@ -414,17 +517,38 @@ export default function CheckoutPage() {
                 </div>
 
                 <div className="space-y-3 text-sm border-t border-slate-200 pt-4">
+                  <div className="flex gap-2">
+                    <input
+                      value={couponCode}
+                      onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
+                      className="input-field"
+                      placeholder="Coupon code"
+                    />
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                      <TicketPercent className="h-5 w-5" />
+                    </div>
+                  </div>
                   <div className="flex justify-between text-text-muted">
                     <span>Subtotal</span>
                     <span className="text-text-primary font-medium">${subtotal}</span>
                   </div>
+                  {couponCode.trim() && (
+                    <div className="flex justify-between text-text-muted">
+                      <span>Coupon</span>
+                      <span className="text-accent font-medium">Applied at order placement</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-text-muted">
+                    <span>Tax (VAT 11%)</span>
+                    <span className="text-text-primary font-medium">${taxAmount.toFixed(2)}</span>
+                  </div>
                   <div className="flex justify-between text-text-muted">
                     <span>Shipping</span>
-                    <span className="text-success font-medium">Free</span>
+                    <span className="text-text-primary font-medium">${shippingCost.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-text-primary text-lg border-t border-slate-200 pt-4">
                     <span>Total</span>
-                    <span>${subtotal}</span>
+                    <span>${estimatedTotal}</span>
                   </div>
                 </div>
 

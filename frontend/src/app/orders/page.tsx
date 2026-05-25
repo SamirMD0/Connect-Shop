@@ -7,8 +7,11 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuth } from '@/hooks/useAuth';
+import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
+import { API_URL } from '@/lib/constants';
 import { Order } from '@/lib/types';
+import { RotateCcw, FileText, MessageCircle, XCircle, Undo2 } from 'lucide-react';
 
 const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'danger' | 'default'> = {
   confirmed: 'info',
@@ -20,6 +23,7 @@ const statusVariant: Record<string, 'success' | 'warning' | 'info' | 'danger' | 
 
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
+  const { addToast } = useToast();
   const router = useRouter();
 
   const [orders, setOrders] = useState<Order[]>([]);
@@ -63,6 +67,53 @@ export default function OrdersPage() {
       setExpandedId(null);
     }
   };
+
+  const refreshOrders = async () => {
+    const res = await api.get<{ success: boolean; orders: Order[] }>('/api/orders');
+    setOrders(res.orders);
+  };
+
+  const handleCancel = async (orderId: string) => {
+    if (!confirm('Cancel this order?')) return;
+    try {
+      await api.post(`/api/orders/${orderId}/cancel`);
+      addToast('Order cancelled.', 'success');
+      await refreshOrders();
+      setExpandedId(null);
+      setExpandedOrder(null);
+    } catch (error: any) {
+      addToast(error.message || 'Unable to cancel order.', 'error');
+    }
+  };
+
+  const handleReturn = async (orderId: string) => {
+    const reason = prompt('Why are you returning this order?');
+    if (!reason) return;
+    try {
+      await api.post(`/api/orders/${orderId}/return`, { reason });
+      addToast('Return request submitted.', 'success');
+      const res = await api.get<{ success: boolean; order: Order }>(`/api/orders/${orderId}`);
+      setExpandedOrder(res.order);
+    } catch (error: any) {
+      addToast(error.message || 'Unable to request return.', 'error');
+    }
+  };
+
+  const handleReorder = async (orderId: string) => {
+    try {
+      await api.post(`/api/orders/${orderId}/reorder`);
+      addToast('Order items were added to your cart.', 'success');
+      router.push('/cart');
+    } catch (error: any) {
+      addToast(error.message || 'Unable to reorder these items.', 'error');
+    }
+  };
+
+  const openInvoice = (orderId: string) => {
+    window.open(`${API_URL}/api/v1/orders/${orderId}/invoice`, '_blank', 'noopener,noreferrer');
+  };
+
+  const statusSteps = ['confirmed', 'processing', 'shipped', 'delivered'];
 
   if (authLoading || (!user && authLoading)) {
     return (
@@ -155,6 +206,40 @@ export default function OrdersPage() {
                 {expandedId === order.id && expandedOrder && (
                   <div className="border-t border-white/5 p-5 animate-fade-in">
                     <div className="space-y-3">
+                      <div className="rounded-xl bg-bg-elevated p-4">
+                        <p className="text-xs text-text-muted mb-3">Order progress</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                          {statusSteps.map(step => {
+                            const active = statusSteps.indexOf(step) <= statusSteps.indexOf(expandedOrder.status);
+                            return (
+                              <div key={step} className={`rounded-lg border px-3 py-2 text-xs font-medium ${active ? 'border-accent/40 bg-accent/10 text-accent' : 'border-white/10 text-text-muted'}`}>
+                                {step.charAt(0).toUpperCase() + step.slice(1)}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="rounded-xl bg-bg-elevated p-4">
+                          <p className="text-xs text-text-muted mb-1">Estimated delivery</p>
+                          <p className="text-sm font-medium text-text-primary">
+                            {expandedOrder.estimated_delivery_date ? new Date(expandedOrder.estimated_delivery_date).toLocaleDateString() : 'To be confirmed'}
+                          </p>
+                          {expandedOrder.delivery_slot && <p className="text-xs text-text-muted mt-1">{expandedOrder.delivery_slot}</p>}
+                        </div>
+                        <div className="rounded-xl bg-bg-elevated p-4">
+                          <p className="text-xs text-text-muted mb-1">Tracking</p>
+                          {expandedOrder.tracking_number ? (
+                            <a href={expandedOrder.tracking_url || '#'} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-accent hover:text-accent-glow">
+                              {expandedOrder.tracking_carrier || 'Courier'} · {expandedOrder.tracking_number}
+                            </a>
+                          ) : (
+                            <p className="text-sm text-text-primary">Tracking pending</p>
+                          )}
+                        </div>
+                      </div>
+
                       {expandedOrder.items?.map(item => (
                         <div key={item.id} className="flex items-center justify-between text-sm">
                           <div className="flex items-center gap-3 min-w-0">
@@ -174,6 +259,58 @@ export default function OrdersPage() {
                         </div>
                       ))}
                     </div>
+
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <button onClick={() => openInvoice(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
+                        <FileText className="w-4 h-4" />
+                        Invoice PDF
+                      </button>
+                      <button onClick={() => void handleReorder(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
+                        <RotateCcw className="w-4 h-4" />
+                        Reorder
+                      </button>
+                      {['confirmed', 'processing'].includes(expandedOrder.status) && (
+                        <button onClick={() => void handleCancel(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-danger/20 px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10">
+                          <XCircle className="w-4 h-4" />
+                          Cancel
+                        </button>
+                      )}
+                      {expandedOrder.status === 'delivered' && (
+                        <button onClick={() => void handleReturn(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
+                          <Undo2 className="w-4 h-4" />
+                          Return
+                        </button>
+                      )}
+                      <a
+                        href={`https://wa.me/96181000000?text=Hello,%20I%20need%20an%20update%20on%20order%20${expandedOrder.id.slice(0, 8).toUpperCase()}.`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 rounded-lg border border-[#25D366]/30 px-3 py-2 text-xs font-medium text-[#25D366] hover:bg-[#25D366]/10"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        WhatsApp update
+                      </a>
+                    </div>
+
+                    {expandedOrder.status_history && expandedOrder.status_history.length > 0 && (
+                      <div className="mt-4 pt-4 border-t border-white/5">
+                        <p className="text-xs text-text-muted mb-2">Status timeline</p>
+                        <div className="space-y-2">
+                          {expandedOrder.status_history.map(entry => (
+                            <div key={entry.id} className="flex justify-between gap-3 text-xs">
+                              <span className="font-medium text-text-primary">{entry.status}</span>
+                              <span className="text-text-muted">{entry.note || new Date(entry.created_at).toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {expandedOrder.return_requests && expandedOrder.return_requests.length > 0 && (
+                      <div className="mt-4 rounded-xl bg-bg-elevated p-4 text-xs text-text-muted">
+                        Return request: {expandedOrder.return_requests[0].status}
+                      </div>
+                    )}
 
                     {/* Shipping */}
                     {expandedOrder.shipping_address && (

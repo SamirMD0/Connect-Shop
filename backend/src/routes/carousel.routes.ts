@@ -1,7 +1,7 @@
 // backend/src/routes/carousel.routes.ts
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
-import { isAdmin } from '../middleware/admin';
+import { isAdmin, requireAdminPermission } from '../middleware/admin';
 import { requireAdminMfa } from '../middleware/mfa';
 import { adminAudit } from '../middleware/adminAudit';
 import { validate, carouselSlideRules } from '../middleware/validate';
@@ -18,10 +18,10 @@ router.get('/', getActive);
 // ─── Admin ───────────────────────────────────────────────────────────────────
 
 /** GET /api/carousel/admin — all slides */
-router.get('/admin', requireAuth, isAdmin, requireAdminMfa, adminAudit, getAll);
+router.get('/admin', requireAuth, isAdmin, requireAdminMfa, adminAudit, requireAdminPermission('content'), getAll);
 
 /** POST /api/carousel/admin — create a new slide */
-router.post('/admin', requireAuth, isAdmin, requireAdminMfa, adminAudit, ...carouselSlideRules, validate, create);
+router.post('/admin', requireAuth, isAdmin, requireAdminMfa, adminAudit, requireAdminPermission('content'), ...carouselSlideRules, validate, create);
 
 /** PATCH /api/carousel/admin/:id — partial update */
 router.patch(
@@ -30,6 +30,7 @@ router.patch(
   isAdmin,
   requireAdminMfa,
   adminAudit,
+  requireAdminPermission('content'),
   param('id').isInt({ min: 1 }).withMessage('Slide ID must be a positive integer'),
   validate,
   update
@@ -42,6 +43,7 @@ router.delete(
   isAdmin,
   requireAdminMfa,
   adminAudit,
+  requireAdminPermission('content'),
   param('id').isInt({ min: 1 }).withMessage('Slide ID must be a positive integer'),
   validate,
   remove

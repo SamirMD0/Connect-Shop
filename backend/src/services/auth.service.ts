@@ -59,6 +59,10 @@ export interface CredentialsRegisterInput {
 
 // ─── Service Functions ───────────────────────────────────────────────────────
 
+function isValidRawSessionToken(token: unknown): token is string {
+  return typeof token === 'string' && /^[a-f0-9]{96}$/.test(token);
+}
+
 /**
  * Insert a new user or update their profile if already exists.
  * Returns the user record.
@@ -95,6 +99,36 @@ async function createAuthToken(userId: string, purpose: 'email_verification' | '
   );
 
   return token;
+}
+
+export async function createOAuthState(state: string, ttlMs: number): Promise<void> {
+  const expiresAt = new Date(Date.now() + ttlMs);
+
+  await query(
+    `INSERT INTO oauth_states (state_hash, expires_at)
+     VALUES ($1, $2)
+     ON CONFLICT (state_hash) DO UPDATE SET
+       expires_at = EXCLUDED.expires_at,
+       used_at = NULL,
+       created_at = NOW()`,
+    [hashToken(state), expiresAt.toISOString()]
+  );
+
+  await query(`DELETE FROM oauth_states WHERE expires_at < NOW() - INTERVAL '1 day'`);
+}
+
+export async function consumeOAuthState(state: string): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    `UPDATE oauth_states
+     SET used_at = NOW()
+     WHERE state_hash = $1
+       AND used_at IS NULL
+       AND expires_at > NOW()
+     RETURNING id`,
+    [hashToken(state)]
+  );
+
+  return rows.length > 0;
 }
 
 export async function registerWithPassword(input: CredentialsRegisterInput): Promise<User> {
@@ -231,6 +265,10 @@ export async function createSession(userId: string, metadata: SessionMetadata = 
  * Returns the associated user if the session is valid and not expired, null otherwise.
  */
 export async function validateSession(token: string): Promise<User | null> {
+  if (!isValidRawSessionToken(token)) {
+    return null;
+  }
+
   const tokenHash = hashToken(token);
   const rows = await query<User & { session_id: string }>(
     `SELECT u.*, s.id AS session_id, s.mfa_verified_at
@@ -258,6 +296,10 @@ export async function validateSession(token: string): Promise<User | null> {
  * Destroy a session by its token (logout).
  */
 export async function destroySession(token: string): Promise<void> {
+  if (!isValidRawSessionToken(token)) {
+    return;
+  }
+
   await query('DELETE FROM sessions WHERE token = $1', [hashToken(token)]);
 }
 

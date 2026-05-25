@@ -1,5 +1,6 @@
 // backend/src/controllers/review.controller.ts
 import { Request, Response, NextFunction } from 'express';
+import { hasAdminPermission } from '../middleware/admin';
 import { ReviewService } from '../services/review.service';
 
 export const getProductReviews = async (req: Request, res: Response, next: NextFunction) => {
@@ -39,7 +40,7 @@ export const deleteReview = async (req: Request, res: Response, next: NextFuncti
   try {
     const { id } = req.params;
     const userId = req.user!.id;
-    const isAdmin = req.user!.role === 'admin';
+    const isAdmin = hasAdminPermission(req.user, 'reviews');
 
     await ReviewService.deleteReview(id, userId, isAdmin);
     res.json({ success: true, message: 'Review deleted successfully' });
