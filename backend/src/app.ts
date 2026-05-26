@@ -25,6 +25,7 @@ import categoriesRoutes from './routes/categories.routes';
 import reviewRoutes from './routes/review.routes';
 import wishlistRoutes from './routes/wishlist.routes';
 import usersRoutes from './routes/users.routes';
+import homepageRoutes from './routes/homepage.routes';
 
 const app = express();
 
@@ -69,6 +70,7 @@ app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', ordersRoutes);
 app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/carousel', carouselRoutes);
+app.use('/api/v1/homepage', homepageRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/users', usersRoutes);

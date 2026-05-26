@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Download, Upload } from 'lucide-react';
 import { api } from '../../../lib/api';
-import { Product, Category } from '../../../lib/types';
+import { Product, Category, Brand } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
 
@@ -25,6 +25,7 @@ interface ProductFormData {
   category_id: string;
   stock: string;
   is_featured: boolean;
+  brand_id: string;
   brand: string;
   sku: string;
   compare_at_price: string;
@@ -54,6 +55,7 @@ function createEmptyForm(categoryId = ''): ProductFormData {
     category_id: categoryId,
     stock: '0',
     is_featured: false,
+    brand_id: '',
     brand: '',
     sku: '',
     compare_at_price: '',
@@ -65,12 +67,32 @@ function createEmptyForm(categoryId = ''): ProductFormData {
   };
 }
 
+const emptyBrandForm = {
+  name: '',
+  slug: '',
+  logo_url: '',
+  description: '',
+  is_active: true,
+};
+
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .trim()
+    .replace(/['"]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
+  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
 
   // Pagination & Search
   const [page, setPage] = useState(1);
@@ -80,6 +102,7 @@ export default function AdminProducts() {
   const [importCsv, setImportCsv] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [brandForm, setBrandForm] = useState(emptyBrandForm);
 
   // Form State
   const [formData, setFormData] = useState<ProductFormData>(() => createEmptyForm());
@@ -87,11 +110,12 @@ export default function AdminProducts() {
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      const [prodRes, catRes] = await Promise.all([
+      const [prodRes, catRes, brandRes] = await Promise.all([
         api.get<{ success: boolean; products: Product[]; total: number; page: number; limit: number; totalPages: number }>('/api/products', {
           params: { page, limit: 10, search: searchQuery || undefined }
         }),
-        api.get<{ success: boolean; categories: Category[] }>('/api/categories')
+        api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
+        api.get<{ success: boolean; brands: Brand[] }>('/api/admin/brands').catch(() => ({ success: false, brands: [] }))
       ]);
       if (prodRes.success && prodRes.products) {
         setProducts(prodRes.products);
@@ -99,6 +123,9 @@ export default function AdminProducts() {
       }
       if (catRes.success && catRes.categories) {
         setCategories(catRes.categories);
+      }
+      if (brandRes.success && brandRes.brands) {
+        setBrands(brandRes.brands);
       }
     } catch (error) {
       console.error('Failed to load products:', error);
@@ -137,6 +164,7 @@ export default function AdminProducts() {
         category_id: fullProduct.category_id.toString(),
         stock: fullProduct.stock.toString(),
         is_featured: fullProduct.is_featured,
+        brand_id: fullProduct.brand_id?.toString() || '',
         brand: fullProduct.brand || '',
         sku: fullProduct.sku || '',
         compare_at_price: fullProduct.compare_at_price || '',
@@ -189,6 +217,7 @@ export default function AdminProducts() {
         category_id: parseInt(formData.category_id, 10),
         stock: parseInt(formData.stock, 10),
         is_featured: formData.is_featured,
+        brand_id: formData.brand_id ? parseInt(formData.brand_id, 10) : null,
         brand: formData.brand.trim() || null,
         sku: formData.sku.trim() || null,
         compare_at_price: formData.compare_at_price ? parseFloat(formData.compare_at_price) : null,
@@ -262,12 +291,67 @@ export default function AdminProducts() {
     }
   };
 
-  const inputClasses = "w-full bg-[#0a0a14] border border-[#1e293b] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all";
+  const handleProductNameChange = (name: string) => {
+    setFormData(current => ({
+      ...current,
+      name,
+      slug: !editingProduct && (!current.slug || current.slug === slugify(current.name)) ? slugify(name) : current.slug,
+    }));
+  };
+
+  const handleBrandNameChange = (name: string) => {
+    setBrandForm(current => ({
+      ...current,
+      name,
+      slug: !editingBrand && (!current.slug || current.slug === slugify(current.name)) ? slugify(name) : current.slug,
+    }));
+  };
+
+  const openBrandModal = (brand?: Brand) => {
+    setEditingBrand(brand || null);
+    setBrandForm(brand ? {
+      name: brand.name,
+      slug: brand.slug,
+      logo_url: brand.logo_url || '',
+      description: brand.description || '',
+      is_active: brand.is_active,
+    } : emptyBrandForm);
+    setIsBrandModalOpen(true);
+  };
+
+  const saveBrand = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const payload = {
+      name: brandForm.name.trim(),
+      slug: brandForm.slug.trim() || slugify(brandForm.name),
+      logo_url: brandForm.logo_url.trim() || null,
+      description: brandForm.description.trim() || null,
+      is_active: brandForm.is_active,
+    };
+
+    if (editingBrand) {
+      await api.put(`/api/admin/brands/${editingBrand.id}`, payload);
+    } else {
+      await api.post('/api/admin/brands', payload);
+    }
+
+    setIsBrandModalOpen(false);
+    await fetchProducts();
+  };
+
+  const deleteBrand = async (brand: Brand) => {
+    if (!confirm(`Delete ${brand.name}? Existing products will keep their brand text but lose the brand link.`)) return;
+    await api.delete(`/api/admin/brands/${brand.id}`);
+    await fetchProducts();
+  };
+
+  const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
 
   const columns = [
     { header: 'Name', accessorKey: 'name' as keyof Product },
     { header: 'Price', cell: (p: Product) => <span className="text-accent font-medium">${p.price}</span> },
     { header: 'Category', accessorKey: 'category_name' as keyof Product },
+    { header: 'Brand', cell: (p: Product) => <span className="text-slate-600">{p.brand || '-'}</span> },
     { header: 'Stock', cell: (p: Product) => (
       <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
         p.stock > 10 ? 'bg-emerald-500/10 text-emerald-400' : 
@@ -298,8 +382,8 @@ export default function AdminProducts() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-10 bg-[#1e293b] rounded-xl w-1/4"></div>
-        <div className="h-96 bg-[#12121a] rounded-xl border border-[#1e293b]"></div>
+        <div className="h-10 w-1/4 rounded-lg bg-slate-200"></div>
+        <div className="h-96 rounded-lg border border-slate-200 bg-white"></div>
       </div>
     );
   }
@@ -308,8 +392,8 @@ export default function AdminProducts() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Products</h1>
-          <p className="text-slate-400 text-sm mt-1">Manage your store's inventory</p>
+          <h1 className="text-2xl font-bold text-[#0B1B48]">Products</h1>
+          <p className="mt-1 text-sm text-slate-500">Manage your store's inventory</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <form onSubmit={handleSearch} className="relative w-full sm:w-64">
@@ -318,7 +402,7 @@ export default function AdminProducts() {
               placeholder="Search products..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className="w-full bg-[#0a0a14] border border-[#1e293b] rounded-xl pl-4 pr-10 py-2.5 text-sm text-white focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all"
+              className="w-full rounded-lg border border-slate-200 bg-white py-2.5 pl-4 pr-10 text-sm text-[#0B1B48] outline-none transition-all placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15"
             />
             <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-accent">
               <Search className="w-4 h-4" />
@@ -326,7 +410,7 @@ export default function AdminProducts() {
           </form>
           <button
             onClick={() => void handleExportCsv()}
-            className="flex items-center gap-2 rounded-xl border border-[#1e293b] px-4 py-2.5 font-medium text-slate-300 transition-all hover:border-accent hover:text-accent"
+            className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-all hover:border-accent hover:text-accent"
           >
             <Download className="w-4 h-4" /> Export
           </button>
@@ -339,14 +423,14 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      <div className="rounded-xl border border-[#1e293b] bg-[#12121a] p-4">
+      <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/80">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start">
           <textarea
             rows={3}
             value={importCsv}
             onChange={(event) => setImportCsv(event.target.value)}
             placeholder="Paste product CSV to import. Required columns: name, slug, price, category_id, stock."
-            className="min-h-24 flex-1 rounded-xl border border-[#1e293b] bg-[#0a0a14] px-4 py-3 text-sm text-white outline-none focus:border-accent"
+            className="min-h-24 flex-1 rounded-lg border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15"
           />
           <button
             onClick={() => void handleImportCsv()}
@@ -357,26 +441,65 @@ export default function AdminProducts() {
             Import CSV
           </button>
         </div>
-        {importMessage && <p className="mt-2 text-sm text-slate-400">{importMessage}</p>}
+      {importMessage && <p className="mt-2 text-sm text-slate-500">{importMessage}</p>}
       </div>
+
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/80">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-[#0B1B48]">Brands</h2>
+            <p className="text-sm text-slate-500">Create brands once, then choose them when adding products.</p>
+          </div>
+          <button
+            onClick={() => openBrandModal()}
+            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-accent hover:text-accent"
+          >
+            <Plus className="h-4 w-4" />
+            Add Brand
+          </button>
+        </div>
+
+        {brands.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {brands.map((brand) => (
+              <div key={brand.id} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-[#0B1B48]">
+                <span className={!brand.is_active ? 'text-slate-400 line-through' : ''}>{brand.name}</span>
+                {typeof brand.product_count === 'number' && (
+                  <span className="rounded-full bg-white px-1.5 text-xs text-slate-500">{brand.product_count}</span>
+                )}
+                <button onClick={() => openBrandModal(brand)} className="text-slate-400 hover:text-accent" aria-label={`Edit ${brand.name}`}>
+                  <Edit2 className="h-3.5 w-3.5" />
+                </button>
+                <button onClick={() => void deleteBrand(brand)} className="text-slate-400 hover:text-red-500" aria-label={`Delete ${brand.name}`}>
+                  <Trash2 className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+            No brands yet. Add your first brand before creating products.
+          </p>
+        )}
+      </section>
 
       <DataTable data={products} columns={columns} keyExtractor={(p) => p.id} />
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-[#1e293b] pt-4 mt-6">
+        <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-[#1e293b] disabled:opacity-50 disabled:pointer-events-none transition-colors"
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-blue-50 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
             <ChevronLeft className="w-4 h-4" /> Previous
           </button>
-          <span className="text-sm text-slate-400">Page {page} of {totalPages}</span>
+          <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-slate-400 hover:text-white hover:bg-[#1e293b] disabled:opacity-50 disabled:pointer-events-none transition-colors"
+            className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-blue-50 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
             Next <ChevronRight className="w-4 h-4" />
           </button>
@@ -386,30 +509,30 @@ export default function AdminProducts() {
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingProduct ? 'Edit Product' : 'Add Product'}>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Name</label>
             <input 
               required 
               type="text" 
               className={inputClasses}
               placeholder="Product name"
               value={formData.name} 
-              onChange={e => setFormData({...formData, name: e.target.value})} 
+              onChange={e => handleProductNameChange(e.target.value)} 
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Slug</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Slug</label>
             <input 
               required 
               type="text" 
               className={inputClasses}
               placeholder="product-slug"
               value={formData.slug} 
-              onChange={e => setFormData({...formData, slug: e.target.value})} 
+              onChange={e => setFormData({...formData, slug: slugify(e.target.value)})} 
             />
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Price</label>
+              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Price</label>
               <input 
                 required 
                 type="number" 
@@ -421,7 +544,7 @@ export default function AdminProducts() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Stock</label>
+              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Stock</label>
               <input 
                 required 
                 type="number" 
@@ -434,17 +557,23 @@ export default function AdminProducts() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Brand</label>
-              <input
-                type="text"
+              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Brand</label>
+              <select
                 className={inputClasses}
-                placeholder="Apple"
-                value={formData.brand}
-                onChange={e => setFormData({...formData, brand: e.target.value})}
-              />
+                value={formData.brand_id}
+                onChange={e => {
+                  const brand = brands.find(item => item.id.toString() === e.target.value);
+                  setFormData({...formData, brand_id: e.target.value, brand: brand?.name || ''});
+                }}
+              >
+                <option value="">No brand</option>
+                {brands.filter(brand => brand.is_active).map(brand => (
+                  <option key={brand.id} value={brand.id}>{brand.name}</option>
+                ))}
+              </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">SKU</label>
+              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">SKU</label>
               <input
                 type="text"
                 className={inputClasses}
@@ -456,7 +585,7 @@ export default function AdminProducts() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Compare-at Price</label>
+              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Compare-at Price</label>
               <input
                 type="number"
                 step="0.01"
@@ -467,7 +596,7 @@ export default function AdminProducts() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Weight (grams)</label>
+              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Weight (grams)</label>
               <input
                 type="number"
                 className={inputClasses}
@@ -478,7 +607,7 @@ export default function AdminProducts() {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Category</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Category</label>
             <select 
               required 
               className={inputClasses}
@@ -490,15 +619,15 @@ export default function AdminProducts() {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Image URL</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Image URL</label>
             <input 
-              type="url" 
+              type="text" 
               className={inputClasses}
               placeholder="https://example.com/image.jpg"
               value={formData.image_url} 
               onChange={e => setFormData({...formData, image_url: e.target.value})} 
             />
-            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-[#1e293b] px-4 py-2 text-sm font-medium text-slate-300 hover:border-accent hover:text-accent">
+            <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-accent hover:text-accent">
               <Upload className="h-4 w-4" />
               {uploadingImage ? 'Uploading...' : 'Upload image'}
               <input
@@ -513,7 +642,7 @@ export default function AdminProducts() {
             </label>
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Description</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Description</label>
             <textarea 
               className={inputClasses}
               rows={3} 
@@ -522,143 +651,158 @@ export default function AdminProducts() {
               onChange={e => setFormData({...formData, description: e.target.value})} 
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Gallery Images</label>
-            <textarea
-              className={inputClasses}
-              rows={3}
-              placeholder="One image URL or /images path per line"
-              value={formData.gallery_images_text}
-              onChange={e => setFormData({...formData, gallery_images_text: e.target.value})}
-            />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Meta Title</label>
-              <input
-                type="text"
-                className={inputClasses}
-                value={formData.meta_title}
-                onChange={e => setFormData({...formData, meta_title: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-300 mb-2">Meta Description</label>
-              <input
-                type="text"
-                className={inputClasses}
-                value={formData.meta_description}
-                onChange={e => setFormData({...formData, meta_description: e.target.value})}
-              />
-            </div>
-          </div>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <label className="block text-sm font-medium text-slate-300">Variants</label>
-              <button
-                type="button"
-                onClick={() => setFormData({...formData, variants: [...formData.variants, { ...emptyVariant }]})}
-                className="text-sm text-accent hover:text-accent-glow"
-              >
-                Add Variant
-              </button>
-            </div>
-            {formData.variants.map((variant, index) => (
-              <div key={index} className="rounded-xl border border-[#1e293b] p-4 space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    className={inputClasses}
-                    placeholder="Variant SKU"
-                    value={variant.sku}
-                    onChange={e => {
-                      const variants = [...formData.variants];
-                      variants[index] = { ...variant, sku: e.target.value };
-                      setFormData({...formData, variants});
-                    }}
-                  />
-                  <input
-                    type="text"
-                    className={inputClasses}
-                    placeholder="Name, e.g. 128GB Space Gray"
-                    value={variant.name}
-                    onChange={e => {
-                      const variants = [...formData.variants];
-                      variants[index] = { ...variant, name: e.target.value };
-                      setFormData({...formData, variants});
-                    }}
-                  />
-                  <input
-                    type="number"
-                    step="0.01"
-                    className={inputClasses}
-                    placeholder="Price"
-                    value={variant.price}
-                    onChange={e => {
-                      const variants = [...formData.variants];
-                      variants[index] = { ...variant, price: e.target.value };
-                      setFormData({...formData, variants});
-                    }}
-                  />
-                  <input
-                    type="number"
-                    className={inputClasses}
-                    placeholder="Stock"
-                    value={variant.stock}
-                    onChange={e => {
-                      const variants = [...formData.variants];
-                      variants[index] = { ...variant, stock: e.target.value };
-                      setFormData({...formData, variants});
-                    }}
-                  />
-                </div>
+          <details className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <summary className="cursor-pointer text-sm font-medium text-[#0B1B48]">Advanced product details</summary>
+            <div className="mt-4 space-y-5">
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Custom Brand Name</label>
                 <input
                   type="text"
                   className={inputClasses}
-                  placeholder="Variant image URL or /images path"
-                  value={variant.image_url}
-                  onChange={e => {
-                    const variants = [...formData.variants];
-                    variants[index] = { ...variant, image_url: e.target.value };
-                    setFormData({...formData, variants});
-                  }}
+                  placeholder="Only use this if no brand exists"
+                  value={formData.brand}
+                  onChange={e => setFormData({...formData, brand_id: '', brand: e.target.value})}
                 />
+              </div>
+              <div>
+                <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Gallery Images</label>
                 <textarea
                   className={inputClasses}
-                  rows={2}
-                  placeholder='Attributes JSON, e.g. {"storage":"128GB","color":"Space Gray"}'
-                  value={variant.attributes}
-                  onChange={e => {
-                    const variants = [...formData.variants];
-                    variants[index] = { ...variant, attributes: e.target.value };
-                    setFormData({...formData, variants});
-                  }}
+                  rows={3}
+                  placeholder="One image URL or /images path per line"
+                  value={formData.gallery_images_text}
+                  onChange={e => setFormData({...formData, gallery_images_text: e.target.value})}
                 />
-                <button
-                  type="button"
-                  onClick={() => setFormData({...formData, variants: formData.variants.filter((_, i) => i !== index)})}
-                  className="text-sm text-red-400 hover:text-red-300"
-                >
-                  Remove Variant
-                </button>
               </div>
-            ))}
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Meta Title</label>
+                  <input
+                    type="text"
+                    className={inputClasses}
+                    value={formData.meta_title}
+                    onChange={e => setFormData({...formData, meta_title: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Meta Description</label>
+                  <input
+                    type="text"
+                    className={inputClasses}
+                    value={formData.meta_description}
+                    onChange={e => setFormData({...formData, meta_description: e.target.value})}
+                  />
+                </div>
+              </div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-[#0B1B48]">Variants</label>
+                  <button
+                    type="button"
+                    onClick={() => setFormData({...formData, variants: [...formData.variants, { ...emptyVariant }]})}
+                    className="text-sm text-accent hover:text-accent-glow"
+                  >
+                    Add Variant
+                  </button>
+                </div>
+                {formData.variants.map((variant, index) => (
+                  <div key={index} className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <input
+                        type="text"
+                        className={inputClasses}
+                        placeholder="Variant SKU"
+                        value={variant.sku}
+                        onChange={e => {
+                          const variants = [...formData.variants];
+                          variants[index] = { ...variant, sku: e.target.value };
+                          setFormData({...formData, variants});
+                        }}
+                      />
+                      <input
+                        type="text"
+                        className={inputClasses}
+                        placeholder="Name, e.g. 128GB Space Gray"
+                        value={variant.name}
+                        onChange={e => {
+                          const variants = [...formData.variants];
+                          variants[index] = { ...variant, name: e.target.value };
+                          setFormData({...formData, variants});
+                        }}
+                      />
+                      <input
+                        type="number"
+                        step="0.01"
+                        className={inputClasses}
+                        placeholder="Price"
+                        value={variant.price}
+                        onChange={e => {
+                          const variants = [...formData.variants];
+                          variants[index] = { ...variant, price: e.target.value };
+                          setFormData({...formData, variants});
+                        }}
+                      />
+                      <input
+                        type="number"
+                        className={inputClasses}
+                        placeholder="Stock"
+                        value={variant.stock}
+                        onChange={e => {
+                          const variants = [...formData.variants];
+                          variants[index] = { ...variant, stock: e.target.value };
+                          setFormData({...formData, variants});
+                        }}
+                      />
+                    </div>
+                    <input
+                      type="text"
+                      className={inputClasses}
+                      placeholder="Variant image URL or /images path"
+                      value={variant.image_url}
+                      onChange={e => {
+                        const variants = [...formData.variants];
+                        variants[index] = { ...variant, image_url: e.target.value };
+                        setFormData({...formData, variants});
+                      }}
+                    />
+                    <textarea
+                      className={inputClasses}
+                      rows={2}
+                      placeholder='Attributes JSON, e.g. {"storage":"128GB","color":"Space Gray"}'
+                      value={variant.attributes}
+                      onChange={e => {
+                        const variants = [...formData.variants];
+                        variants[index] = { ...variant, attributes: e.target.value };
+                        setFormData({...formData, variants});
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setFormData({...formData, variants: formData.variants.filter((_, i) => i !== index)})}
+                      className="text-sm text-red-600 hover:text-red-700"
+                    >
+                      Remove Variant
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </details>
           <div className="flex items-center gap-3">
             <input 
               type="checkbox" 
               id="featured" 
-              className="w-4 h-4 rounded border-[#1e293b] bg-[#0a0a14] text-accent focus:ring-accent/30"
+              className="h-4 w-4 rounded border-slate-300 bg-white text-accent focus:ring-accent/30"
               checked={formData.is_featured} 
               onChange={e => setFormData({...formData, is_featured: e.target.checked})} 
             />
-            <label htmlFor="featured" className="text-sm font-medium text-white">Featured Product</label>
+            <label htmlFor="featured" className="text-sm font-medium text-[#0B1B48]">Featured Product</label>
           </div>
-          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-[#1e293b]">
+          <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-4">
             <button 
               type="button" 
               onClick={() => setIsModalOpen(false)} 
-              className="px-4 py-2.5 text-slate-400 hover:text-white transition-colors rounded-xl"
+              className="rounded-lg px-4 py-2.5 text-slate-600 transition-colors hover:text-[#0B1B48]"
             >
               Cancel
             </button>
@@ -667,6 +811,72 @@ export default function AdminProducts() {
               className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all"
             >
               Save
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <Modal isOpen={isBrandModalOpen} onClose={() => setIsBrandModalOpen(false)} title={editingBrand ? 'Edit Brand' : 'Add Brand'}>
+        <form onSubmit={saveBrand} className="space-y-4">
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Brand Name</label>
+            <input
+              required
+              className={inputClasses}
+              placeholder="Samsung"
+              value={brandForm.name}
+              onChange={event => handleBrandNameChange(event.target.value)}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Slug</label>
+            <input
+              required
+              className={inputClasses}
+              placeholder="samsung"
+              value={brandForm.slug}
+              onChange={event => setBrandForm({...brandForm, slug: slugify(event.target.value)})}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Logo URL</label>
+            <input
+              className={inputClasses}
+              placeholder="https://example.com/logo.png"
+              value={brandForm.logo_url}
+              onChange={event => setBrandForm({...brandForm, logo_url: event.target.value})}
+            />
+          </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Description</label>
+            <textarea
+              rows={3}
+              className={inputClasses}
+              value={brandForm.description}
+              onChange={event => setBrandForm({...brandForm, description: event.target.value})}
+            />
+          </div>
+          <label className="flex items-center gap-3 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={brandForm.is_active}
+              onChange={event => setBrandForm({...brandForm, is_active: event.target.checked})}
+            />
+            Active
+          </label>
+          <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-4">
+            <button
+              type="button"
+              onClick={() => setIsBrandModalOpen(false)}
+              className="rounded-lg px-4 py-2.5 text-slate-600 transition-colors hover:text-[#0B1B48]"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="rounded-xl bg-accent px-6 py-2.5 font-medium text-white shadow-lg shadow-accent/25 transition-all hover:bg-accent-glow"
+            >
+              Save Brand
             </button>
           </div>
         </form>

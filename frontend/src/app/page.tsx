@@ -12,7 +12,7 @@ import { CountdownPromo } from '@/components/home/CountdownPromo';
 import { Testimonials } from '@/components/home/Testimonials';
 import { Newsletter } from '@/components/home/Newsletter';
 import { api } from '@/lib/api';
-import { Product, Category, CarouselSlide } from '@/lib/types';
+import { Product, Category, CarouselSlide, HomepageContent, HomepageContentResponse, HomepageSectionItem } from '@/lib/types';
 import { ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -20,27 +20,83 @@ export const metadata: Metadata = {
   description: 'Shop the latest electronics, laptops, smartphones, and accessories at ELECTRO SHOP.',
 };
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
+const emptyHomepageContent: HomepageContent = {
+  hero_carousel: [],
+  hero_side_promo: [],
+  service_features: [],
+  browse_categories: [],
+  promo_banners: [],
+  countdown_promo: null,
+  testimonials: [],
+  newsletter: null,
+};
+
+function getMetadataString(metadata: Record<string, unknown> | undefined, key: string): string {
+  const value = metadata?.[key];
+  return typeof value === 'string' ? value : '';
+}
+
+function getSafeLink(link: string | null | undefined, fallback = '/store'): string {
+  if (!link) return fallback;
+  if (link.startsWith('/') && !link.startsWith('//')) return link;
+
+  try {
+    const url = new URL(link);
+    return ['http:', 'https:', 'mailto:', 'tel:'].includes(url.protocol) ? link : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function mapCmsHeroSlides(items: HomepageSectionItem[]): CarouselSlide[] {
+  return items
+    .filter((item) => Boolean(item.image_url))
+    .map((item, index) => ({
+      id: index + 1,
+      image_url: item.image_url as string,
+      title: item.title || 'Next-Gen Electronics',
+      subtitle: item.subtitle || item.description,
+      link_url: getSafeLink(item.button_link),
+      button_text: item.button_text || 'Shop Now',
+      display_order: item.sort_order ?? index,
+      is_active: item.is_active,
+      eyebrow: getMetadataString(item.metadata, 'eyebrow') || null,
+      metadata: item.metadata,
+    }));
+}
+
 export default async function HomePage() {
   let featured: Product[] = [];
   let trending: Product[] = [];
   let categories: Category[] = [];
   let slides: CarouselSlide[] = [];
+  let homepage: HomepageContent = emptyHomepageContent;
 
   try {
-    const [featuredRes, trendingRes, catRes, slidesRes] = await Promise.all([
+    const [featuredRes, trendingRes, catRes, slidesRes, homepageRes] = await Promise.all([
       api.get<{ success: boolean; products: Product[] }>('/api/products/featured'),
       api.get<{ success: boolean; products: Product[] }>('/api/products', {
         params: { sort: 'rating', limit: 8 },
       }),
       api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
-      api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel').catch(() => ({ success: false, slides: [] }))
+      api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel').catch(() => ({ success: false, slides: [] })),
+      api.get<HomepageContentResponse>('/api/homepage', { cache: 'no-store' }).catch(() => ({ success: false, homepage: emptyHomepageContent })),
     ]);
     featured = featuredRes.products || [];
     trending = trendingRes.products || [];
     categories = catRes.categories || [];
     slides = slidesRes.slides || [];
+    homepage = homepageRes.homepage || emptyHomepageContent;
   } catch (error) {
     console.error('Error fetching homepage data:', error);
+  }
+
+  const cmsHeroSlides = mapCmsHeroSlides(homepage.hero_carousel || []);
+  if (cmsHeroSlides.length > 0) {
+    slides = cmsHeroSlides;
   }
 
   // Provide fallback slides if API fails or is not implemented yet
@@ -70,67 +126,66 @@ export default async function HomePage() {
     '/nextmerce/categories/categories-06.png',
     '/nextmerce/categories/categories-07.png',
   ];
-  const heroProducts = featured.slice(0, 2);
   const bestSellerProducts = trending.length > 0 ? trending : featured;
-  const heroSidePromos = [
-    {
-      title: 'Smart Security Home Camera',
-      eyebrow: 'Save up to',
-      savings: '$450',
-      image: '/nextmerce/promo/promo-03.png',
-      className: 'bg-[#DDEFF6]',
-      product: heroProducts[0],
-      href: heroProducts[0] ? `/store/${heroProducts[0].slug}` : '/store',
-    },
-    {
-      title: 'Galaxy S24 Ultra 5G',
-      eyebrow: 'Save up to',
-      savings: '$600',
-      image: '/nextmerce/promo/promo-01.png',
-      className: 'bg-[#ECE8DE]',
-      product: heroProducts[1],
-      href: heroProducts[1] ? `/store/${heroProducts[1].slug}` : '/store?sort=rating',
-    },
-  ];
+  const heroSidePromos = (homepage.hero_side_promo || [])
+    .filter((promo) => promo.title || promo.image_url || promo.description || promo.subtitle)
+    .map((promo, index) => ({
+        id: promo.id,
+        title: promo.title || '',
+        eyebrow: getMetadataString(promo.metadata, 'eyebrow') || promo.subtitle || '',
+        savings: getMetadataString(promo.metadata, 'savings') || promo.description || '',
+        image: promo.image_url,
+        className: index % 2 === 0 ? 'bg-[#DDEFF6]' : 'bg-[#ECE8DE]',
+        href: getSafeLink(promo.button_link, '/store'),
+      }));
+  const hasHeroSidePromos = heroSidePromos.length > 0;
 
   return (
     <div className="animate-fade-in bg-white">
       <section className="overflow-hidden bg-white pb-8 pt-3 sm:pt-4">
         <Container className="max-w-[1440px]">
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_459px]">
+          <div className={`grid gap-5 ${hasHeroSidePromos ? 'xl:grid-cols-[minmax(0,1fr)_459px]' : ''}`}>
             <div className="w-full">
               <HeroCarousel slides={slides} />
             </div>
 
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
-              {heroSidePromos.map((promo) => (
-                <Link
-                  key={promo.title}
-                  href={promo.href}
-                  className={`group relative min-h-[250px] overflow-hidden rounded-[10px] p-7 transition-shadow hover:shadow-xl hover:shadow-slate-200/80 lg:min-h-[290px] ${promo.className}`}
-                >
-                  <div className="relative z-10 max-w-[205px]">
-                    <h2 className="text-2xl font-semibold leading-snug text-[#0B1B48] transition-colors group-hover:text-accent sm:text-[28px]">
-                      {promo.title}
-                    </h2>
-                    <p className="mt-28 text-sm font-medium text-[#0B1B48] sm:mt-36">
-                      {promo.eyebrow} <span className="text-lg text-accent">{promo.savings}</span>
-                    </p>
-                  </div>
+            {hasHeroSidePromos && (
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
+                {heroSidePromos.map((promo) => (
+                  <Link
+                    key={promo.id}
+                    href={promo.href}
+                    className={`group relative min-h-[250px] overflow-hidden rounded-[10px] p-7 transition-shadow hover:shadow-xl hover:shadow-slate-200/80 lg:min-h-[290px] ${promo.className}`}
+                  >
+                    <div className="relative z-10 max-w-[205px]">
+                      {promo.title && (
+                        <h2 className="text-2xl font-semibold leading-snug text-[#0B1B48] transition-colors group-hover:text-accent sm:text-[28px]">
+                          {promo.title}
+                        </h2>
+                      )}
+                      {(promo.eyebrow || promo.savings) && (
+                        <p className="mt-28 text-sm font-medium text-[#0B1B48] sm:mt-36">
+                          {promo.eyebrow} {promo.savings && <span className="text-lg text-accent">{promo.savings}</span>}
+                        </p>
+                      )}
+                    </div>
 
-                  <Image
-                    src={promo.image}
-                    alt={promo.title}
-                    width={220}
-                    height={220}
-                    className="absolute bottom-8 right-6 h-[150px] w-[150px] object-contain transition-transform duration-500 group-hover:scale-105 sm:h-[190px] sm:w-[190px]"
-                  />
-                </Link>
-              ))}
-            </div>
+                    {promo.image && (
+                      <Image
+                        src={promo.image}
+                        alt={promo.title || 'Promotion'}
+                        width={220}
+                        height={220}
+                        className="absolute bottom-8 right-6 h-[150px] w-[150px] object-contain transition-transform duration-500 group-hover:scale-105 sm:h-[190px] sm:w-[190px]"
+                      />
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
 
-          <ServiceFeatures />
+          <ServiceFeatures features={homepage.service_features} />
         </Container>
       </section>
 
@@ -198,17 +253,17 @@ export default async function HomePage() {
         </Container>
       </section>
 
-      <NextmercePromoBanners />
+      <NextmercePromoBanners banners={homepage.promo_banners} />
 
       <BestSellers products={bestSellerProducts} />
 
-      <CountdownPromo />
+      <CountdownPromo promo={homepage.countdown_promo} />
 
-      <Testimonials />
+      <Testimonials testimonials={homepage.testimonials} />
 
       <section className="bg-white py-14 sm:py-16">
         <Container>
-          <Newsletter />
+          <Newsletter content={homepage.newsletter} />
         </Container>
       </section>
     </div>

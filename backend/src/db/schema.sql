@@ -190,6 +190,23 @@ ALTER TABLE categories ADD COLUMN IF NOT EXISTS parent_id INTEGER REFERENCES cat
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS depth INTEGER NOT NULL DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON categories (parent_id);
 
+-- ─────────────────────────────────────────────────────────────────────────────
+-- brands
+-- ─────────────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS brands (
+  id          SERIAL       PRIMARY KEY,
+  name        VARCHAR(100) NOT NULL UNIQUE,
+  slug        VARCHAR(100) NOT NULL UNIQUE,
+  logo_url    TEXT,
+  description TEXT,
+  is_active   BOOLEAN      NOT NULL DEFAULT TRUE,
+  created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_brands_slug ON brands (slug);
+CREATE INDEX IF NOT EXISTS idx_brands_is_active ON brands (is_active);
+
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- products
@@ -226,9 +243,11 @@ ALTER TABLE products ADD COLUMN IF NOT EXISTS compare_at_price DECIMAL(10, 2);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS weight_grams INTEGER;
 ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_title VARCHAR(255);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS meta_description TEXT;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS brand_id INTEGER REFERENCES brands (id) ON DELETE SET NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku_unique
   ON products (sku)
   WHERE sku IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_products_brand_id ON products (brand_id);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- product_images
@@ -434,6 +453,14 @@ BEGIN
   ) THEN
     CREATE TRIGGER set_products_updated_at
       BEFORE UPDATE ON products
+      FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_trigger WHERE tgname = 'set_brands_updated_at'
+  ) THEN
+    CREATE TRIGGER set_brands_updated_at
+      BEFORE UPDATE ON brands
       FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
   END IF;
 

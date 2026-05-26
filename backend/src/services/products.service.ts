@@ -3,6 +3,7 @@ import { AppError, ConflictError } from '../utils/errors';
 import { ProductRepository } from '../repositories/product.repository';
 import type { ProductImageInput, ProductVariantInput } from '../repositories/product.repository';
 import { CategoryRepository } from '../repositories/category.repository';
+import { BrandRepository } from '../repositories/brand.repository';
 import { cacheDel } from '../config/redis';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -43,7 +44,10 @@ export interface Product {
   review_count: number;
   is_featured: boolean;
   specs: Record<string, string> | null;
+  brand_id: number | null;
   brand: string | null;
+  brand_slug?: string | null;
+  brand_logo_url?: string | null;
   sku: string | null;
   compare_at_price: string | null;
   weight_grams: number | null;
@@ -63,6 +67,18 @@ export interface Category {
   parent_id: number | null;
   depth: number;
   product_count?: number;
+}
+
+export interface Brand {
+  id: number;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  description: string | null;
+  is_active: boolean;
+  product_count?: number;
+  created_at: Date;
+  updated_at: Date;
 }
 
 export interface ProductListResult {
@@ -122,8 +138,9 @@ export async function listProducts(options: {
   }
 
   if (options.brand) {
-    conditions.push(`p.brand = $${paramIndex++}`);
+    conditions.push(`(p.brand = $${paramIndex} OR b.name = $${paramIndex} OR b.slug = $${paramIndex})`);
     values.push(options.brand);
+    paramIndex++;
   }
 
   if (options.min_price !== undefined) {
@@ -197,6 +214,10 @@ export async function getCategories(): Promise<Category[]> {
   return CategoryRepository.getAll();
 }
 
+export async function getBrands(): Promise<Brand[]> {
+  return BrandRepository.getAll();
+}
+
 // ─── Admin Mutations ─────────────────────────────────────────────────────────
 
 export async function createCategory(data: { name: string; slug: string; image_url: string | null; parent_id?: number | null; depth?: number }): Promise<Category> {
@@ -249,6 +270,7 @@ export async function createProduct(data: {
   category_id: number;
   stock: number;
   is_featured: boolean;
+  brand_id?: number | null;
   brand?: string | null;
   sku?: string | null;
   compare_at_price?: number | null;
@@ -258,7 +280,8 @@ export async function createProduct(data: {
   gallery_images?: ProductImageInput[];
   variants?: ProductVariantInput[];
 }): Promise<Product> {
-  const product = await ProductRepository.create(data);
+  const productInput = await normalizeProductBrandInput(data);
+  const product = await ProductRepository.create(productInput);
   await cacheDel('categories:all', `products:featured:8`, `products:slug:${product.slug}`);
   return product;
 }
@@ -272,6 +295,7 @@ export async function updateProduct(id: string, data: {
   category_id: number;
   stock: number;
   is_featured: boolean;
+  brand_id?: number | null;
   brand?: string | null;
   sku?: string | null;
   compare_at_price?: number | null;
@@ -282,7 +306,8 @@ export async function updateProduct(id: string, data: {
   variants?: ProductVariantInput[];
 }): Promise<Product | null> {
   const existing = await ProductRepository.getById(id);
-  const product = await ProductRepository.update(id, data);
+  const productInput = await normalizeProductBrandInput(data);
+  const product = await ProductRepository.update(id, productInput);
   await cacheDel(
     'categories:all',
     `products:featured:8`,
@@ -324,4 +349,67 @@ async function normalizeCategoryInput(data: { name: string; slug: string; image_
     parent_id: data.parent_id,
     depth: parent.depth + 1,
   };
+}
+
+async function normalizeProductBrandInput<T extends { brand_id?: number | null; brand?: string | null }>(data: T): Promise<T> {
+  if (!data.brand_id) {
+    return {
+      ...data,
+      brand_id: null,
+      brand: data.brand?.trim() || null,
+    };
+  }
+
+  const brand = await BrandRepository.getById(data.brand_id);
+  if (!brand || !brand.is_active) {
+    throw new AppError('Brand not found or inactive.', 400);
+  }
+
+  return {
+    ...data,
+    brand_id: brand.id,
+    brand: brand.name,
+  };
+}
+
+export async function createBrand(data: {
+  name: string;
+  slug: string;
+  logo_url?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+}): Promise<Brand> {
+  try {
+    return await BrandRepository.create(data);
+  } catch (error: any) {
+    if (error.code === '23505') {
+      throw new ConflictError('A brand with this name or slug already exists.');
+    }
+    throw error;
+  }
+}
+
+export async function updateBrand(id: number, data: {
+  name: string;
+  slug: string;
+  logo_url?: string | null;
+  description?: string | null;
+  is_active?: boolean;
+}): Promise<Brand | null> {
+  try {
+    const brand = await BrandRepository.update(id, data);
+    if (brand) {
+      await cacheDel(`products:featured:8`);
+    }
+    return brand;
+  } catch (error: any) {
+    if (error.code === '23505') {
+      throw new ConflictError('A brand with this name or slug already exists.');
+    }
+    throw error;
+  }
+}
+
+export async function deleteBrand(id: number): Promise<boolean> {
+  return BrandRepository.delete(id);
 }

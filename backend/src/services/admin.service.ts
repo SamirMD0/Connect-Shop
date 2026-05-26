@@ -320,11 +320,13 @@ export async function searchAdmin(q: string): Promise<Record<string, any>> {
 export async function getProductsForCsv(): Promise<Record<string, any>[]> {
   return query(
     `SELECT p.id, p.name, p.slug, p.description, p.price, p.image_url, p.category_id,
-            c.name AS category_name, p.stock, p.is_featured, p.brand, p.sku,
+            c.name AS category_name, p.stock, p.is_featured, p.brand_id,
+            COALESCE(b.name, p.brand) AS brand, p.sku,
             p.compare_at_price, p.weight_grams, p.meta_title, p.meta_description,
             p.created_at, p.updated_at
      FROM products p
      JOIN categories c ON c.id = p.category_id
+     LEFT JOIN brands b ON b.id = p.brand_id
      ORDER BY p.created_at DESC`
   );
 }

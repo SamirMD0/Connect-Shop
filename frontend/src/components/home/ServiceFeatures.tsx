@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { HomepageSectionItem } from '@/lib/types';
 
 const featureData = [
   {
@@ -23,11 +24,23 @@ const featureData = [
   },
 ];
 
-export function ServiceFeatures() {
+interface ServiceFeaturesProps {
+  features?: HomepageSectionItem[];
+}
+
+export function ServiceFeatures({ features }: ServiceFeaturesProps) {
+  const items = features && features.length > 0
+    ? features.map((feature, index) => ({
+        img: feature.image_url || featureData[index % featureData.length].img,
+        title: feature.title || featureData[index % featureData.length].title,
+        description: feature.description || feature.subtitle || featureData[index % featureData.length].description,
+      }))
+    : featureData;
+
   return (
     <div className="mx-auto mt-10 w-full max-w-[1060px] px-4 sm:px-8 xl:px-0">
       <div className="grid gap-7 sm:grid-cols-2 xl:grid-cols-4 xl:gap-12">
-        {featureData.map((item) => (
+        {items.map((item) => (
           <div className="flex items-center gap-4" key={item.title}>
             <Image src={item.img} alt="" width={40} height={41} />
             <div>

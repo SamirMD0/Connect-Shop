@@ -7,16 +7,51 @@ import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/admin/Modal';
 import { api } from '@/lib/api';
-import { CarouselSlide } from '@/lib/types';
+import { Brand, CarouselSlide, Category, Product } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
+
+type LinkTargetType = 'product' | 'category' | 'brand' | 'custom';
+
+function getCarouselLink(type: LinkTargetType, value: string): string {
+  if (!value) return '';
+  if (type === 'product') return `/store/${value}`;
+  if (type === 'category') return `/store?category=${encodeURIComponent(value)}`;
+  if (type === 'brand') return `/store?brand=${encodeURIComponent(value)}`;
+  return value;
+}
+
+function parseCarouselLink(link: string | null | undefined): { type: LinkTargetType; value: string } {
+  if (!link) return { type: 'product', value: '' };
+
+  if (link.startsWith('/store/')) {
+    return { type: 'product', value: link.replace('/store/', '') };
+  }
+
+  if (link.startsWith('/store?')) {
+    const params = new URLSearchParams(link.replace('/store?', ''));
+    const category = params.get('category');
+    const brand = params.get('brand');
+
+    if (category) return { type: 'category', value: category };
+    if (brand) return { type: 'brand', value: brand };
+  }
+
+  return { type: 'custom', value: link };
+}
 
 export default function CarouselManagementPage() {
   const router = useRouter();
   const { addToast } = useToast();
   const [slides, setSlides] = useState<CarouselSlide[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlide, setEditingSlide] = useState<CarouselSlide | null>(null);
+  const [linkTargetType, setLinkTargetType] = useState<LinkTargetType>('product');
+  const [linkTargetValue, setLinkTargetValue] = useState('');
+  const [productSearch, setProductSearch] = useState('');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -36,8 +71,19 @@ export default function CarouselManagementPage() {
 
   const loadSlides = async () => {
     try {
-      const res = await api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel/admin');
-      setSlides(res.slides);
+      const [slidesRes, productsRes, categoriesRes, brandsRes] = await Promise.all([
+        api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel/admin'),
+        api.get<{ success: boolean; products: Product[] }>('/api/products', {
+          params: { limit: 1000, sort: 'newest' },
+        }).catch(() => ({ success: false, products: [] })),
+        api.get<{ success: boolean; categories: Category[] }>('/api/categories').catch(() => ({ success: false, categories: [] })),
+        api.get<{ success: boolean; brands: Brand[] }>('/api/admin/brands').catch(() => ({ success: false, brands: [] })),
+      ]);
+
+      setSlides(slidesRes.slides);
+      if (productsRes.success) setProducts(productsRes.products || []);
+      if (categoriesRes.success) setCategories(categoriesRes.categories || []);
+      if (brandsRes.success) setBrands(brandsRes.brands || []);
     } catch {
       addToast('Failed to load slides', 'error');
     } finally {
@@ -57,6 +103,7 @@ export default function CarouselManagementPage() {
   };
 
   const handleOpenModal = (slide?: CarouselSlide) => {
+    const parsedLink = parseCarouselLink(slide?.link_url);
     if (slide) {
       setEditingSlide(slide);
       setFormData({
@@ -80,17 +127,25 @@ export default function CarouselManagementPage() {
         is_active: true,
       });
     }
+    setLinkTargetType(parsedLink.type);
+    setLinkTargetValue(parsedLink.value);
+    setProductSearch('');
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = {
+      ...formData,
+      link_url: getCarouselLink(linkTargetType, linkTargetValue) || null,
+    };
+
     try {
       if (editingSlide) {
-        await api.patch(`/api/carousel/admin/${editingSlide.id}`, formData);
+        await api.patch(`/api/carousel/admin/${editingSlide.id}`, payload);
         addToast('Slide updated successfully', 'success');
       } else {
-        await api.post('/api/carousel/admin', formData);
+        await api.post('/api/carousel/admin', payload);
         addToast('Slide created successfully', 'success');
       }
       setIsModalOpen(false);
@@ -99,6 +154,17 @@ export default function CarouselManagementPage() {
       addToast('Failed to save slide', 'error');
     }
   };
+
+  const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
+  const filteredProducts = products
+    .filter(product => {
+      const term = productSearch.trim().toLowerCase();
+      if (!term) return true;
+      return [product.name, product.sku, product.brand, product.category_name]
+        .filter(Boolean)
+        .some(value => String(value).toLowerCase().includes(term));
+    })
+    .slice(0, 80);
 
   const toggleActive = async (id: number, isActive: boolean) => {
     try {
@@ -125,18 +191,18 @@ export default function CarouselManagementPage() {
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-32 bg-slate-800 rounded-xl animate-pulse"></div>
+            <div key={i} className="h-32 animate-pulse rounded-lg border border-slate-200 bg-white"></div>
           ))}
         </div>
       ) : slides.length === 0 ? (
-        <div className="bg-surface border border-slate-800 rounded-xl p-12 text-center">
+        <div className="rounded-lg border border-slate-200 bg-white p-12 text-center shadow-sm shadow-slate-200/80">
           <p className="text-muted">No slides found.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {slides.map((slide) => (
-            <div key={slide.id} className="bg-surface border border-slate-800 rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-start sm:items-center">
-              <div className="w-full sm:w-48 h-24 relative rounded-lg overflow-hidden shrink-0 bg-slate-900">
+            <div key={slide.id} className="flex flex-col items-start gap-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80 sm:flex-row sm:items-center">
+              <div className="relative h-24 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:w-48">
                 {slide.image_url && (
                   <Image src={slide.image_url} alt={slide.title} fill className="object-cover" />
                 )}
@@ -173,40 +239,127 @@ export default function CarouselManagementPage() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-muted mb-1">Title *</label>
-            <input required type="text" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
+            <input required type="text" className={inputClasses} value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} />
           </div>
           <div>
             <label className="block text-sm font-medium text-muted mb-1">Subtitle</label>
-            <input type="text" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.subtitle} onChange={e => setFormData({...formData, subtitle: e.target.value})} />
+            <input type="text" className={inputClasses} value={formData.subtitle} onChange={e => setFormData({...formData, subtitle: e.target.value})} />
           </div>
           <div>
             <label className="block text-sm font-medium text-muted mb-1">Image URL *</label>
-            <input required type="text" placeholder="/images/carousel/example.jpg" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} />
+            <input required type="text" placeholder="/images/carousel/example.jpg" className={inputClasses} value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} />
           </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-muted mb-1">Link URL</label>
-              <input type="text" placeholder="/store" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.link_url} onChange={e => setFormData({...formData, link_url: e.target.value})} />
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <label className="mb-3 block text-sm font-medium text-[#0B1B48]">Slide click target</label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                ['product', 'Product'],
+                ['category', 'Category'],
+                ['brand', 'Brand'],
+                ['custom', 'Custom'],
+              ] as const).map(([type, label]) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setLinkTargetType(type);
+                    setLinkTargetValue('');
+                  }}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    linkTargetType === type
+                      ? 'border-accent bg-accent text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:text-accent'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
             </div>
+
+            <div className="mt-4 space-y-3">
+              {linkTargetType === 'product' && (
+                <>
+                  <input
+                    className={inputClasses}
+                    placeholder="Search products by name, SKU, brand, or category"
+                    value={productSearch}
+                    onChange={event => setProductSearch(event.target.value)}
+                  />
+                  <select
+                    className={inputClasses}
+                    value={linkTargetValue}
+                    onChange={event => setLinkTargetValue(event.target.value)}
+                  >
+                    <option value="">Select product</option>
+                    {filteredProducts.map(product => (
+                      <option key={product.id} value={product.slug}>
+                        {product.name}{product.brand ? ` - ${product.brand}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              {linkTargetType === 'category' && (
+                <select
+                  className={inputClasses}
+                  value={linkTargetValue}
+                  onChange={event => setLinkTargetValue(event.target.value)}
+                >
+                  <option value="">Select category</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.slug}>{category.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {linkTargetType === 'brand' && (
+                <select
+                  className={inputClasses}
+                  value={linkTargetValue}
+                  onChange={event => setLinkTargetValue(event.target.value)}
+                >
+                  <option value="">Select brand</option>
+                  {brands.filter(brand => brand.is_active).map(brand => (
+                    <option key={brand.id} value={brand.slug}>{brand.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {linkTargetType === 'custom' && (
+                <input
+                  className={inputClasses}
+                  placeholder="/store, /store?sort=rating, or https://example.com"
+                  value={linkTargetValue}
+                  onChange={event => setLinkTargetValue(event.target.value)}
+                />
+              )}
+
+              <p className="rounded-md bg-white px-3 py-2 text-xs text-slate-500">
+                Link preview: <span className="font-medium text-[#0B1B48]">{getCarouselLink(linkTargetType, linkTargetValue) || 'No link selected'}</span>
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-muted mb-1">Button Text</label>
-              <input type="text" placeholder="Shop Now" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.button_text} onChange={e => setFormData({...formData, button_text: e.target.value})} />
+              <input type="text" placeholder="Shop Now" className={inputClasses} value={formData.button_text} onChange={e => setFormData({...formData, button_text: e.target.value})} />
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-muted mb-1">Display Order</label>
-              <input required type="number" min="0" className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white" value={formData.display_order} onChange={e => setFormData({...formData, display_order: parseInt(e.target.value) || 0})} />
-            </div>
-            <div className="flex items-center mt-6">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} className="w-4 h-4 rounded border-slate-700 bg-slate-900 text-accent focus:ring-accent" />
-                <span className="text-sm font-medium text-muted">Is Active</span>
-              </label>
+              <input required type="number" min="0" className={inputClasses} value={formData.display_order} onChange={e => setFormData({...formData, display_order: parseInt(e.target.value) || 0})} />
             </div>
           </div>
+          <div className="flex items-center">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({...formData, is_active: e.target.checked})} className="w-4 h-4 rounded border-slate-300 bg-white text-accent focus:ring-accent" />
+                <span className="text-sm font-medium text-muted">Is Active</span>
+              </label>
+          </div>
           <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted hover:text-white transition-colors">Cancel</button>
+            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted transition-colors hover:text-[#0B1B48]">Cancel</button>
             <button type="submit" className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-glow transition-colors">Save Slide</button>
           </div>
         </form>

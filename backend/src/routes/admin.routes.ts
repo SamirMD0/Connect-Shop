@@ -8,13 +8,29 @@ import {
   validate,
   adminProductRules,
   adminCategoryRules,
+  adminBrandRules,
   adminOrderStatusRules,
   reviewIdRules,
   reviewModerationRules,
   returnStatusRules,
   trackingRules,
+  homepageSectionCreateRules,
+  homepageSectionUpdateRules,
+  homepageItemCreateRules,
+  homepageItemUpdateRules,
+  homepageSectionIdRules,
+  homepageItemIdRules,
 } from '../middleware/validate';
 import * as adminController from '../controllers/admin.controller';
+import {
+  createSection,
+  createSectionItem,
+  deleteSection,
+  deleteSectionItem,
+  getAdminHomepage,
+  updateSection,
+  updateSectionItem,
+} from '../controllers/homepage.controller';
 
 const router = Router();
 
@@ -42,6 +58,12 @@ router.post('/categories', requireAdminPermission('products'), ...adminCategoryR
 router.put('/categories/:id', requireAdminPermission('products'), ...adminCategoryRules, validate, adminController.updateCategory);
 router.delete('/categories/:id', requireAdminPermission('products'), adminController.deleteCategory);
 
+// Brands
+router.get('/brands', requireAdminPermission('products'), adminController.listBrands);
+router.post('/brands', requireAdminPermission('products'), ...adminBrandRules, validate, adminController.createBrand);
+router.put('/brands/:id', requireAdminPermission('products'), ...adminBrandRules, validate, adminController.updateBrand);
+router.delete('/brands/:id', requireAdminPermission('products'), adminController.deleteBrand);
+
 // Users
 router.get('/users', requireAdminPermission('users'), adminController.listUsers);
 router.get('/users/:id', requireAdminPermission('users'), adminController.getUserDetail);
@@ -58,6 +80,15 @@ router.put('/returns/:id/status', requireAdminPermission('orders'), ...returnSta
 router.get('/reviews', requireAdminPermission('reviews'), adminController.listReviews);
 router.put('/reviews/:id/status', requireAdminPermission('reviews'), ...reviewModerationRules, validate, adminController.moderateReview);
 router.delete('/reviews/:id', requireAdminPermission('reviews'), ...reviewIdRules, validate, adminController.deleteReview);
+
+// Homepage CMS
+router.get('/homepage', requireAdminPermission('content'), getAdminHomepage);
+router.post('/homepage/sections', requireAdminPermission('content'), ...homepageSectionCreateRules, validate, createSection);
+router.put('/homepage/sections/:id', requireAdminPermission('content'), ...homepageSectionUpdateRules, validate, updateSection);
+router.delete('/homepage/sections/:id', requireAdminPermission('content'), ...homepageSectionIdRules, validate, deleteSection);
+router.post('/homepage/sections/:id/items', requireAdminPermission('content'), ...homepageItemCreateRules, validate, createSectionItem);
+router.put('/homepage/items/:id', requireAdminPermission('content'), ...homepageItemUpdateRules, validate, updateSectionItem);
+router.delete('/homepage/items/:id', requireAdminPermission('content'), ...homepageItemIdRules, validate, deleteSectionItem);
 
 // Promotions
 router.get('/promotions', requireAdminPermission('marketing'), adminController.listPromotions);

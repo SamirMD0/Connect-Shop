@@ -19,11 +19,11 @@
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
 
-  /* Admin Dark Theme */
-  --color-admin-bg: #0a0a14;
-  --color-admin-surface: #12121a;
-  --color-admin-border: #1e293b;
-  --color-admin-text: #f1f5f9;
+  /* Admin Light Theme */
+  --color-admin-bg: #f8fafc;
+  --color-admin-surface: #ffffff;
+  --color-admin-border: #e2e8f0;
+  --color-admin-text: #0B1B48;
   --color-admin-muted: #64748b;
 
   /* Custom Animations */
@@ -122,7 +122,7 @@
 
   /* Admin theme utilities */
   .admin-card {
-    @apply bg-admin-surface border border-admin-border rounded-xl;
+    @apply bg-admin-surface border border-admin-border rounded-lg shadow-sm shadow-slate-200/70;
   }
 
   /* Input styles */

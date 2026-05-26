@@ -1,4 +1,5 @@
 import Image from 'next/image';
+import { HomepageSectionItem } from '@/lib/types';
 
 const testimonials = [
   {
@@ -21,10 +22,20 @@ const testimonials = [
   },
 ];
 
-function Stars() {
+interface TestimonialsProps {
+  testimonials?: HomepageSectionItem[];
+}
+
+function getRating(metadata: Record<string, unknown> | undefined): number {
+  const value = metadata?.rating;
+  const rating = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : 5;
+  return Math.min(5, Math.max(1, Number.isFinite(rating) ? Math.round(rating) : 5));
+}
+
+function Stars({ rating = 5 }: { rating?: number }) {
   return (
     <div className="mb-5 flex items-center gap-1">
-      {Array.from({ length: 5 }).map((_, index) => (
+      {Array.from({ length: rating }).map((_, index) => (
         <Image
           key={index}
           src="/nextmerce/icons/icon-star.svg"
@@ -38,7 +49,17 @@ function Stars() {
   );
 }
 
-export function Testimonials() {
+export function Testimonials({ testimonials: cmsTestimonials }: TestimonialsProps) {
+  const displayTestimonials = cmsTestimonials && cmsTestimonials.length > 0
+    ? cmsTestimonials.map((testimonial, index) => ({
+        review: testimonial.description || testimonials[index % testimonials.length].review,
+        authorName: testimonial.title || testimonials[index % testimonials.length].authorName,
+        authorImg: testimonial.image_url || testimonials[index % testimonials.length].authorImg,
+        authorRole: testimonial.subtitle || testimonials[index % testimonials.length].authorRole,
+        rating: getRating(testimonial.metadata),
+      }))
+    : testimonials.map((testimonial) => ({ ...testimonial, rating: 5 }));
+
   return (
     <section className="overflow-hidden bg-white pb-14 sm:pb-16">
       <div className="mx-auto w-full max-w-[1170px] px-4 sm:px-8 xl:px-0">
@@ -82,12 +103,12 @@ export function Testimonials() {
         </div>
 
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-          {testimonials.map((testimonial) => (
+          {displayTestimonials.map((testimonial) => (
             <article
               key={`${testimonial.authorName}-${testimonial.authorRole}`}
               className="rounded-[10px] bg-white px-5 py-8 shadow-xl shadow-slate-200/80 ring-1 ring-slate-100 sm:px-8"
             >
-              <Stars />
+              <Stars rating={testimonial.rating} />
 
               <p className="mb-6 leading-7 text-[#0B1B48]">{testimonial.review}</p>
 

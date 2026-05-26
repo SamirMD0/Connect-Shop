@@ -50,7 +50,7 @@ function csvEscape(value: unknown): string {
 function formatCsv(rows: Record<string, any>[]): string {
   const headers = [
     'id', 'name', 'slug', 'description', 'price', 'image_url', 'category_id',
-    'category_name', 'stock', 'is_featured', 'brand', 'sku', 'compare_at_price',
+    'category_name', 'stock', 'is_featured', 'brand_id', 'brand', 'sku', 'compare_at_price',
     'weight_grams', 'meta_title', 'meta_description', 'created_at', 'updated_at',
   ];
   return [
@@ -61,7 +61,8 @@ function formatCsv(rows: Record<string, any>[]): string {
 
 function normalizeDateInput(value: unknown): string | null {
   if (typeof value !== 'string' || !value) return null;
-  return value;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
 }
 
 // ─── Analytics ───────────────────────────────────────────────────────────────
@@ -145,6 +146,7 @@ export async function importProductsCsv(req: Request, res: Response, next: NextF
           category_id: parseInt(record.category_id, 10),
           stock: parseInt(record.stock || '0', 10),
           is_featured: ['true', '1', 'yes'].includes((record.is_featured || '').toLowerCase()),
+          brand_id: record.brand_id ? parseInt(record.brand_id, 10) : null,
           brand: record.brand || null,
           sku: record.sku || null,
           compare_at_price: record.compare_at_price ? parseFloat(record.compare_at_price) : null,
@@ -222,6 +224,48 @@ export async function deleteCategory(req: Request, res: Response, next: NextFunc
     const success = await productsService.deleteCategory(id);
     if (!success) throw new NotFoundError('Category');
     res.json({ success: true, message: 'Category deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─── Brands ─────────────────────────────────────────────────────────────────
+
+export async function listBrands(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const brands = await productsService.getBrands();
+    res.json({ success: true, brands });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createBrand(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const brand = await productsService.createBrand(req.body);
+    res.status(201).json({ success: true, brand });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateBrand(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const brand = await productsService.updateBrand(id, req.body);
+    if (!brand) throw new NotFoundError('Brand');
+    res.json({ success: true, brand });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteBrand(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const id = parseInt(req.params.id, 10);
+    const success = await productsService.deleteBrand(id);
+    if (!success) throw new NotFoundError('Brand');
+    res.json({ success: true, message: 'Brand deleted' });
   } catch (err) {
     next(err);
   }

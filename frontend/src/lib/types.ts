@@ -39,6 +39,18 @@ export interface Category {
   product_count?: number;
 }
 
+export interface Brand {
+  id: number;
+  name: string;
+  slug: string;
+  logo_url: string | null;
+  description: string | null;
+  is_active: boolean;
+  product_count?: number;
+  created_at: string;
+  updated_at: string;
+}
+
 // ─── Product ─────────────────────────────────────────────────────────────────
 export interface ProductVariant {
   id: string;
@@ -76,7 +88,10 @@ export interface Product {
   review_count: number;
   is_featured: boolean;
   specs: Record<string, string> | null;
+  brand_id?: number | null;
   brand: string | null;
+  brand_slug?: string | null;
+  brand_logo_url?: string | null;
   sku: string | null;
   compare_at_price: string | null;
   weight_grams: number | null;
@@ -214,4 +229,59 @@ export interface CarouselSlide {
   button_text: string | null;
   display_order: number;
   is_active: boolean;
+  eyebrow?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
+// ─── Homepage CMS ───────────────────────────────────────────────────────────
+export interface HomepageSectionItem {
+  id: string;
+  section_id: string;
+  title: string | null;
+  subtitle: string | null;
+  description: string | null;
+  button_text: string | null;
+  button_link: string | null;
+  image_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HomepageSection {
+  id: string;
+  section_key: string;
+  section_type: string;
+  title: string | null;
+  subtitle: string | null;
+  description: string | null;
+  eyebrow: string | null;
+  button_text: string | null;
+  button_link: string | null;
+  image_url: string | null;
+  background_image_url: string | null;
+  sort_order: number;
+  is_active: boolean;
+  metadata: Record<string, unknown>;
+  items?: HomepageSectionItem[];
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HomepageContent {
+  hero_carousel: HomepageSectionItem[];
+  hero_side_promo: HomepageSectionItem[];
+  service_features: HomepageSectionItem[];
+  browse_categories: HomepageSectionItem[];
+  promo_banners: HomepageSectionItem[];
+  countdown_promo: HomepageSection | HomepageSectionItem | null;
+  testimonials: HomepageSectionItem[];
+  newsletter: HomepageSection | HomepageSectionItem | null;
+}
+
+export interface HomepageContentResponse {
+  success: boolean;
+  homepage: HomepageContent;
 }

@@ -31,19 +31,19 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
   const visibleNavItems = navItems.filter(item => hasAdminPermission(user?.role, item.permission));
 
   return (
-    <aside className="w-64 bg-[#12121a] border-r border-[#1e293b] flex flex-col fixed h-screen">
+    <aside className="fixed flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
       {/* Logo */}
-      <div className="h-16 flex items-center justify-between px-6 border-b border-[#1e293b]">
+      <div className="flex h-16 items-center justify-between border-b border-slate-200 px-6">
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-glow flex items-center justify-center shadow-lg shadow-accent/25">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-accent shadow-sm shadow-blue-200">
             <Zap className="w-5 h-5 text-white" fill="white" />
           </div>
-          <span className="font-bold text-lg text-white tracking-tight">
+          <span className="text-lg font-bold tracking-tight text-[#0B1B48]">
             Admin<span className="text-accent">Panel</span>
           </span>
         </Link>
         {onClose && (
-          <button onClick={onClose} className="lg:hidden text-slate-400 hover:text-white" title="Close sidebar" aria-label="Close sidebar">
+          <button onClick={onClose} className="text-slate-500 hover:text-[#0B1B48] lg:hidden" title="Close sidebar" aria-label="Close sidebar">
             <X className="w-5 h-5" />
           </button>
         )}
@@ -62,11 +62,11 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
               onClick={onClose}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
                 isActive 
-                  ? 'bg-accent text-white shadow-lg shadow-accent/25' 
-                  : 'text-slate-400 hover:bg-[#1e293b] hover:text-white'
+                  ? 'bg-accent text-white shadow-sm shadow-blue-200' 
+                  : 'text-slate-600 hover:bg-blue-50 hover:text-accent'
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-500'}`} />
+              <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-slate-400'}`} />
               {item.name}
             </Link>
           );
@@ -74,10 +74,10 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       </nav>
 
       {/* Footer */}
-      <div className="p-4 border-t border-[#1e293b]">
+      <div className="border-t border-slate-200 p-4">
         <button
           onClick={() => logout()}
-          className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-sm font-medium text-slate-400 hover:bg-[#1e293b] hover:text-red-400 transition-all duration-200"
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
         >
           <LogOut className="w-5 h-5" />
           Sign out

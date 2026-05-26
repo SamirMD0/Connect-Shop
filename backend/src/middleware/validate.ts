@@ -2,6 +2,7 @@
 import { body, param, query, ValidationChain, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../utils/errors';
+import { HOMEPAGE_SECTION_KEYS, HOMEPAGE_SECTION_TYPES } from '../services/homepage.service';
 
 function isImageReference(value: string): boolean {
   if (value.startsWith('/')) return !value.startsWith('//') && !/[\u0000-\u001F\u007F]/.test(value);
@@ -24,6 +25,14 @@ function isSafeLink(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isSafeHomepageSectionKey(value: string): boolean {
+  return HOMEPAGE_SECTION_KEYS.includes(value as any) || /^[a-z][a-z0-9_]*$/.test(value);
+}
+
+function isPlainObject(value: unknown): boolean {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 // ─── Validation Runner ───────────────────────────────────────────────────────
@@ -360,6 +369,20 @@ export const adminCategoryRules: ValidationChain[] = [
   body('depth').optional().isInt({ min: 0 }).withMessage('Depth must be 0 or greater'),
 ];
 
+/** Validate Admin Brand */
+export const adminBrandRules: ValidationChain[] = [
+  body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 100 }),
+  body('slug').trim().isSlug().withMessage('Valid slug is required').isLength({ max: 100 }),
+  body('logo_url')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2048 })
+    .custom((value) => !value || isImageReference(value))
+    .withMessage('Logo URL must be a safe URL or site image path'),
+  body('description').optional({ nullable: true }).trim().isLength({ max: 1000 }),
+  body('is_active').optional().isBoolean(),
+];
+
 /** Validate Admin Product */
 export const adminProductRules: ValidationChain[] = [
   body('name').trim().notEmpty().withMessage('Name is required').isLength({ max: 255 }),
@@ -370,6 +393,7 @@ export const adminProductRules: ValidationChain[] = [
   body('category_id').isInt().withMessage('Category ID must be an integer'),
   body('stock').isInt({ min: 0 }).withMessage('Stock must be 0 or greater'),
   body('is_featured').optional().isBoolean(),
+  body('brand_id').optional({ nullable: true }).isInt({ min: 1 }).withMessage('Brand must be valid'),
   body('brand').optional({ nullable: true }).trim().isLength({ max: 100 }),
   body('sku').optional({ nullable: true }).trim().isLength({ max: 100 }),
   body('compare_at_price').optional({ nullable: true }).isFloat({ gt: 0 }),
@@ -407,6 +431,98 @@ export const carouselSlideRules: ValidationChain[] = [
   body('button_text').optional({ nullable: true }).trim().isLength({ max: 100 }),
   body('display_order').isInt({ min: 0 }).withMessage('display_order must be a non-negative integer'),
   body('is_active').isBoolean().withMessage('is_active must be a boolean'),
+];
+
+const homepageSectionFields: ValidationChain[] = [
+  body('section_key')
+    .optional()
+    .trim()
+    .isLength({ min: 1, max: 100 })
+    .withMessage('section_key must be under 100 characters')
+    .custom(isSafeHomepageSectionKey)
+    .withMessage('section_key must be a known key or safe slug-like value'),
+  body('section_type')
+    .optional()
+    .trim()
+    .isIn(HOMEPAGE_SECTION_TYPES)
+    .withMessage('section_type is invalid'),
+  body('title').optional({ nullable: true }).trim().isLength({ max: 255 }).withMessage('title must be under 255 characters'),
+  body('subtitle').optional({ nullable: true }).trim().isLength({ max: 1000 }).withMessage('subtitle must be under 1000 characters'),
+  body('description').optional({ nullable: true }).trim().isLength({ max: 5000 }).withMessage('description must be under 5000 characters'),
+  body('eyebrow').optional({ nullable: true }).trim().isLength({ max: 255 }).withMessage('eyebrow must be under 255 characters'),
+  body('button_text').optional({ nullable: true }).trim().isLength({ max: 100 }).withMessage('button_text must be under 100 characters'),
+  body('button_link')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2048 })
+    .custom((value) => !value || isSafeLink(value))
+    .withMessage('button_link must be a safe URL or site path'),
+  body('image_url')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2048 })
+    .custom((value) => !value || isImageReference(value))
+    .withMessage('image_url must be a safe image URL or site image path'),
+  body('background_image_url')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2048 })
+    .custom((value) => !value || isImageReference(value))
+    .withMessage('background_image_url must be a safe image URL or site image path'),
+  body('sort_order').optional().isInt({ min: 0 }).withMessage('sort_order must be a non-negative integer'),
+  body('is_active').optional().isBoolean().withMessage('is_active must be a boolean'),
+  body('metadata').optional({ nullable: true }).custom(isPlainObject).withMessage('metadata must be an object'),
+];
+
+const homepageItemFields: ValidationChain[] = [
+  body('title').optional({ nullable: true }).trim().isLength({ max: 255 }).withMessage('title must be under 255 characters'),
+  body('subtitle').optional({ nullable: true }).trim().isLength({ max: 1000 }).withMessage('subtitle must be under 1000 characters'),
+  body('description').optional({ nullable: true }).trim().isLength({ max: 5000 }).withMessage('description must be under 5000 characters'),
+  body('button_text').optional({ nullable: true }).trim().isLength({ max: 100 }).withMessage('button_text must be under 100 characters'),
+  body('button_link')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2048 })
+    .custom((value) => !value || isSafeLink(value))
+    .withMessage('button_link must be a safe URL or site path'),
+  body('image_url')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2048 })
+    .custom((value) => !value || isImageReference(value))
+    .withMessage('image_url must be a safe image URL or site image path'),
+  body('sort_order').optional().isInt({ min: 0 }).withMessage('sort_order must be a non-negative integer'),
+  body('is_active').optional().isBoolean().withMessage('is_active must be a boolean'),
+  body('metadata').optional({ nullable: true }).custom(isPlainObject).withMessage('metadata must be an object'),
+];
+
+export const homepageSectionIdRules: ValidationChain[] = [
+  param('id').isUUID().withMessage('Homepage section ID must be a valid UUID'),
+];
+
+export const homepageItemIdRules: ValidationChain[] = [
+  param('id').isUUID().withMessage('Homepage section item ID must be a valid UUID'),
+];
+
+export const homepageSectionCreateRules: ValidationChain[] = [
+  body('section_key').exists().withMessage('section_key is required'),
+  body('section_type').exists().withMessage('section_type is required'),
+  ...homepageSectionFields,
+];
+
+export const homepageSectionUpdateRules: ValidationChain[] = [
+  ...homepageSectionIdRules,
+  ...homepageSectionFields,
+];
+
+export const homepageItemCreateRules: ValidationChain[] = [
+  ...homepageSectionIdRules,
+  ...homepageItemFields,
+];
+
+export const homepageItemUpdateRules: ValidationChain[] = [
+  ...homepageItemIdRules,
+  ...homepageItemFields,
 ];
 
 /** Validate Review create */

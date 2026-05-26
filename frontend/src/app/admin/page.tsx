@@ -33,21 +33,21 @@ export default function AdminOverview() {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-8 bg-[#1e293b] rounded-xl w-1/4"></div>
+        <div className="h-8 bg-slate-200 rounded-lg w-1/4"></div>
         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-32 bg-[#12121a] rounded-xl border border-[#1e293b]"></div>
+            <div key={i} className="h-32 rounded-lg border border-slate-200 bg-white"></div>
           ))}
         </div>
-        <div className="h-96 bg-[#12121a] rounded-xl border border-[#1e293b] mt-8"></div>
+        <div className="h-96 rounded-lg border border-slate-200 bg-white mt-8"></div>
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="bg-[#12121a] border border-[#1e293b] rounded-xl p-12 text-center mt-8">
-        <p className="text-slate-400">Failed to load analytics data. Please try again later.</p>
+      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-12 text-center shadow-sm shadow-slate-200/80">
+        <p className="text-slate-500">Failed to load analytics data. Please try again later.</p>
       </div>
     );
   }
@@ -62,8 +62,8 @@ export default function AdminOverview() {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Dashboard Overview</h1>
-        <p className="text-slate-400 mt-2">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-[#0B1B48]">Dashboard Overview</h1>
+        <p className="mt-2 text-slate-500">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
       </div>
 
       {/* Stats Grid */}
@@ -96,12 +96,12 @@ export default function AdminOverview() {
       </div>
 
       {/* Monthly Revenue Chart */}
-      <div className="bg-[#12121a] border border-[#1e293b] rounded-xl p-6">
-        <h3 className="text-lg font-semibold text-white mb-6">Monthly Revenue</h3>
+      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
+        <h3 className="mb-6 text-lg font-semibold text-[#0B1B48]">Monthly Revenue</h3>
         <div className="h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1e293b" vertical={false} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis 
                 dataKey="name" 
                 stroke="#64748b" 
@@ -117,15 +117,15 @@ export default function AdminOverview() {
                 tickFormatter={(val) => `$${val}`} 
               />
               <Tooltip 
-                cursor={{ fill: '#1e293b' }} 
+                cursor={{ fill: '#eff6ff' }} 
                 contentStyle={{ 
-                  backgroundColor: '#12121a', 
-                  borderColor: '#1e293b', 
-                  borderRadius: '12px',
-                  boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                  backgroundColor: '#ffffff', 
+                  borderColor: '#e2e8f0', 
+                  borderRadius: '8px',
+                  boxShadow: '0 10px 25px rgba(15,23,42,0.12)'
                 }}
-                itemStyle={{ color: '#f1f5f9' }}
-                labelStyle={{ color: '#94a3b8' }}
+                itemStyle={{ color: '#0B1B48' }}
+                labelStyle={{ color: '#64748b' }}
                 formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']}
               />
               <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={50} />
@@ -137,9 +137,9 @@ export default function AdminOverview() {
       {/* Recent Data Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Recent Categories */}
-        <div className="bg-[#12121a] border border-[#1e293b] rounded-xl p-6 overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold text-white">Recent Categories</h3>
+            <h3 className="text-lg font-semibold text-[#0B1B48]">Recent Categories</h3>
             <Link href="/admin/categories" className="text-sm text-accent hover:text-accent-glow transition-colors">
               View All
             </Link>
@@ -149,9 +149,9 @@ export default function AdminOverview() {
           ) : (
             <div className="space-y-3">
               {data.recentCategories.map(cat => (
-                <div key={cat.id} className="flex justify-between items-center bg-[#0a0a14] p-4 rounded-xl border border-[#1e293b] hover:border-[#2e3e5b] transition-colors">
+                <div key={cat.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-slate-300">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#1e293b] rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
                       {cat.image_url ? (
                         <Image src={cat.image_url} alt={cat.name} width={24} height={24} className="object-contain" />
                       ) : (
@@ -159,11 +159,11 @@ export default function AdminOverview() {
                       )}
                     </div>
                     <div>
-                      <p className="text-white font-medium">{cat.name}</p>
+                      <p className="font-medium text-[#0B1B48]">{cat.name}</p>
                       <p className="text-xs text-slate-500">/{cat.slug}</p>
                     </div>
                   </div>
-                  <span className="text-xs bg-[#1e293b] text-slate-400 px-3 py-1.5 rounded-lg">
+                  <span className="rounded-lg bg-white px-3 py-1.5 text-xs text-slate-600 ring-1 ring-slate-200">
                     {cat.product_count || 0} products
                   </span>
                 </div>
@@ -173,9 +173,9 @@ export default function AdminOverview() {
         </div>
 
         {/* Recent Products */}
-        <div className="bg-[#12121a] border border-[#1e293b] rounded-xl p-6 overflow-hidden">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold text-white">Recent Products</h3>
+            <h3 className="text-lg font-semibold text-[#0B1B48]">Recent Products</h3>
             <Link href="/admin/products" className="text-sm text-accent hover:text-accent-glow transition-colors">
               View All
             </Link>
@@ -185,9 +185,9 @@ export default function AdminOverview() {
           ) : (
             <div className="space-y-3">
               {data.recentProducts.map(prod => (
-                <div key={prod.id} className="flex justify-between items-center bg-[#0a0a14] p-4 rounded-xl border border-[#1e293b] hover:border-[#2e3e5b] transition-colors">
+                <div key={prod.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-slate-300">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-[#1e293b] rounded-lg flex items-center justify-center shrink-0 overflow-hidden">
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
                       {prod.image_url ? (
                         <Image src={prod.image_url} alt={prod.name} width={40} height={40} className="object-cover rounded" />
                       ) : (
@@ -195,7 +195,7 @@ export default function AdminOverview() {
                       )}
                     </div>
                     <div>
-                      <p className="text-white font-medium line-clamp-1">{prod.name}</p>
+                      <p className="line-clamp-1 font-medium text-[#0B1B48]">{prod.name}</p>
                       <p className="text-xs text-accent">${parseFloat(prod.price).toLocaleString()}</p>
                     </div>
                   </div>
