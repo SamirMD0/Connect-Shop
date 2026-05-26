@@ -30,13 +30,13 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className="bg-bg-primary">
-      <body className={`${inter.variable} font-sans bg-bg-primary`} suppressHydrationWarning>
+      <body className={`${inter.variable} flex min-h-screen flex-col bg-bg-primary font-sans antialiased`} suppressHydrationWarning>
         <AuthProvider>
           <WishlistProvider>
             <CartProvider>
               <ToastProvider>
                 <Navbar />
-                <main className="flex-1">{children}</main>
+                <main className="w-full flex-1">{children}</main>
                 <Footer />
               </ToastProvider>
             </CartProvider>

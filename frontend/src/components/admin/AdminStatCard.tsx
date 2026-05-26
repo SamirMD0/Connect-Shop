@@ -12,11 +12,11 @@ interface AdminStatCardProps {
 
 export function AdminStatCard({ title, value, icon, trend }: AdminStatCardProps) {
   return (
-    <div className="bg-[#12121a] border border-[#1e293b] rounded-xl p-6 transition-all duration-200 hover:border-[#2e3e5b]">
+    <div className="group rounded-2xl border border-admin-border bg-admin-surface p-6 shadow-xl shadow-black/20 transition-all duration-200 hover:-translate-y-0.5 hover:border-slate-600">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-medium text-slate-400">{title}</h3>
         {icon && (
-          <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center text-accent">
+          <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/10 text-accent transition-colors group-hover:bg-accent group-hover:text-white">
             {icon}
           </div>
         )}

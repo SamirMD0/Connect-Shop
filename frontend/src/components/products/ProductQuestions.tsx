@@ -99,7 +99,7 @@ export function ProductQuestions({ slug }: { slug: string }) {
               <p className="text-sm font-medium text-text-primary">{item.question}</p>
               {item.answer && (
                 <div className="mt-4 rounded-xl bg-slate-50 p-4">
-                  <p className="mb-1 text-xs font-semibold uppercase text-accent">ElecSHOP answer</p>
+                  <p className="mb-1 text-xs font-semibold uppercase text-accent">ELECTRO SHOP answer</p>
                   <p className="text-sm text-text-muted">{item.answer}</p>
                 </div>
               )}

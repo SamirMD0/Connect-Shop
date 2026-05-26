@@ -1,7 +1,8 @@
 import Link from 'next/link';
+import Image from 'next/image';
 import { Container } from './Container';
 import { APP_NAME } from '@/lib/constants';
-import { Zap } from 'lucide-react';
+import { Mail, MapPin, Phone, Zap } from 'lucide-react';
 import type { JSX } from 'react';
 
 const footerLinks = [
@@ -36,27 +37,59 @@ const footerLinks = [
 ];
 
 export function Footer() {
+  const year = new Date().getFullYear();
+  const accountLinks = footerLinks.find(section => section.title === 'Account')?.links || [];
+  const quickLinks = [
+    ...footerLinks.find(section => section.title === 'Shop')?.links.slice(0, 3) || [],
+    ...footerLinks.find(section => section.title === 'Company')?.links.slice(0, 2) || [],
+  ];
+  const paymentMethods = [
+    { src: '/nextmerce/payment/payment-01.svg', alt: 'visa card', width: 66, height: 22 },
+    { src: '/nextmerce/payment/payment-02.svg', alt: 'paypal', width: 18, height: 21 },
+    { src: '/nextmerce/payment/payment-03.svg', alt: 'master card', width: 33, height: 24 },
+    { src: '/nextmerce/payment/payment-04.svg', alt: 'apple pay', width: 53, height: 22 },
+    { src: '/nextmerce/payment/payment-05.svg', alt: 'google pay', width: 56, height: 22 },
+  ];
+
   return (
-    <footer className="border-t border-slate-200 bg-slate-50 mt-auto">
-      <Container className="py-16">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10">
-          {/* Brand */}
-          <div className="col-span-2 md:col-span-1">
-            <div className="flex items-center gap-2.5 mb-5">
-              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent to-accent-glow flex items-center justify-center shadow-lg shadow-accent/25">
-                <Zap className="w-5 h-5 text-white" fill="white" />
-              </div>
-              <span className="text-lg font-bold text-text-primary">{APP_NAME}</span>
-            </div>
-            <p className="text-sm text-text-muted leading-relaxed mb-6">
-              Premium electronics at your fingertips. Quality products, fast shipping, and exceptional customer service.
-            </p>
-            <div className="flex gap-3">
-              {['twitter', 'facebook', 'instagram', 'youtube'].map((social) => (
+    <footer className="mt-auto overflow-hidden bg-white">
+      <Container className="max-w-[1170px]">
+        <div className="flex flex-wrap gap-10 pb-10 pt-14 sm:pt-16 xl:flex-nowrap xl:justify-between xl:gap-16 xl:pb-15 xl:pt-20">
+          <div className="w-full max-w-[330px]">
+            <Link href="/" className="mb-7 flex items-center gap-3">
+              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#3C50E0] text-white">
+                <Zap className="h-6 w-6" fill="white" />
+              </span>
+              <span className="text-2xl font-bold leading-none text-[#0B1B48]">{APP_NAME}</span>
+            </Link>
+
+            <h2 className="mb-7 text-base font-medium text-[#0B1B48]">Help & Support</h2>
+
+            <ul className="flex flex-col gap-3 text-sm leading-6 text-slate-600">
+              <li className="flex gap-4">
+                <MapPin className="mt-0.5 h-6 w-6 shrink-0 text-[#3C50E0]" />
+                Delivery and support across Lebanon.
+              </li>
+              <li>
+                <a href="#" className="flex items-center gap-4 transition-colors hover:text-[#3C50E0]">
+                  <Phone className="h-6 w-6 shrink-0 text-[#3C50E0]" />
+                  Customer support available online.
+                </a>
+              </li>
+              <li>
+                <a href="#" className="flex items-center gap-4 transition-colors hover:text-[#3C50E0]">
+                  <Mail className="h-6 w-6 shrink-0 text-[#3C50E0]" />
+                  support@example.com
+                </a>
+              </li>
+            </ul>
+
+            <div className="mt-7 flex items-center gap-4 text-slate-500">
+              {['facebook', 'twitter', 'instagram', 'youtube'].map((social) => (
                 <a
                   key={social}
                   href="#"
-                  className="w-9 h-9 rounded-xl bg-slate-100 hover:bg-accent hover:text-white flex items-center justify-center text-text-muted transition-all duration-200"
+                  className="flex transition-colors hover:text-[#3C50E0]"
                   aria-label={social}
                 >
                   <SocialIcon name={social} />
@@ -65,41 +98,126 @@ export function Footer() {
             </div>
           </div>
 
-          {/* Links */}
-          {footerLinks.map(section => (
-            <div key={section.title}>
-              <h3 className="text-sm font-semibold text-text-primary mb-4">{section.title}</h3>
-              <ul className="space-y-3">
-                {section.links.map(link => (
-                  <li key={link.label}>
-                    <Link
-                      href={link.href}
-                      className="text-sm text-text-muted hover:text-accent transition-colors"
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
-        </div>
+          <div className="w-full sm:w-auto">
+            <h2 className="mb-7 text-base font-medium text-[#0B1B48]">Account</h2>
 
-        {/* Bottom */}
-        <div className="mt-12 pt-8 border-t border-slate-200 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p className="text-sm text-text-muted">
-            &copy; {new Date().getFullYear()} {APP_NAME}. All rights reserved.
-          </p>
-          <div className="flex gap-6">
-            <Link href="#" className="text-sm text-text-muted hover:text-accent transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="#" className="text-sm text-text-muted hover:text-accent transition-colors">
-              Terms of Service
-            </Link>
+            <ul className="flex flex-col gap-3.5 text-sm text-slate-600">
+              <li>
+                <Link className="transition-colors hover:text-[#3C50E0]" href="/account">
+                  My Account
+                </Link>
+              </li>
+              <li>
+                <Link className="transition-colors hover:text-[#3C50E0]" href="/auth/login">
+                  Login / Register
+                </Link>
+              </li>
+              {accountLinks.map(link => (
+                <li key={link.label}>
+                  <Link className="transition-colors hover:text-[#3C50E0]" href={link.href}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full sm:w-auto">
+            <h2 className="mb-7 text-base font-medium text-[#0B1B48]">Quick Link</h2>
+
+            <ul className="flex flex-col gap-3 text-sm text-slate-600">
+              <li>
+                <Link className="transition-colors hover:text-[#3C50E0]" href="#">
+                  Privacy Policy
+                </Link>
+              </li>
+              <li>
+                <Link className="transition-colors hover:text-[#3C50E0]" href="#">
+                  Terms of Use
+                </Link>
+              </li>
+              {quickLinks.map(link => (
+                <li key={`${link.label}-${link.href}`}>
+                  <Link className="transition-colors hover:text-[#3C50E0]" href={link.href}>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="w-full sm:w-auto">
+            <h2 className="mb-7 text-base font-medium text-[#0B1B48] lg:text-right">
+              Download App
+            </h2>
+
+            <p className="mb-4 text-sm text-slate-600 lg:text-right">
+              Save $3 With App & New User only
+            </p>
+
+            <ul className="flex flex-col gap-3 lg:items-end">
+              <li>
+                <a
+                  className="inline-flex items-center gap-3 rounded-md bg-[#0B1B48] py-[9px] pl-4 pr-7 text-white transition-opacity hover:opacity-95"
+                  href="#"
+                >
+                  <svg className="fill-current" width="34" height="35" viewBox="0 0 34 35" fill="none">
+                    <path d="M29.5529 12.3412C29.3618 12.4871 25.9887 14.3586 25.9887 18.5198C25.9887 23.3331 30.2809 25.0358 30.4093 25.078C30.3896 25.1818 29.7275 27.41 28.1463 29.6804C26.7364 31.6783 25.264 33.6731 23.024 33.6731C20.7841 33.6731 20.2076 32.3918 17.6217 32.3918C15.1018 32.3918 14.2058 33.7152 12.1569 33.7152C10.1079 33.7152 8.6783 31.8664 7.03456 29.5961C5.13062 26.93 3.59229 22.7882 3.59229 18.8572C3.59229 12.552 7.756 9.20804 11.8538 9.20804C14.0312 9.20804 15.8462 10.6157 17.2133 10.6157C18.5144 10.6157 20.5436 9.12373 23.0207 9.12373C23.9595 9.12373 27.3327 9.20804 29.5529 12.3412ZM21.8447 6.45441C22.8692 5.25759 23.5939 3.59697 23.5939 1.93635C23.5939 1.70607 23.5741 1.47254 23.5313 1.28442C21.8645 1.34605 19.8815 2.37745 18.6857 3.74292C17.7469 4.79379 16.8707 6.45441 16.8707 8.13773C16.8707 8.39076 16.9135 8.64369 16.9333 8.72476C17.0387 8.74426 17.21 8.76694 17.3813 8.76694C18.8768 8.76694 20.7577 7.78094 21.8447 6.45441Z" />
+                  </svg>
+
+                  <span>
+                    <span className="block text-xs">Download on the</span>
+                    <span className="block font-medium">App Store</span>
+                  </span>
+                </a>
+              </li>
+
+              <li>
+                <a
+                  className="inline-flex items-center gap-3 rounded-md bg-[#3C50E0] py-[9px] pl-4 pr-8 text-white transition-opacity hover:opacity-95"
+                  href="#"
+                >
+                  <svg className="fill-current" width="34" height="35" viewBox="0 0 34 35" fill="none">
+                    <path d="M5.45764 1.03125L19.9718 15.5427L23.7171 11.7973C18.5993 8.69224 11.7448 4.52679 8.66206 2.65395L6.59681 1.40278C6.23175 1.18039 5.84088 1.06062 5.45764 1.03125ZM3.24214 2.76868C3.21276 2.92814 3.1875 3.08837 3.1875 3.26041V31.939C3.1875 32.0593 3.21169 32.1713 3.22848 32.2859L17.9939 17.5205L3.24214 2.76868ZM26.1785 13.2916L21.9496 17.5205L26.1047 21.6756C28.3062 20.3412 29.831 19.4147 30.0003 19.3126C30.7486 18.8552 31.1712 18.1651 31.1586 17.4112C31.1474 16.6713 30.7247 16.0098 30.0057 15.6028C29.8449 15.5104 28.3408 14.6022 26.1785 13.2916ZM19.9718 19.4983L5.50135 33.9688C5.78248 33.9198 6.06327 33.836 6.33182 33.6737C6.70387 33.4471 16.7548 27.3492 23.6433 23.1699L19.9718 19.4983Z" />
+                  </svg>
+
+                  <span>
+                    <span className="block text-xs">Get in On</span>
+                    <span className="block font-medium">Google Play</span>
+                  </span>
+                </a>
+              </li>
+            </ul>
           </div>
         </div>
       </Container>
+
+      <div className="bg-[#F6F7FB] py-5 xl:py-7">
+        <Container className="max-w-[1170px]">
+          <div className="flex flex-wrap items-center justify-between gap-5">
+            <p className="font-medium text-[#0B1B48]">
+              &copy; {year}. All rights reserved by {APP_NAME}.
+            </p>
+
+            <div className="flex flex-wrap items-center gap-4">
+              <p className="font-medium text-[#0B1B48]">We Accept:</p>
+
+              <div className="flex flex-wrap items-center gap-5 sm:gap-6">
+                {paymentMethods.map(payment => (
+                  <a key={payment.src} href="#" aria-label={`payment system with ${payment.alt}`}>
+                    <Image
+                      src={payment.src}
+                      alt={payment.alt}
+                      width={payment.width}
+                      height={payment.height}
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </Container>
+      </div>
     </footer>
   );
 }

@@ -29,21 +29,21 @@ const props = [
 
 export function ValueProps() {
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
       {props.map((prop) => {
         const Icon = prop.icon;
         return (
           <div
             key={prop.title}
-            className={`bg-gradient-to-br ${prop.gradient} rounded-2xl p-6 border border-slate-100 transition-all duration-300 hover:shadow-lg hover:-translate-y-1`}
+            className={`rounded-lg border border-slate-200 bg-gradient-to-br ${prop.gradient} p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-slate-200/70`}
           >
-            <div className={`w-12 h-12 ${prop.iconBg} rounded-xl flex items-center justify-center mb-4`}>
-              <Icon className={`w-6 h-6 ${prop.iconColor}`} />
+            <div className={`mb-5 flex h-12 w-12 items-center justify-center rounded-md ${prop.iconBg}`}>
+              <Icon className={`h-6 w-6 ${prop.iconColor}`} />
             </div>
-            <h3 className="text-base font-semibold text-text-primary mb-2">
+            <h3 className="mb-2 text-base font-semibold text-text-primary">
               {prop.title}
             </h3>
-            <p className="text-sm text-text-muted leading-relaxed">
+            <p className="text-sm leading-relaxed text-text-muted">
               {prop.description}
             </p>
           </div>

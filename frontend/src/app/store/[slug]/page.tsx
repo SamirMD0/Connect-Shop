@@ -42,12 +42,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getProduct(p.slug);
   
   if (!product) {
-    return { title: 'Product Not Found | ElecSHOP' };
+    return { title: 'Product Not Found | ELECTRO SHOP' };
   }
   
   return {
-    title: product.meta_title || `${product.name} | ElecSHOP`,
-    description: product.meta_description || product.description?.slice(0, 160) || `Buy ${product.name} at ElecSHOP`,
+    title: product.meta_title || `${product.name} | ELECTRO SHOP`,
+    description: product.meta_description || product.description?.slice(0, 160) || `Buy ${product.name} at ELECTRO SHOP`,
     openGraph: {
       title: product.meta_title || product.name,
       description: product.meta_description || product.description || undefined,

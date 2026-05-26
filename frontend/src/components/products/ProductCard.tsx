@@ -8,7 +8,7 @@ import { RatingStars } from './RatingStars';
 import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/useToast';
-import { Heart, Plus, Scale, ShoppingCart } from 'lucide-react';
+import { Heart, Scale } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -21,8 +21,6 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const price = parseFloat(product.price);
   const rating = parseFloat(product.rating);
-  const isNew = new Date(product.created_at).getTime() > Date.now() - 14 * 24 * 60 * 60 * 1000;
-  const isBestseller = product.review_count >= 10 && rating >= 4;
   const wishlisted = isInWishlist(product.id);
   const [isCompared, setIsCompared] = useState(false);
 
@@ -84,127 +82,84 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Link href={`/store/${product.slug}`} className="group block">
-      <div className="bg-bg-surface border border-slate-200/60 rounded-2xl overflow-hidden h-full flex flex-col transition-all duration-300 hover:shadow-xl hover:border-slate-300 hover:-translate-y-1">
-        {/* Image */}
-        <div className="relative w-full h-52 bg-slate-50 overflow-hidden">
+      <div className="h-full">
+        <div className="relative mb-4 flex min-h-[270px] items-center justify-center overflow-hidden rounded-lg bg-[#F6F7FB]">
           {product.image_url ? (
             <Image
               src={product.image_url}
               alt={product.name}
               fill
-              className="object-cover transition-transform duration-500 group-hover:scale-110"
+              className="object-contain p-8 transition-transform duration-500 group-hover:scale-105"
               sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-accent/10 via-slate-50 to-accent-glow/10 flex items-center justify-center">
+            <div className="flex h-full w-full items-center justify-center">
               <span className="text-5xl font-bold text-accent/30">
                 {product.name.charAt(0)}
               </span>
             </div>
           )}
-          
-          {/* Badges */}
-          <div className="absolute top-3 left-3 flex flex-col items-start gap-2">
-            {/* Featured Badge */}
-            {product.is_featured && (
-              <span className="bg-accent text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-accent/25">
-                Featured
-              </span>
-            )}
-            {/* New Badge */}
-            {isNew && (
-              <span className="bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-emerald-500/25">
-                New
-              </span>
-            )}
-            {/* Sale Badge */}
-            {product.compare_at_price && parseFloat(product.compare_at_price) > price && (
-              <span className="bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-red-500/25">
-                Sale
-              </span>
-            )}
-            {isBestseller && (
-              <span className="bg-amber-500 text-white text-xs font-semibold px-3 py-1.5 rounded-full shadow-lg shadow-amber-500/25">
-                Bestseller
-              </span>
-            )}
-          </div>
 
-          {/* Wishlist Button */}
-          <button
-            onClick={handleWishlist}
-            className="absolute top-3 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm shadow flex items-center justify-center text-slate-400 hover:text-red-500 transition-all duration-200"
-            aria-label={`Add ${product.name} to wishlist`}
-          >
-            <Heart className={`w-4 h-4 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-          </button>
-          <button
-            onClick={handleCompare}
-            className="absolute top-12 right-3 w-8 h-8 rounded-full bg-white/80 backdrop-blur-sm shadow flex items-center justify-center text-slate-400 hover:text-accent transition-all duration-200"
-            aria-label={`Compare ${product.name}`}
-          >
-            <Scale className={`w-4 h-4 ${isCompared ? 'fill-accent text-accent' : ''}`} />
-          </button>
-          
-          {/* Out of Stock Overlay */}
           {product.stock === 0 && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-              <span className="text-sm font-semibold text-white bg-black/40 px-4 py-2 rounded-full">
+            <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+              <span className="rounded-full bg-black/40 px-4 py-2 text-sm font-semibold text-white">
                 Out of Stock
               </span>
             </div>
           )}
 
-          {/* Quick Add Button - appears on hover */}
-          <button
-            onClick={handleAddToCart}
-            disabled={product.stock === 0}
-            className="absolute bottom-3 right-3 w-10 h-10 rounded-xl bg-white shadow-lg flex items-center justify-center text-accent opacity-0 group-hover:opacity-100 transition-all duration-200 hover:bg-accent hover:text-white disabled:opacity-0"
-            aria-label={`Add ${product.name} to cart`}
-          >
-            <ShoppingCart className="w-5 h-5" />
-          </button>
-        </div>
+          <div className="absolute bottom-0 left-0 z-30 flex w-full translate-y-full items-center justify-center gap-2.5 pb-5 transition-transform duration-200 ease-linear group-hover:translate-y-0">
+            <button
+              onClick={handleCompare}
+              className="flex h-9 w-9 items-center justify-center rounded-[5px] bg-white text-[#0B1B48] shadow-md transition-colors duration-200 hover:text-accent"
+              aria-label={`Compare ${product.name}`}
+            >
+              <Scale className={`h-4 w-4 ${isCompared ? 'fill-accent text-accent' : ''}`} />
+            </button>
 
-        {/* Info */}
-        <div className="p-4 flex flex-col flex-1">
-          <div className="flex items-center gap-2 mb-1.5">
-            {product.brand && (
-              <>
-                <span className="text-xs font-bold text-text-primary">{product.brand}</span>
-                <span className="text-slate-300 text-[10px]">•</span>
-              </>
-            )}
-            <p className="text-xs font-medium text-accent">{product.category_name}</p>
-          </div>
-          <h3 className="text-sm font-semibold text-text-primary line-clamp-2 group-hover:text-accent transition-colors leading-snug">
-            {product.name}
-          </h3>
-
-          <div className="mt-2">
-            <RatingStars rating={rating} reviewCount={product.review_count} />
-          </div>
-
-          <div className="flex items-center justify-between mt-auto pt-4">
-            <div className="flex flex-col">
-              <span className="text-lg font-bold text-text-primary">
-                ${price.toFixed(2)}
-              </span>
-              {product.compare_at_price && parseFloat(product.compare_at_price) > price && (
-                <span className="text-xs text-text-muted line-through">
-                  ${parseFloat(product.compare_at_price).toFixed(2)}
-                </span>
-              )}
-            </div>
             <button
               onClick={handleAddToCart}
               disabled={product.stock === 0}
-              className="w-9 h-9 flex items-center justify-center rounded-xl bg-accent/10 text-accent hover:bg-accent hover:text-white transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:pointer-events-none"
+              className="inline-flex rounded-[5px] bg-accent px-5 py-[7px] text-sm font-medium text-white transition-colors duration-200 hover:bg-[#0B1B48] disabled:pointer-events-none disabled:opacity-50"
               aria-label={`Add ${product.name} to cart`}
             >
-              <Plus className="w-5 h-5" />
+              Add to cart
+            </button>
+
+            <button
+              onClick={handleWishlist}
+              className="flex h-9 w-9 items-center justify-center rounded-[5px] bg-white text-[#0B1B48] shadow-md transition-colors duration-200 hover:text-red-500"
+              aria-label={`Add ${product.name} to wishlist`}
+            >
+              <Heart className={`h-4 w-4 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} />
             </button>
           </div>
+        </div>
+
+        <div className="mb-2 flex items-center gap-2.5">
+          <RatingStars
+            rating={Number.isFinite(rating) ? rating : 0}
+            reviewCount={product.review_count}
+          />
+        </div>
+
+        <div>
+          <h3 className="mb-1.5 line-clamp-1 font-medium text-[#0B1B48] transition-colors duration-200 group-hover:text-accent">
+            {product.name}
+          </h3>
+
+          <span className="flex items-center gap-2 text-lg font-medium">
+            <span className="text-[#0B1B48]">
+              ${Number.isInteger(price) ? price.toFixed(0) : price.toFixed(2)}
+            </span>
+            {product.compare_at_price && parseFloat(product.compare_at_price) > price && (
+              <span className="text-base text-text-muted line-through">
+                ${Number.isInteger(parseFloat(product.compare_at_price))
+                  ? parseFloat(product.compare_at_price).toFixed(0)
+                  : parseFloat(product.compare_at_price).toFixed(2)}
+              </span>
+            )}
+          </span>
         </div>
       </div>
     </Link>

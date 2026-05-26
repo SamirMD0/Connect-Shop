@@ -4,29 +4,39 @@ import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { HeroCarousel } from '@/components/home/HeroCarousel';
-import { ValueProps } from '@/components/home/ValueProps';
+import { ServiceFeatures } from '@/components/home/ServiceFeatures';
+import { BrowseCategories } from '@/components/home/BrowseCategories';
+import { NextmercePromoBanners } from '@/components/home/NextmercePromoBanners';
+import { BestSellers } from '@/components/home/BestSellers';
+import { CountdownPromo } from '@/components/home/CountdownPromo';
+import { Testimonials } from '@/components/home/Testimonials';
 import { Newsletter } from '@/components/home/Newsletter';
 import { api } from '@/lib/api';
 import { Product, Category, CarouselSlide } from '@/lib/types';
 import { ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'ElecSHOP | Premium Electronics & Gadgets',
-  description: 'Shop the latest electronics, laptops, smartphones, and accessories at ElecSHOP.',
+  title: 'ELECTRO SHOP | Premium Electronics & Gadgets',
+  description: 'Shop the latest electronics, laptops, smartphones, and accessories at ELECTRO SHOP.',
 };
 
 export default async function HomePage() {
   let featured: Product[] = [];
+  let trending: Product[] = [];
   let categories: Category[] = [];
   let slides: CarouselSlide[] = [];
 
   try {
-    const [featuredRes, catRes, slidesRes] = await Promise.all([
+    const [featuredRes, trendingRes, catRes, slidesRes] = await Promise.all([
       api.get<{ success: boolean; products: Product[] }>('/api/products/featured'),
+      api.get<{ success: boolean; products: Product[] }>('/api/products', {
+        params: { sort: 'rating', limit: 8 },
+      }),
       api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
       api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel').catch(() => ({ success: false, slides: [] }))
     ]);
     featured = featuredRes.products || [];
+    trending = trendingRes.products || [];
     categories = catRes.categories || [];
     slides = slidesRes.slides || [];
   } catch (error) {
@@ -49,104 +59,154 @@ export default async function HomePage() {
     ];
   }
 
-  return (
-    <div className="animate-fade-in">
-      {/* Hero Carousel - Full Width */}
-      <section className="pb-8">
-        <HeroCarousel slides={slides} />
-      </section>
+  const parentCategories = categories.filter(category => !category.parent_id);
+  const displayCategories = (parentCategories.length > 0 ? parentCategories : categories).slice(0, 8);
+  const categoryImages = [
+    '/nextmerce/categories/categories-01.png',
+    '/nextmerce/categories/categories-02.png',
+    '/nextmerce/categories/categories-03.png',
+    '/nextmerce/categories/categories-04.png',
+    '/nextmerce/categories/categories-05.png',
+    '/nextmerce/categories/categories-06.png',
+    '/nextmerce/categories/categories-07.png',
+  ];
+  const heroProducts = featured.slice(0, 2);
+  const bestSellerProducts = trending.length > 0 ? trending : featured;
+  const heroSidePromos = [
+    {
+      title: 'Smart Security Home Camera',
+      eyebrow: 'Save up to',
+      savings: '$450',
+      image: '/nextmerce/promo/promo-03.png',
+      className: 'bg-[#DDEFF6]',
+      product: heroProducts[0],
+      href: heroProducts[0] ? `/store/${heroProducts[0].slug}` : '/store',
+    },
+    {
+      title: 'Galaxy S24 Ultra 5G',
+      eyebrow: 'Save up to',
+      savings: '$600',
+      image: '/nextmerce/promo/promo-01.png',
+      className: 'bg-[#ECE8DE]',
+      product: heroProducts[1],
+      href: heroProducts[1] ? `/store/${heroProducts[1].slug}` : '/store?sort=rating',
+    },
+  ];
 
-      {/* Shop by Category */}
-      <section className="py-16">
-        <Container>
-          <div className="text-center mb-10">
-            <h2 className="text-3xl font-bold text-text-primary mb-3">
-              Shop by Category
-            </h2>
-            <p className="text-text-muted">
-              Browse our curated collection of premium electronics
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {categories.map(cat => (
-              <Link
-                key={cat.id}
-                href={`/store?category=${cat.slug}`}
-                className="group"
-              >
-                <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-5 text-center transition-all duration-300 hover:shadow-xl hover:border-slate-300 hover:-translate-y-1 h-full">
-                  <div className="relative w-24 h-24 sm:w-28 sm:h-28 lg:w-32 lg:h-32 mx-auto mb-4 transition-transform duration-300 group-hover:scale-110">
-                    {cat.image_url ? (
-                      <Image
-                        src={cat.image_url}
-                        alt={cat.name}
-                        fill
-                        className="object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-full bg-gradient-to-br from-accent/10 to-accent-glow/10 rounded-2xl flex items-center justify-center">
-                        <span className="text-3xl font-bold text-accent/40">
-                          {cat.name.charAt(0)}
-                        </span>
-                      </div>
-                    )}
+  return (
+    <div className="animate-fade-in bg-white">
+      <section className="overflow-hidden bg-white pb-8 pt-3 sm:pt-4">
+        <Container className="max-w-[1440px]">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_459px]">
+            <div className="w-full">
+              <HeroCarousel slides={slides} />
+            </div>
+
+            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
+              {heroSidePromos.map((promo) => (
+                <Link
+                  key={promo.title}
+                  href={promo.href}
+                  className={`group relative min-h-[250px] overflow-hidden rounded-[10px] p-7 transition-shadow hover:shadow-xl hover:shadow-slate-200/80 lg:min-h-[290px] ${promo.className}`}
+                >
+                  <div className="relative z-10 max-w-[205px]">
+                    <h2 className="text-2xl font-semibold leading-snug text-[#0B1B48] transition-colors group-hover:text-accent sm:text-[28px]">
+                      {promo.title}
+                    </h2>
+                    <p className="mt-28 text-sm font-medium text-[#0B1B48] sm:mt-36">
+                      {promo.eyebrow} <span className="text-lg text-accent">{promo.savings}</span>
+                    </p>
                   </div>
-                  <h3 className="text-sm sm:text-base font-semibold text-text-primary group-hover:text-accent transition-colors">
-                    {cat.name}
-                  </h3>
-                  {cat.product_count !== undefined && (
-                    <span className="inline-block mt-2 text-xs text-text-muted bg-slate-100 px-2.5 py-1 rounded-full">
-                      {cat.product_count} products
-                    </span>
-                  )}
-                </div>
-              </Link>
-            ))}
+
+                  <Image
+                    src={promo.image}
+                    alt={promo.title}
+                    width={220}
+                    height={220}
+                    className="absolute bottom-8 right-6 h-[150px] w-[150px] object-contain transition-transform duration-500 group-hover:scale-105 sm:h-[190px] sm:w-[190px]"
+                  />
+                </Link>
+              ))}
+            </div>
           </div>
+
+          <ServiceFeatures />
         </Container>
       </section>
 
-      {/* Featured Products */}
-      <section className="py-16 bg-slate-50">
-        <Container>
-          <div className="flex items-center justify-between mb-10">
+      <BrowseCategories categories={displayCategories} fallbackImages={categoryImages} />
+
+      <section className="py-14 sm:py-16">
+        <Container className="max-w-[1170px]">
+          <div className="mb-7 flex items-center justify-between">
             <div>
-              <h2 className="text-3xl font-bold text-text-primary mb-2">Featured Products</h2>
-              <p className="text-text-muted">Handpicked favorites from our collection</p>
+              <span className="mb-1.5 flex items-center gap-2.5 font-medium text-[#0B1B48]">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M3.11826 15.4622C4.11794 16.6668 5.97853 16.6668 9.69971 16.6668H10.3007C14.0219 16.6668 15.8825 16.6668 16.8821 15.4622M3.11826 15.4622C2.11857 14.2577 2.46146 12.429 3.14723 8.77153C3.63491 6.17055 3.87875 4.87006 4.8045 4.10175M16.8821 15.4622C17.8818 14.2577 17.5389 12.429 16.8532 8.77153C16.3655 6.17055 16.1216 4.87006 15.1959 4.10175M15.1959 4.10175C14.2701 3.33345 12.947 3.33345 10.3007 3.33345H9.69971C7.0534 3.33345 5.73025 3.33345 4.8045 4.10175"
+                    stroke="#3C50E0"
+                    strokeWidth="1.5"
+                  />
+                  <path
+                    d="M7.64258 6.66678C7.98578 7.63778 8.91181 8.33345 10.0003 8.33345C11.0888 8.33345 12.0149 7.63778 12.3581 6.66678"
+                    stroke="#3C50E0"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                This Week’s
+              </span>
+              <h2 className="text-2xl font-semibold text-[#0B1B48] sm:text-[28px]">
+                New Arrivals
+              </h2>
             </div>
-            <Link 
-              href="/store" 
-              className="hidden sm:flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-glow transition-colors group"
+            <Link
+              href="/store"
+              className="inline-flex rounded-md border border-slate-200 bg-[#F6F7FB] px-7 py-2.5 text-sm font-medium text-[#0B1B48] transition-colors hover:border-transparent hover:bg-[#0B1B48] hover:text-white"
             >
-              View all 
-              <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+              View All
             </Link>
           </div>
 
-          <ProductGrid products={featured} />
+          {featured.length > 0 ? (
+            <ProductGrid products={featured} />
+          ) : (
+            <div className="rounded-lg border border-slate-200 bg-[#F6F7FB] px-6 py-12 text-center">
+              <h3 className="text-lg font-semibold text-[#0B1B48]">No new arrivals yet</h3>
+              <p className="mt-2 text-sm text-text-muted">
+                Featured products from your existing backend will appear here.
+              </p>
+            </div>
+          )}
 
           <div className="mt-8 text-center sm:hidden">
             <Link 
               href="/store" 
-              className="inline-flex items-center gap-2 text-sm font-medium text-accent hover:text-accent-glow transition-colors"
+              className="inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-text-primary transition-colors hover:border-accent hover:text-accent"
             >
               View all products
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="h-4 w-4" />
             </Link>
           </div>
         </Container>
       </section>
 
-      {/* Value Props */}
-      <section className="py-16">
-        <Container>
-          <ValueProps />
-        </Container>
-      </section>
+      <NextmercePromoBanners />
 
-      {/* Newsletter */}
-      <section className="py-16 bg-slate-50">
+      <BestSellers products={bestSellerProducts} />
+
+      <CountdownPromo />
+
+      <Testimonials />
+
+      <section className="bg-white py-14 sm:py-16">
         <Container>
           <Newsletter />
         </Container>

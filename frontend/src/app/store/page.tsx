@@ -5,9 +5,10 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { StoreFilters } from '@/components/products/StoreFilters';
 import { StorePagination } from '@/components/products/StorePagination';
 import { ProductComparison } from '@/components/products/ProductComparison';
+import { SectionTitle } from '@/components/ui/SectionTitle';
 import { api } from '@/lib/api';
 import { Product, Category, PaginatedProducts } from '@/lib/types';
-import { Search } from 'lucide-react';
+import { Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 
 interface Props {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -22,20 +23,20 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     categorySlug ? `${categorySlug.replace(/-/g, ' ')} products` : null,
   ].filter(Boolean);
   const title = titleParts.length > 0
-    ? `${titleParts.join(' - ')} | ElecSHOP`
-    : 'Store | ElecSHOP';
+    ? `${titleParts.join(' - ')} | ELECTRO SHOP`
+    : 'Store | ELECTRO SHOP';
 
   return {
     title,
     description: search
-      ? `Shop ElecSHOP products matching ${search}.`
-      : 'Browse electronics, laptops, smartphones, accessories, and appliances at ElecSHOP.',
+      ? `Shop ELECTRO SHOP products matching ${search}.`
+      : 'Browse electronics, laptops, smartphones, accessories, and appliances at ELECTRO SHOP.',
     alternates: {
       canonical: '/store',
     },
     openGraph: {
       title,
-      description: 'Browse electronics, laptops, smartphones, accessories, and appliances at ElecSHOP.',
+      description: 'Browse electronics, laptops, smartphones, accessories, and appliances at ELECTRO SHOP.',
       type: 'website',
     },
   };
@@ -89,27 +90,58 @@ export default async function StorePage({ searchParams }: Props) {
   return (
     <div className="animate-fade-in">
       <Container className="py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-text-primary mb-2">Store</h1>
-          <p className="text-text-muted">
-            {total} {total === 1 ? 'product' : 'products'} available
-          </p>
+        <div className="mb-8 overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-lg shadow-slate-200/70">
+          <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[1fr_320px] lg:items-center">
+            <div>
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-accent/10 px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] text-accent">
+                <Sparkles className="h-3.5 w-3.5" />
+                Live catalog
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-text-primary sm:text-4xl">
+                Shop electronics with clean filters
+              </h1>
+              <p className="mt-3 max-w-2xl text-sm leading-6 text-text-muted sm:text-base">
+                Browse real products from your backend with category, price, brand, rating, and specs filters preserved.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 rounded-2xl bg-slate-50 p-4">
+              <div className="rounded-xl bg-white p-4">
+                <p className="text-2xl font-bold text-text-primary">{total}</p>
+                <p className="text-xs text-text-muted">Products</p>
+              </div>
+              <div className="rounded-xl bg-white p-4">
+                <p className="text-2xl font-bold text-text-primary">{categories.length}</p>
+                <p className="text-xs text-text-muted">Categories</p>
+              </div>
+            </div>
+          </div>
         </div>
 
-        {/* Filters */}
-        <StoreFilters 
-          categories={categories}
-          currentCategory={currentCategory}
-          currentSearch={currentSearch}
-          currentSort={currentSort}
-          currentBrand={currentBrand}
-          minPrice={minPrice}
-          maxPrice={maxPrice}
-          minRating={minRating}
-          specKey={specKey}
-          specValue={specValue}
+        <SectionTitle
+          eyebrow="Catalog"
+          title={currentSearch ? `Results for "${currentSearch}"` : 'All products'}
+          description={`${total} ${total === 1 ? 'product' : 'products'} available`}
         />
+
+        {/* Filters */}
+        <div className="mb-8 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
+          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-primary">
+            <SlidersHorizontal className="h-4 w-4 text-accent" />
+            Refine products
+          </div>
+          <StoreFilters 
+            categories={categories}
+            currentCategory={currentCategory}
+            currentSearch={currentSearch}
+            currentSort={currentSort}
+            currentBrand={currentBrand}
+            minPrice={minPrice}
+            maxPrice={maxPrice}
+            minRating={minRating}
+            specKey={specKey}
+            specValue={specValue}
+          />
+        </div>
 
         {/* Product Grid */}
         {products.length === 0 ? (

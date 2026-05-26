@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
-import { CarouselSlide } from '@/lib/types';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { CarouselSlide } from '@/lib/types';
 
 interface HeroCarouselProps {
   slides: CarouselSlide[];
@@ -32,79 +31,84 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
   if (slides.length === 0) return null;
 
   return (
-    <div className="relative w-full h-[600px] md:h-[700px] overflow-hidden group shadow-2xl">
-      {/* Slides */}
+    <div className="group relative min-h-[430px] w-full overflow-hidden rounded-[10px] bg-[#070914] sm:min-h-[520px] lg:min-h-[600px]">
       {slides.map((slide, index) => (
         <div
           key={slide.id}
           className={`absolute inset-0 transition-opacity duration-700 ease-in-out ${
-            index === currentIndex ? 'opacity-100 z-10' : 'opacity-0 z-0'
+            index === currentIndex ? 'z-10 opacity-100' : 'z-0 opacity-0'
           }`}
         >
           <Image
             src={slide.image_url}
             alt={slide.title}
             fill
-            className="object-cover"
             priority={index === 0}
+            className="object-cover"
+            sizes="(max-width: 1280px) 100vw, 960px"
           />
-          {/* Dark gradient overlay from left */}
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/40 to-transparent" />
-          
-          {/* Content */}
-          <div className="absolute inset-0 flex items-center">
-            <div className="max-w-xl px-8 sm:px-12 lg:px-16">
-              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight text-balance">
-                {slide.title}
-              </h2>
+          <div className="absolute inset-0 bg-gradient-to-r from-black/82 via-[#11142b]/70 to-black/10" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_58%,rgba(91,93,189,0.38),transparent_34%)]" />
+          <div className="absolute bottom-[16%] right-[4%] hidden text-[160px] font-bold leading-none text-white/[0.04] sm:block lg:text-[210px]">
+            14
+          </div>
+
+          <div className="relative z-10 flex h-full min-h-[430px] items-center px-6 py-10 sm:min-h-[520px] sm:px-12 lg:min-h-[600px] lg:px-[88px]">
+            <div className="max-w-[430px]">
+              <p className="mb-8 text-sm font-bold uppercase tracking-wide text-white sm:text-lg">
+                Premium Design
+              </p>
+
+              <h1 className="mb-5 text-4xl font-semibold leading-tight text-white sm:text-5xl">
+                <Link href={slide.link_url || '/store'}>{slide.title || 'Apple Watch Ultra'}</Link>
+              </h1>
+
               {slide.subtitle && (
-                <p className="text-lg sm:text-xl text-white/90 mb-8 leading-relaxed">
+                <p className="max-w-[420px] text-sm leading-6 text-white/75 sm:text-base">
                   {slide.subtitle}
                 </p>
               )}
-              {slide.link_url && slide.button_text && (
-                <Link href={slide.link_url}>
-                  <Button variant="primary" size="lg" className="shadow-lg shadow-accent/30 hover:shadow-accent/50">
-                    {slide.button_text}
-                  </Button>
-                </Link>
-              )}
+
+              <Link
+                href={slide.link_url || '/store'}
+                className="mt-10 inline-flex rounded-full bg-accent px-10 py-4 text-sm font-semibold text-white transition-colors duration-200 hover:bg-white hover:text-[#1C274C]"
+              >
+                {slide.button_text || 'Shop Now'}
+              </Link>
             </div>
           </div>
         </div>
       ))}
 
-      {/* Navigation Arrows - appear on hover */}
       {slides.length > 1 && (
         <>
           <button
             onClick={prev}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-200 opacity-0 group-hover:opacity-100 z-20 flex items-center justify-center border border-white/20"
+            className="absolute left-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1C274C] opacity-0 shadow-sm transition-all duration-200 hover:border-accent hover:text-accent group-hover:opacity-100"
             aria-label="Previous slide"
           >
-            <ChevronLeft className="w-6 h-6 text-white" />
+            <ChevronLeft className="h-5 w-5" />
           </button>
           <button
             onClick={next}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 backdrop-blur-md hover:bg-white/20 transition-all duration-200 opacity-0 group-hover:opacity-100 z-20 flex items-center justify-center border border-white/20"
+            className="absolute right-4 top-1/2 z-30 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white text-[#1C274C] opacity-0 shadow-sm transition-all duration-200 hover:border-accent hover:text-accent group-hover:opacity-100"
             aria-label="Next slide"
           >
-            <ChevronRight className="w-6 h-6 text-white" />
+            <ChevronRight className="h-5 w-5" />
           </button>
         </>
       )}
 
-      {/* Dot Indicators */}
       {slides.length > 1 && (
-        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-2 z-20">
+        <div className="absolute bottom-7 left-1/2 z-30 flex -translate-x-1/2 gap-2">
           {slides.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentIndex(index)}
               className={`h-2 rounded-full transition-all duration-300 ${
-                index === currentIndex 
-                  ? 'bg-white w-8' 
-                  : 'bg-white/40 w-2 hover:bg-white/60'
+                index === currentIndex
+                  ? 'w-8 bg-accent'
+                  : 'w-5 bg-white/70 hover:bg-white'
               }`}
               aria-label={`Go to slide ${index + 1}`}
             />
