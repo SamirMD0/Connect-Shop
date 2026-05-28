@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { HelpCircle, User } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
@@ -75,9 +76,32 @@ export function ProductQuestions({ slug }: { slug: string }) {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent" />
-        </div>
+        <PhantomSkeleton loading={true} className="block">
+          <div className="space-y-4">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div key={index} className="rounded-2xl border border-slate-200/60 bg-white p-5 shadow-sm">
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-text-primary">Loading customer</p>
+                    <p className="text-xs text-text-muted">Loading date</p>
+                  </div>
+                </div>
+                <p className="text-sm font-medium text-text-primary">
+                  Loading product question about compatibility, delivery, or product details.
+                </p>
+                {index === 0 && (
+                  <div className="mt-4 rounded-xl bg-slate-50 p-4">
+                    <p className="mb-1 text-xs font-semibold uppercase text-accent">ELECTRO SHOP answer</p>
+                    <p className="text-sm text-text-muted">Loading answer details from the team.</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </PhantomSkeleton>
       ) : questions.length === 0 ? (
         <div className="rounded-2xl border border-slate-200/60 bg-slate-50 py-8 text-center text-text-muted">
           <HelpCircle className="mx-auto mb-3 h-8 w-8 text-slate-400" />

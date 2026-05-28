@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
 import { RatingStars } from './RatingStars';
 import { Button } from '@/components/ui/Button';
+import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';
 import { Star, User } from 'lucide-react';
 
 interface Review {
@@ -129,9 +130,36 @@ export function ProductReviews({ productId }: { productId: string }) {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-8">
-          <div className="w-8 h-8 border-4 border-accent border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <PhantomSkeleton loading={true} className="block">
+          <div className="space-y-6">
+            {Array.from({ length: 2 }).map((_, index) => (
+              <div key={index} className="bg-white p-6 rounded-2xl border border-slate-200/60 shadow-sm">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-accent/10 rounded-full flex items-center justify-center text-accent">
+                      <User className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <p className="font-semibold text-text-primary">Loading reviewer</p>
+                      <p className="text-xs text-text-muted">Loading date</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1 text-accent">
+                    <Star className="w-4 h-4 fill-accent" />
+                    <Star className="w-4 h-4 fill-accent" />
+                    <Star className="w-4 h-4 fill-accent" />
+                    <Star className="w-4 h-4 fill-accent" />
+                    <Star className="w-4 h-4 text-slate-300" />
+                  </div>
+                </div>
+                <h4 className="font-semibold text-text-primary mb-2">Loading review title</h4>
+                <p className="text-text-muted leading-relaxed">
+                  Loading review text and product experience details for this item.
+                </p>
+              </div>
+            ))}
+          </div>
+        </PhantomSkeleton>
       ) : reviews.length === 0 ? (
         <p className="text-text-muted py-8 text-center bg-slate-50 rounded-2xl border border-slate-200/60">
           No reviews yet. Be the first to review this product!

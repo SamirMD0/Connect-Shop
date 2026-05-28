@@ -83,7 +83,7 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
       {/* Product Image Gallery */}
       <div className="flex flex-col gap-4">
-        <div className="relative aspect-square rounded-3xl bg-slate-50 overflow-hidden border border-slate-200/60">
+        <div className="relative aspect-square rounded-3xl bg-white overflow-hidden border border-slate-200/60">
           {mainImage ? (
             <Image
               src={mainImage}
@@ -94,7 +94,7 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
               priority
             />
           ) : (
-            <div className="w-full h-full bg-gradient-to-br from-accent/10 via-slate-50 to-accent-glow/10 flex items-center justify-center">
+            <div className="w-full h-full bg-white flex items-center justify-center">
               <span className="text-8xl font-bold text-accent/30">
                 {product.name.charAt(0)}
               </span>
@@ -133,7 +133,7 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
                 onClick={() => setMainImage(img)}
                 className={cn(
                   "relative w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all",
-                  mainImage === img ? "border-accent" : "border-slate-200 hover:border-slate-300"
+                  mainImage === img ? "border-accent bg-white" : "border-slate-200 bg-white hover:border-slate-300"
                 )}
               >
                 <Image src={img} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" sizes="80px" />

@@ -32,19 +32,16 @@ import {
 
 const router = Router();
 
-// Apply stricter rate limiting to all auth routes
-router.use(authLimiter);
-
 // Google OAuth
-router.get('/google', googleLogin);
-router.get('/google/callback', googleCallback);
+router.get('/google', authLimiter, googleLogin);
+router.get('/google/callback', authLimiter, googleCallback);
 
 // Email/password auth
-router.post('/register', ...registerRules, validate, register);
-router.post('/login', ...loginRules, validate, login);
-router.post('/verify-email', ...tokenRules, validate, verifyEmail);
-router.post('/forgot-password', ...emailRules, validate, forgotPassword);
-router.post('/reset-password', ...resetPasswordRules, validate, handleResetPassword);
+router.post('/register', authLimiter, ...registerRules, validate, register);
+router.post('/login', authLimiter, ...loginRules, validate, login);
+router.post('/verify-email', authLimiter, ...tokenRules, validate, verifyEmail);
+router.post('/forgot-password', authLimiter, ...emailRules, validate, forgotPassword);
+router.post('/reset-password', authLimiter, ...resetPasswordRules, validate, handleResetPassword);
 
 // Session
 router.get('/csrf', getCsrfToken);
@@ -52,8 +49,8 @@ router.get('/me', optionalAuth, getMe);
 router.get('/sessions', requireAuth, listSessions);
 router.delete('/sessions/:id', requireAuth, ...sessionIdRules, validate, revokeSession);
 router.delete('/sessions', requireAuth, revokeAllSessions);
-router.post('/mfa/setup', requireAuth, setupMfa);
-router.post('/mfa/verify', requireAuth, ...mfaVerifyRules, validate, verifyMfa);
+router.post('/mfa/setup', authLimiter, requireAuth, setupMfa);
+router.post('/mfa/verify', authLimiter, requireAuth, ...mfaVerifyRules, validate, verifyMfa);
 router.post('/logout', requireAuth, logout);
 
 export default router;

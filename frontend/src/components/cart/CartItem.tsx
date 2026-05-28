@@ -44,7 +44,7 @@ export function CartItemCard({ item }: CartItemProps) {
     <div className="flex gap-4 py-5 border-b border-slate-100 last:border-b-0">
       {/* Product Image */}
       <Link href={`/store/${item.slug}`} className="shrink-0">
-        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-slate-50 overflow-hidden relative border border-slate-200/60">
+        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white overflow-hidden relative border border-slate-200/60">
           {item.image_url ? (
             <Image
               src={item.image_url}

@@ -19,23 +19,61 @@ export const AuthContext = createContext<AuthContextType>({
   logout: async () => {},
 });
 
+let cachedUser: User | null = null;
+let hasCheckedCurrentUser = false;
+let currentUserPromise: Promise<User | null> | null = null;
+
+async function getCurrentUser(): Promise<User | null> {
+  if (hasCheckedCurrentUser) {
+    return cachedUser;
+  }
+
+  if (!currentUserPromise) {
+    currentUserPromise = api
+      .get<{ success: boolean; user: User | null }>('/api/auth/me')
+      .then((response) => {
+        cachedUser = response.user;
+        hasCheckedCurrentUser = true;
+        return cachedUser;
+      })
+      .catch((error) => {
+        if ((error as { status?: number }).status === 429) {
+          console.warn('Auth session check was rate limited. Continuing as signed out for now.');
+        }
+        cachedUser = null;
+        hasCheckedCurrentUser = true;
+        return null;
+      })
+      .finally(() => {
+        currentUserPromise = null;
+      });
+  }
+
+  return currentUserPromise;
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function fetchUser() {
-      try {
-        const response = await api.get<{ success: boolean; user: User | null }>('/api/auth/me');
-        setUser(response.user);
-      } catch {
-        setUser(null);
-      } finally {
-        setLoading(false);
-      }
-    }
+    let isMounted = true;
 
-    fetchUser();
+    getCurrentUser()
+      .then((currentUser) => {
+        if (isMounted) {
+          setUser(currentUser);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const login = () => {
@@ -45,6 +83,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     try {
       await api.post('/api/auth/logout');
+      cachedUser = null;
+      hasCheckedCurrentUser = true;
       setUser(null);
       window.location.href = '/';
     } catch (error) {

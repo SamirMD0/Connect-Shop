@@ -94,7 +94,7 @@ export function ProductComparison() {
                   <X className="h-4 w-4" />
                 </button>
                 <Link href={`/store/${product.slug}`} className="block pr-8">
-                  <div className="relative mb-3 h-24 overflow-hidden rounded-lg bg-slate-50">
+                  <div className="relative mb-3 h-24 overflow-hidden rounded-lg border border-slate-200/60 bg-white">
                     {product.image_url && <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="180px" />}
                   </div>
                   <p className="line-clamp-2 text-sm font-semibold text-text-primary">{product.name}</p>

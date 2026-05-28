@@ -8,6 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { api } from '../../lib/api';
 import { AnalyticsSummary } from '../../lib/types';
 import { AdminStatCard } from '../../components/admin/AdminStatCard';
+import { PhantomSkeleton } from '../../components/ui/PhantomSkeleton';
 
 export default function AdminOverview() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
@@ -32,14 +33,43 @@ export default function AdminOverview() {
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-8 bg-slate-200 rounded-lg w-1/4"></div>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
-          {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-32 rounded-lg border border-slate-200 bg-white"></div>
-          ))}
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-[#0B1B48]">Dashboard Overview</h1>
+          <p className="mt-2 text-slate-500">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
         </div>
-        <div className="h-96 rounded-lg border border-slate-200 bg-white mt-8"></div>
+
+        <PhantomSkeleton loading={loading} className="block">
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <AdminStatCard
+              title="Total Revenue"
+              value="$0"
+              icon={<DollarSign className="w-5 h-5" />}
+            />
+            <AdminStatCard
+              title="Total Orders"
+              value="0"
+              icon={<ShoppingCart className="w-5 h-5" />}
+            />
+            <AdminStatCard
+              title="Total Customers"
+              value="0"
+              icon={<Users className="w-5 h-5" />}
+            />
+            <AdminStatCard
+              title="Categories"
+              value="0"
+              icon={<Grid className="w-5 h-5" />}
+            />
+            <AdminStatCard
+              title="Products"
+              value="0"
+              icon={<Package className="w-5 h-5" />}
+            />
+          </div>
+        </PhantomSkeleton>
+
+        <div className="h-96 animate-pulse rounded-lg border border-slate-200 bg-white mt-8"></div>
       </div>
     );
   }

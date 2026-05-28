@@ -83,7 +83,7 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link href={`/store/${product.slug}`} className="group block">
       <div className="h-full">
-        <div className="relative mb-4 flex min-h-[270px] items-center justify-center overflow-hidden rounded-lg bg-[#F6F7FB]">
+        <div className="relative mb-4 flex min-h-[270px] items-center justify-center overflow-hidden rounded-lg border border-slate-200/60 bg-white">
           {product.image_url ? (
             <Image
               src={product.image_url}

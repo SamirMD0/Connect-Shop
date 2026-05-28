@@ -198,6 +198,16 @@ export async function uploadImage(req: Request, res: Response, next: NextFunctio
 
 // ─── Categories ──────────────────────────────────────────────────────────────
 
+export async function listCategories(_req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const categories = await productsService.getCategories();
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ success: true, categories });
+  } catch (err) {
+    next(err);
+  }
+}
+
 export async function createCategory(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const category = await productsService.createCategory(req.body);

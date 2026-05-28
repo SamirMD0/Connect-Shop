@@ -1,4 +1,5 @@
 import React from 'react';
+import { PhantomSkeleton } from '../ui/PhantomSkeleton';
 
 interface Column<T> {
   header: string;
@@ -11,9 +12,55 @@ interface DataTableProps<T> {
   columns: Column<T>[];
   keyExtractor: (item: T) => string | number;
   emptyMessage?: string;
+  loading?: boolean;
+  loadingRows?: number;
 }
 
-export function DataTable<T>({ data, columns, keyExtractor, emptyMessage = 'No data available' }: DataTableProps<T>) {
+export function DataTable<T>({
+  data,
+  columns,
+  keyExtractor,
+  emptyMessage = 'No data available',
+  loading = false,
+  loadingRows = 5,
+}: DataTableProps<T>) {
+  if (loading) {
+    const rows = Array.from({ length: loadingRows });
+
+    return (
+      <PhantomSkeleton loading={loading} className="block">
+        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-200/80">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm whitespace-nowrap">
+              <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
+                <tr>
+                  {columns.map((col, i) => (
+                    <th key={i} className="px-6 py-4 text-xs font-bold uppercase tracking-[0.16em]">
+                      {col.header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-200" aria-hidden="true">
+                {rows.map((_, rowIndex) => (
+                  <tr key={`loading-row-${rowIndex}`} className="text-[#0B1B48]">
+                    {columns.map((col, colIndex) => (
+                      <td key={`${col.header}-${colIndex}`} className="px-6 py-4 align-middle">
+                        <span className="inline-block text-slate-500">
+                          {colIndex === 0 ? 'Loading item' : 'Loading'}
+                        </span>
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </PhantomSkeleton>
+    );
+  }
+
   if (!data || data.length === 0) {
     return (
       <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm shadow-slate-200/80">

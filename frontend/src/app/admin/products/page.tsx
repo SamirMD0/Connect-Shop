@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Download, Upload } from 'lucide-react';
+import Image from 'next/image';
+import { Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Download, Upload, LayoutGrid, List, Package } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { Product, Category, Brand } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
@@ -84,6 +85,30 @@ function slugify(value: string): string {
     .replace(/^-+|-+$/g, '');
 }
 
+function skuify(value: string): string {
+  return value
+    .toUpperCase()
+    .trim()
+    .replace(/['"]/g, '')
+    .replace(/&/g, ' AND ')
+    .replace(/\+/g, ' ')
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 100);
+}
+
+function buildSkuSource(name: string, brand: string): string {
+  const normalizedName = name.trim();
+  const normalizedBrand = brand.trim();
+
+  if (!normalizedBrand) return normalizedName;
+  if (normalizedName.toLowerCase().startsWith(normalizedBrand.toLowerCase())) {
+    return normalizedName;
+  }
+
+  return `${normalizedBrand} ${normalizedName}`;
+}
+
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -98,6 +123,7 @@ export default function AdminProducts() {
   const [page, setPage] = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchInput, setSearchInput] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [totalPages, setTotalPages] = useState(1);
   const [importCsv, setImportCsv] = useState('');
   const [importMessage, setImportMessage] = useState('');
@@ -291,11 +317,61 @@ export default function AdminProducts() {
     }
   };
 
+  const generateProductSku = (name: string, brand: string) => {
+    const baseSku = skuify(buildSkuSource(name, brand));
+    if (!baseSku) return '';
+
+    const existingSkus = new Set(
+      products
+        .filter(product => product.id !== editingProduct?.id)
+        .map(product => product.sku?.toUpperCase())
+        .filter(Boolean)
+    );
+
+    let candidate = baseSku;
+    let suffix = 2;
+    while (existingSkus.has(candidate)) {
+      const suffixText = `-${suffix}`;
+      candidate = `${baseSku.slice(0, 100 - suffixText.length)}${suffixText}`;
+      suffix += 1;
+    }
+
+    return candidate;
+  };
+
   const handleProductNameChange = (name: string) => {
     setFormData(current => ({
       ...current,
       name,
       slug: !editingProduct && (!current.slug || current.slug === slugify(current.name)) ? slugify(name) : current.slug,
+      sku: !editingProduct && (!current.sku || current.sku === generateProductSku(current.name, current.brand))
+        ? generateProductSku(name, current.brand)
+        : current.sku,
+    }));
+  };
+
+  const handleProductBrandChange = (brandId: string) => {
+    const brand = brands.find(item => item.id.toString() === brandId);
+    const brandName = brand?.name || '';
+
+    setFormData(current => ({
+      ...current,
+      brand_id: brandId,
+      brand: brandName,
+      sku: !editingProduct && (!current.sku || current.sku === generateProductSku(current.name, current.brand))
+        ? generateProductSku(current.name, brandName)
+        : current.sku,
+    }));
+  };
+
+  const handleCustomBrandChange = (brand: string) => {
+    setFormData(current => ({
+      ...current,
+      brand_id: '',
+      brand,
+      sku: !editingProduct && (!current.sku || current.sku === generateProductSku(current.name, current.brand))
+        ? generateProductSku(current.name, brand)
+        : current.sku,
     }));
   };
 
@@ -347,36 +423,67 @@ export default function AdminProducts() {
 
   const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
 
+  const renderProductImage = (product: Product, size: 'table' | 'grid' = 'table') => {
+    const frameClasses = size === 'grid'
+      ? 'relative aspect-[4/3] overflow-hidden rounded-lg border border-slate-200 bg-white'
+      : 'relative h-14 w-14 overflow-hidden rounded-lg border border-slate-200 bg-white';
+
+    return (
+      <div className={frameClasses}>
+        {product.image_url ? (
+          <Image
+            src={product.image_url}
+            alt={product.name}
+            fill
+            sizes={size === 'grid' ? '(min-width: 1280px) 28vw, (min-width: 640px) 45vw, 90vw' : '56px'}
+            className={size === 'grid' ? 'object-contain p-4' : 'object-contain p-1.5'}
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-slate-300">
+            <Package className={size === 'grid' ? 'h-10 w-10' : 'h-5 w-5'} />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderProductActions = (product: Product) => (
+    <div className="flex gap-1">
+      <button
+        onClick={() => void handleOpenModal(product)}
+        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+        aria-label={`Edit ${product.name}`}
+      >
+        <Edit2 className="w-4 h-4" />
+      </button>
+      <button
+        onClick={() => void handleDelete(product.id)}
+        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+        aria-label={`Delete ${product.name}`}
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+
+  const getStockBadgeClass = (stock: number) => {
+    if (stock > 10) return 'bg-emerald-500/10 text-emerald-600';
+    if (stock > 0) return 'bg-amber-500/10 text-amber-600';
+    return 'bg-red-500/10 text-red-600';
+  };
+
   const columns = [
+    { header: 'Image', cell: (p: Product) => renderProductImage(p) },
     { header: 'Name', accessorKey: 'name' as keyof Product },
     { header: 'Price', cell: (p: Product) => <span className="text-accent font-medium">${p.price}</span> },
     { header: 'Category', accessorKey: 'category_name' as keyof Product },
     { header: 'Brand', cell: (p: Product) => <span className="text-slate-600">{p.brand || '-'}</span> },
     { header: 'Stock', cell: (p: Product) => (
-      <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${
-        p.stock > 10 ? 'bg-emerald-500/10 text-emerald-400' : 
-        p.stock > 0 ? 'bg-amber-500/10 text-amber-400' : 
-        'bg-red-500/10 text-red-400'
-      }`}>
+      <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-medium ${getStockBadgeClass(p.stock)}`}>
         {p.stock}
       </span>
     )},
-    { header: 'Actions', cell: (p: Product) => (
-      <div className="flex gap-1">
-        <button
-          onClick={() => void handleOpenModal(p)}
-          className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
-        >
-          <Edit2 className="w-4 h-4" />
-        </button>
-        <button
-          onClick={() => handleDelete(p.id)}
-          className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      </div>
-    )},
+    { header: 'Actions', cell: (p: Product) => renderProductActions(p) },
   ];
 
   if (loading) {
@@ -408,6 +515,30 @@ export default function AdminProducts() {
               <Search className="w-4 h-4" />
             </button>
           </form>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('table')}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'table' ? 'bg-accent text-white' : 'text-slate-600 hover:bg-blue-50 hover:text-accent'
+              }`}
+              aria-pressed={viewMode === 'table'}
+            >
+              <List className="h-4 w-4" />
+              Table
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={`inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                viewMode === 'grid' ? 'bg-accent text-white' : 'text-slate-600 hover:bg-blue-50 hover:text-accent'
+              }`}
+              aria-pressed={viewMode === 'grid'}
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Grid
+            </button>
+          </div>
           <button
             onClick={() => void handleExportCsv()}
             className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 font-medium text-slate-700 transition-all hover:border-accent hover:text-accent"
@@ -483,7 +614,53 @@ export default function AdminProducts() {
         )}
       </section>
 
-      <DataTable data={products} columns={columns} keyExtractor={(p) => p.id} />
+      {viewMode === 'table' ? (
+        <DataTable data={products} columns={columns} keyExtractor={(p) => p.id} emptyMessage="No products found" />
+      ) : products.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {products.map((product) => (
+            <article key={product.id} className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-200/80">
+              {renderProductImage(product, 'grid')}
+              <div className="space-y-4 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="line-clamp-2 font-semibold text-[#0B1B48]">{product.name}</h3>
+                    <p className="mt-1 truncate text-xs text-slate-500">/{product.slug}</p>
+                  </div>
+                  <span className="shrink-0 font-semibold text-accent">${product.price}</span>
+                </div>
+
+                <div className="flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-blue-50 px-2.5 py-1 font-medium text-slate-600">
+                    {product.category_name || 'No category'}
+                  </span>
+                  <span className="rounded-full bg-slate-50 px-2.5 py-1 font-medium text-slate-600">
+                    {product.brand || 'No brand'}
+                  </span>
+                  <span className={`rounded-full px-2.5 py-1 font-medium ${getStockBadgeClass(product.stock)}`}>
+                    Stock {product.stock}
+                  </span>
+                </div>
+
+                {product.sku && (
+                  <p className="truncate rounded-lg bg-slate-50 px-3 py-2 text-xs font-medium text-slate-500">
+                    SKU: {product.sku}
+                  </p>
+                )}
+
+                <div className="flex items-center justify-between border-t border-slate-200 pt-3">
+                  <span className="text-xs text-slate-500">{product.is_featured ? 'Featured' : 'Standard'}</span>
+                  {renderProductActions(product)}
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm shadow-slate-200/80">
+          <p className="text-sm font-medium text-slate-500">No products found</p>
+        </div>
+      )}
 
       {/* Pagination Controls */}
       {totalPages > 1 && (
@@ -561,10 +738,7 @@ export default function AdminProducts() {
               <select
                 className={inputClasses}
                 value={formData.brand_id}
-                onChange={e => {
-                  const brand = brands.find(item => item.id.toString() === e.target.value);
-                  setFormData({...formData, brand_id: e.target.value, brand: brand?.name || ''});
-                }}
+                onChange={e => handleProductBrandChange(e.target.value)}
               >
                 <option value="">No brand</option>
                 {brands.filter(brand => brand.is_active).map(brand => (
@@ -577,10 +751,13 @@ export default function AdminProducts() {
               <input
                 type="text"
                 className={inputClasses}
-                placeholder="IPHONE-15-128"
+                placeholder="SAM-AC-SPLIT-12000-R32-WIFI"
                 value={formData.sku}
-                onChange={e => setFormData({...formData, sku: e.target.value})}
+                onChange={e => setFormData({...formData, sku: skuify(e.target.value)})}
               />
+              <p className="mt-1 text-xs text-slate-500">
+                Auto-generated from brand and title. You can edit it before saving.
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -661,7 +838,7 @@ export default function AdminProducts() {
                   className={inputClasses}
                   placeholder="Only use this if no brand exists"
                   value={formData.brand}
-                  onChange={e => setFormData({...formData, brand_id: '', brand: e.target.value})}
+                  onChange={e => handleCustomBrandChange(e.target.value)}
                 />
               </div>
               <div>

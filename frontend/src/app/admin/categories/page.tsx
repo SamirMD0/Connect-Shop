@@ -35,7 +35,9 @@ export default function AdminCategories() {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await api.get<{ success: boolean; categories: Category[] }>('/api/categories');
+      const res = await api.get<{ success: boolean; categories: Category[] }>('/api/admin/categories', {
+        cache: 'no-store',
+      });
       if (res.success && res.categories) {
         setCategories(res.categories);
       }
@@ -97,11 +99,11 @@ export default function AdminCategories() {
     }
   };
 
-  const inputClasses = "w-full bg-[#0a0a14] border border-[#1e293b] rounded-xl px-4 py-3 text-white placeholder-slate-500 focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent/30 transition-all";
+  const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
 
   const columns = [
     { header: 'Image', cell: (c: Category) => (
-      <div className="w-10 h-10 bg-[#1e293b] rounded-lg flex items-center justify-center overflow-hidden">
+      <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden ring-1 ring-slate-200">
         {c.image_url ? (
           <Image src={c.image_url} alt={c.name} width={24} height={24} className="object-contain" />
         ) : (
@@ -110,10 +112,10 @@ export default function AdminCategories() {
       </div>
     )},
     { header: 'Name', accessorKey: 'name' as keyof Category },
-    { header: 'Slug', cell: (c: Category) => <span className="text-slate-400">/{c.slug}</span> },
-    { header: 'Depth', cell: (c: Category) => <span className="text-slate-400">{c.depth}</span> },
+    { header: 'Slug', cell: (c: Category) => <span className="text-slate-500">/{c.slug}</span> },
+    { header: 'Depth', cell: (c: Category) => <span className="text-slate-500">{c.depth}</span> },
     { header: 'Products', cell: (c: Category) => (
-      <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-[#1e293b] text-slate-300">
+      <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-slate-100 text-slate-700">
         {c.product_count || 0}
       </span>
     )},
@@ -121,12 +123,16 @@ export default function AdminCategories() {
       <div className="flex gap-1">
         <button 
           onClick={() => handleOpenModal(c)} 
+          title="Edit category"
+          aria-label="Edit category"
           className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
         >
           <Edit2 className="w-4 h-4" />
         </button>
         <button 
           onClick={() => handleDelete(c.id)} 
+          title="Delete category"
+          aria-label="Delete category"
           className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
         >
           <Trash2 className="w-4 h-4" />
@@ -135,21 +141,12 @@ export default function AdminCategories() {
     )},
   ];
 
-  if (loading) {
-    return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-10 bg-[#1e293b] rounded-xl w-1/4"></div>
-        <div className="h-64 bg-[#12121a] rounded-xl border border-[#1e293b]"></div>
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">Categories</h1>
-          <p className="text-slate-400 text-sm mt-1">{categories.length} categories in your store</p>
+          <h1 className="text-2xl font-bold text-[#0B1B48]">Categories</h1>
+          <p className="text-slate-500 text-sm mt-1">{categories.length} categories in your store</p>
         </div>
         <button 
           onClick={() => handleOpenModal()} 
@@ -159,13 +156,14 @@ export default function AdminCategories() {
         </button>
       </div>
 
-      <DataTable data={categories} columns={columns} keyExtractor={(c) => c.id} />
+      <DataTable data={categories} columns={columns} keyExtractor={(c) => c.id} loading={loading} />
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCategory ? 'Edit Category' : 'Add Category'}>
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Name</label>
+            <label htmlFor="category-name" className="block text-sm font-medium text-[#0B1B48] mb-2">Name</label>
             <input 
+              id="category-name"
               required 
               type="text" 
               className={inputClasses}
@@ -175,8 +173,9 @@ export default function AdminCategories() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Slug</label>
+            <label htmlFor="category-slug" className="block text-sm font-medium text-[#0B1B48] mb-2">Slug</label>
             <input 
+              id="category-slug"
               required 
               type="text" 
               className={inputClasses}
@@ -186,8 +185,9 @@ export default function AdminCategories() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Image URL (optional)</label>
+            <label htmlFor="category-image-url" className="block text-sm font-medium text-[#0B1B48] mb-2">Image URL (optional)</label>
             <input 
+              id="category-image-url"
               type="text" 
               placeholder="/images/categories/example.png" 
               className={inputClasses}
@@ -196,8 +196,9 @@ export default function AdminCategories() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-2">Parent Category</label>
+            <label htmlFor="category-parent" className="block text-sm font-medium text-[#0B1B48] mb-2">Parent Category</label>
             <select
+              id="category-parent"
               className={inputClasses}
               value={formData.parent_id}
               onChange={e => setFormData({...formData, parent_id: e.target.value})}
@@ -208,11 +209,11 @@ export default function AdminCategories() {
                 .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-[#1e293b]">
+          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-200">
             <button 
               type="button" 
               onClick={() => setIsModalOpen(false)} 
-              className="px-4 py-2.5 text-slate-400 hover:text-white transition-colors rounded-xl"
+              className="px-4 py-2.5 text-slate-600 hover:text-[#0B1B48] transition-colors rounded-xl"
             >
               Cancel
             </button>

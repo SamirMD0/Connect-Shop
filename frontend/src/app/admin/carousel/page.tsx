@@ -202,7 +202,7 @@ export default function CarouselManagementPage() {
         <div className="space-y-4">
           {slides.map((slide) => (
             <div key={slide.id} className="flex flex-col items-start gap-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80 sm:flex-row sm:items-center">
-              <div className="relative h-24 w-full shrink-0 overflow-hidden rounded-lg bg-slate-100 sm:w-48">
+              <div className="relative h-24 w-full shrink-0 overflow-hidden rounded-lg border border-slate-200/60 bg-white sm:w-48">
                 {slide.image_url && (
                   <Image src={slide.image_url} alt={slide.title} fill className="object-cover" />
                 )}

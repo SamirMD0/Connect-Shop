@@ -5,7 +5,7 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import xss from 'xss-clean';
 import pinoHttp from 'pino-http';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'crypto';
 import { logger } from './utils/logger';
 import { corsOptions } from './config/cors';
 import { env } from './config/env';
@@ -38,7 +38,7 @@ app.use(generalLimiter);                    // Rate limiting (100/15min)
 app.use(pinoHttp({
   logger,
   genReqId: function (req, res) {
-    const id = String(req.id || req.headers['x-request-id'] || uuidv4());
+    const id = String(req.id || req.headers['x-request-id'] || randomUUID());
     res.setHeader('X-Request-ID', id);
     return id;
   }

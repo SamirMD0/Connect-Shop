@@ -54,6 +54,7 @@ router.put('/products/:id', requireAdminPermission('products'), ...adminProductR
 router.delete('/products/:id', requireAdminPermission('products'), adminController.deleteProduct);
 
 // Categories
+router.get('/categories', requireAdminPermission('products'), adminController.listCategories);
 router.post('/categories', requireAdminPermission('products'), ...adminCategoryRules, validate, adminController.createCategory);
 router.put('/categories/:id', requireAdminPermission('products'), ...adminCategoryRules, validate, adminController.updateCategory);
 router.delete('/categories/:id', requireAdminPermission('products'), adminController.deleteCategory);

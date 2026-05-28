@@ -4,8 +4,8 @@ import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { Container } from '@/components/layout/Container';
 import { ProductGrid } from '@/components/products/ProductGrid';
-import { ProductSkeleton } from '@/components/products/ProductSkeleton';
 import { EmptyState } from '@/components/ui/EmptyState';
+import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';
 import { useWishlist } from '@/context/WishlistContext';
 import { Product } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
@@ -86,11 +86,27 @@ export default function WishlistPage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <ProductSkeleton key={i} />
-            ))}
-          </div>
+          <PhantomSkeleton loading={true} className="block">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="rounded-2xl bg-bg-surface border border-slate-200/60 overflow-hidden shadow-sm">
+                  <div className="w-full h-52 bg-white" />
+                  <div className="p-4 space-y-3">
+                    <h3 className="text-sm font-semibold text-text-primary line-clamp-2">
+                      Loading wishlist item
+                    </h3>
+                    <p className="text-xs text-text-muted">Loading category</p>
+                    <div className="flex items-center justify-between pt-2">
+                      <span className="text-base font-bold text-accent">$000.00</span>
+                      <span className="h-9 px-3 rounded-lg bg-accent text-white text-sm font-medium flex items-center">
+                        Add to cart
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </PhantomSkeleton>
         ) : products.length === 0 ? (
           <EmptyState
             icon={<Heart className="w-12 h-12" />}

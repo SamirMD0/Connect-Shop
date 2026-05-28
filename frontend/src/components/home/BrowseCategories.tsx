@@ -75,7 +75,7 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
                 href={`/store?category=${cat.slug}`}
                 className="group flex flex-col items-center"
               >
-                <div className="mb-5 flex h-32 w-32 items-center justify-center rounded-full bg-[#F2F3F8] transition-transform duration-300 group-hover:scale-105">
+                <div className="mb-5 flex h-32 w-32 items-center justify-center rounded-full border border-slate-200/70 bg-white transition-transform duration-300 group-hover:scale-105">
                   <Image
                     src={cat.image_url || fallbackImages[index % fallbackImages.length]}
                     alt={cat.name}
