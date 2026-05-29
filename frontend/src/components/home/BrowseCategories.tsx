@@ -69,7 +69,7 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
           </div>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
-            {categories.slice(0, 6).map((cat, index) => (
+            {categories.slice(0, 12).map((cat, index) => (
               <Link
                 key={cat.id}
                 href={`/store?category=${cat.slug}`}

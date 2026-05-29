@@ -6,6 +6,7 @@ import { ProductGrid } from '@/components/products/ProductGrid';
 import { HeroCarousel } from '@/components/home/HeroCarousel';
 import { ServiceFeatures } from '@/components/home/ServiceFeatures';
 import { BrowseCategories } from '@/components/home/BrowseCategories';
+import { AllCategoriesSection } from '@/components/home/AllCategoriesSection';
 import { BrandShowcase } from '@/components/home/BrandShowcase';
 import { NextmercePromoBanners } from '@/components/home/NextmercePromoBanners';
 import { BestSellers } from '@/components/home/BestSellers';
@@ -119,8 +120,7 @@ export default async function HomePage() {
     ];
   }
 
-  const parentCategories = categories.filter(category => !category.parent_id);
-  const displayCategories = (parentCategories.length > 0 ? parentCategories : categories).slice(0, 8);
+  const displayCategories = categories.slice(0, 12);
   const categoryImages = [
     '/nextmerce/categories/categories-01.png',
     '/nextmerce/categories/categories-02.png',
@@ -258,6 +258,8 @@ export default async function HomePage() {
           <Newsletter content={homepage.newsletter} />
         </Container>
       </section>
+
+      <AllCategoriesSection categories={categories} fallbackImages={categoryImages} />
     </div>
   );
 }

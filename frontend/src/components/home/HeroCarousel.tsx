@@ -70,9 +70,6 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
             />
             <div className="absolute inset-0 bg-gradient-to-r from-black/82 via-[#11142b]/70 to-black/10" />
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_58%,rgba(91,93,189,0.38),transparent_34%)]" />
-            <div className="absolute bottom-[16%] right-[4%] hidden text-[160px] font-bold leading-none text-white/[0.04] sm:block lg:text-[210px]">
-              14
-            </div>
 
             <div className="relative z-10 flex h-full min-h-[430px] items-center px-6 py-10 sm:min-h-[520px] sm:px-12 lg:min-h-[600px] lg:px-[88px]">
               <div className="max-w-[430px]">
