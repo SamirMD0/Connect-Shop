@@ -132,8 +132,6 @@ export default async function HomePage() {
     .map((promo, index) => ({
         id: promo.id,
         title: promo.title || '',
-        eyebrow: getMetadataString(promo.metadata, 'eyebrow') || promo.subtitle || '',
-        savings: getMetadataString(promo.metadata, 'savings') || promo.description || '',
         image: promo.image_url,
         className: index % 2 === 0 ? 'bg-[#DDEFF6]' : 'bg-[#ECE8DE]',
         href: getSafeLink(promo.button_link, '/store'),
@@ -155,28 +153,16 @@ export default async function HomePage() {
                   <Link
                     key={promo.id}
                     href={promo.href}
-                    className={`group relative min-h-[250px] overflow-hidden rounded-[10px] p-7 transition-shadow hover:shadow-xl hover:shadow-slate-200/80 lg:min-h-[290px] ${promo.className}`}
+                    aria-label={promo.title || 'Top promotion'}
+                    className={`group relative block min-h-[250px] overflow-hidden rounded-[10px] transition-shadow hover:shadow-xl hover:shadow-slate-200/80 lg:min-h-[290px] ${promo.className}`}
                   >
-                    <div className="relative z-10 max-w-[205px]">
-                      {promo.title && (
-                        <h2 className="text-2xl font-semibold leading-snug text-[#0B1B48] transition-colors group-hover:text-accent sm:text-[28px]">
-                          {promo.title}
-                        </h2>
-                      )}
-                      {(promo.eyebrow || promo.savings) && (
-                        <p className="mt-28 text-sm font-medium text-[#0B1B48] sm:mt-36">
-                          {promo.eyebrow} {promo.savings && <span className="text-lg text-accent">{promo.savings}</span>}
-                        </p>
-                      )}
-                    </div>
-
                     {promo.image && (
                       <Image
                         src={promo.image}
                         alt={promo.title || 'Promotion'}
-                        width={220}
-                        height={220}
-                        className="absolute bottom-8 right-6 h-[150px] w-[150px] object-contain transition-transform duration-500 group-hover:scale-105 sm:h-[190px] sm:w-[190px]"
+                        fill
+                        sizes="(min-width: 1280px) 459px, (min-width: 640px) 50vw, 100vw"
+                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                     )}
                   </Link>

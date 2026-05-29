@@ -61,15 +61,15 @@ export function CountdownPromo({ promo }: CountdownPromoProps) {
       <div className="mx-auto w-full max-w-[1170px] px-4 sm:px-8 xl:px-0">
         <div className="relative z-[1] overflow-hidden rounded-lg bg-[#D0E9F3] p-6 sm:p-8 lg:p-10 xl:p-15">
           <div className="relative z-10 max-w-[422px]">
-            <span className="mb-2.5 block text-base font-medium text-[#3C50E0]">
+            <span className="mb-2.5 block text-base font-medium text-[#ffffff]">
               {eyebrow || "Don't Miss!!"}
             </span>
 
-            <h2 className="mb-3 text-3xl font-bold leading-tight text-[#0B1B48] sm:text-4xl lg:text-[44px]">
+            <h2 className="mb-3 text-3xl font-bold leading-tight text-[#ffffff] sm:text-4xl lg:text-[44px]">
               {promo?.title || 'Enhance Your Music Experience'}
             </h2>
 
-            <p className="text-sm leading-6 text-slate-600 sm:text-base">
+            <p className="text-sm leading-6 text-yellow-400 sm:text-base">
               {promo?.description || 'iPhone 16 Pro Max delivers immersive audio, sharp performance, and a premium everyday experience.'}
             </p>
 
@@ -79,7 +79,7 @@ export function CountdownPromo({ promo }: CountdownPromoProps) {
                   <span className="mb-2 flex h-[58px] min-w-[64px] items-center justify-center rounded-lg bg-white px-4 text-xl font-semibold text-[#0B1B48] shadow-lg shadow-slate-200/70 lg:text-3xl">
                     {item.value}
                   </span>
-                  <span className="block text-center text-sm text-[#0B1B48]">
+                  <span className="block text-center text-sm text-[#ffffff]">
                     {item.label}
                   </span>
                 </div>
@@ -88,7 +88,7 @@ export function CountdownPromo({ promo }: CountdownPromoProps) {
 
             <Link
               href={getSafeLink(promo?.button_link)}
-              className="mt-8 inline-flex rounded-md bg-[#3C50E0] px-9 py-3 text-sm font-medium text-white transition-colors hover:bg-[#0B1B48]"
+              className="mt-8 inline-flex rounded-md bg-[#000000] px-9 py-3 text-sm font-medium text-white transition-colors hover:bg-[#0B1B48]"
             >
               {promo?.button_text || 'Check it Out!'}
             </Link>
@@ -99,7 +99,7 @@ export function CountdownPromo({ promo }: CountdownPromoProps) {
             alt="background shapes"
             width={737}
             height={482}
-            className="absolute bottom-0 right-0 z-0 hidden h-full max-h-[482px] w-auto object-contain sm:block"
+            className="absolute inset-0 z-0 hidden h-full w-full object-cover sm:block"
           />
           <Image
             src={promo?.image_url || '/nextmerce/countdown/countdown-01.png'}
