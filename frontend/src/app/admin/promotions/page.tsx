@@ -33,7 +33,6 @@ const emptyForm = {
 
 interface TopPromoForm {
   title: string;
-  subtitle: string;
   description: string;
   image_url: string;
   button_link: string;
@@ -45,7 +44,6 @@ interface CountdownForm {
   title: string;
   eyebrow: string;
   description: string;
-  image_url: string;
   background_image_url: string;
   button_text: string;
   button_link: string;
@@ -56,7 +54,6 @@ interface CountdownForm {
 
 const emptyTopPromoForm: TopPromoForm = {
   title: '',
-  subtitle: '',
   description: '',
   image_url: '',
   button_link: '',
@@ -68,7 +65,6 @@ const emptyCountdownForm: CountdownForm = {
   title: '',
   eyebrow: '',
   description: '',
-  image_url: '',
   background_image_url: '',
   button_text: '',
   button_link: '',
@@ -131,7 +127,6 @@ function topPromoToForm(promo?: HomepageSectionItem | null): TopPromoForm {
 
   return {
     title: promo.title || '',
-    subtitle: promo.subtitle || getMetadataString(promo.metadata, 'eyebrow'),
     description: promo.description || getMetadataString(promo.metadata, 'savings'),
     image_url: promo.image_url || '',
     button_link: promo.button_link || '',
@@ -147,7 +142,6 @@ function countdownToForm(section?: HomepageSection | null): CountdownForm {
     title: section.title || '',
     eyebrow: section.eyebrow || section.subtitle || getMetadataString(section.metadata, 'eyebrow'),
     description: section.description || '',
-    image_url: section.image_url || '',
     background_image_url: section.background_image_url || '',
     button_text: section.button_text || '',
     button_link: section.button_link || '',
@@ -174,6 +168,9 @@ export default function AdminPromotions() {
   const [topLinkTargetType, setTopLinkTargetType] = useState<LinkTargetType>('product');
   const [topLinkTargetValue, setTopLinkTargetValue] = useState('');
   const [topProductSearch, setTopProductSearch] = useState('');
+  const [countdownLinkTargetType, setCountdownLinkTargetType] = useState<LinkTargetType>('product');
+  const [countdownLinkTargetValue, setCountdownLinkTargetValue] = useState('');
+  const [countdownProductSearch, setCountdownProductSearch] = useState('');
   const [linkTargetType, setLinkTargetType] = useState<LinkTargetType>('product');
   const [linkTargetValue, setLinkTargetValue] = useState('');
   const [productSearch, setProductSearch] = useState('');
@@ -236,16 +233,13 @@ export default function AdminPromotions() {
     const section = await ensureHomepageSection('hero_side_promo', 'card_grid', 'Top promo', 10);
     const payload = {
       title: topPromoForm.title.trim() || null,
-      subtitle: topPromoForm.subtitle.trim() || null,
+      subtitle: null,
       description: topPromoForm.description.trim() || null,
       button_link: getPromotionLink(topLinkTargetType, topLinkTargetValue) || null,
       image_url: topPromoForm.image_url.trim() || null,
       sort_order: parseInt(topPromoForm.sort_order || '0', 10),
       is_active: topPromoForm.is_active,
-      metadata: {
-        eyebrow: topPromoForm.subtitle.trim(),
-        savings: topPromoForm.description.trim(),
-      },
+      metadata: {},
     };
 
     if (editingTopPromo) {
@@ -265,7 +259,11 @@ export default function AdminPromotions() {
   }
 
   function openCountdownModal() {
+    const parsedLink = parsePromotionLink(countdownSection?.button_link);
     setCountdownForm(countdownToForm(countdownSection));
+    setCountdownLinkTargetType(parsedLink.type);
+    setCountdownLinkTargetValue(parsedLink.value);
+    setCountdownProductSearch('');
     setCountdownOpen(true);
   }
 
@@ -280,8 +278,8 @@ export default function AdminPromotions() {
       eyebrow: countdownForm.eyebrow.trim() || null,
       description: countdownForm.description.trim() || null,
       button_text: countdownForm.button_text.trim() || null,
-      button_link: countdownForm.button_link.trim() || null,
-      image_url: countdownForm.image_url.trim() || null,
+      button_link: getPromotionLink(countdownLinkTargetType, countdownLinkTargetValue) || null,
+      image_url: null,
       background_image_url: countdownForm.background_image_url.trim() || null,
       sort_order: parseInt(countdownForm.sort_order || '0', 10),
       is_active: countdownForm.is_active,
@@ -432,6 +430,15 @@ export default function AdminPromotions() {
         .some(value => String(value).toLowerCase().includes(term));
     })
     .slice(0, 80);
+  const filteredCountdownProducts = products
+    .filter(product => {
+      const term = countdownProductSearch.trim().toLowerCase();
+      if (!term) return true;
+      return [product.name, product.sku, product.brand, product.category_name]
+        .filter(Boolean)
+        .some(value => String(value).toLowerCase().includes(term));
+    })
+    .slice(0, 80);
   const columns = [
     { header: 'Image', cell: (promotion: Promotion) => renderPromotionImage(promotion) },
     { header: 'Title', cell: (promotion: Promotion) => (
@@ -558,7 +565,7 @@ export default function AdminPromotions() {
 
         {countdownSection ? (
           <article className="grid gap-4 rounded-lg border border-slate-200 bg-slate-50 p-4 md:grid-cols-[280px_1fr]">
-            {renderHomepageImage(countdownSection.image_url, countdownSection.title || 'Countdown promo')}
+            {renderHomepageImage(countdownSection.background_image_url, countdownSection.title || 'Countdown promo')}
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -648,40 +655,21 @@ export default function AdminPromotions() {
       <Modal isOpen={topPromoOpen} onClose={() => setTopPromoOpen(false)} title={editingTopPromo ? 'Edit Top Promo' : 'Add Top Promo'}>
         <form onSubmit={saveTopPromo} className="space-y-4">
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Title</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Promotion title</label>
             <input
+              required
               className={inputClasses}
               placeholder="Samsung MicroLED"
               value={topPromoForm.title}
               onChange={event => setTopPromoForm({ ...topPromoForm, title: event.target.value })}
             />
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Eyebrow</label>
-              <input
-                className={inputClasses}
-                placeholder="Top Deal"
-                value={topPromoForm.subtitle}
-                onChange={event => setTopPromoForm({ ...topPromoForm, subtitle: event.target.value })}
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Sort order</label>
-              <input
-                type="number"
-                className={inputClasses}
-                value={topPromoForm.sort_order}
-                onChange={event => setTopPromoForm({ ...topPromoForm, sort_order: event.target.value })}
-              />
-            </div>
-          </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Description / savings text</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Description</label>
             <textarea
-              rows={2}
+              rows={3}
               className={inputClasses}
-              placeholder="Save 20%"
+              placeholder="Short promotion copy"
               value={topPromoForm.description}
               onChange={event => setTopPromoForm({ ...topPromoForm, description: event.target.value })}
             />
@@ -786,6 +774,16 @@ export default function AdminPromotions() {
               </p>
             </div>
           </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Display order</label>
+            <input
+              type="number"
+              className={inputClasses}
+              placeholder="0"
+              value={topPromoForm.sort_order}
+              onChange={event => setTopPromoForm({ ...topPromoForm, sort_order: event.target.value })}
+            />
+          </div>
           <label className="flex items-center gap-3 text-sm text-slate-700">
             <input
               type="checkbox"
@@ -832,15 +830,6 @@ export default function AdminPromotions() {
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
-              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Product image URL</label>
-              <input
-                className={inputClasses}
-                placeholder="Image URL or /uploads path"
-                value={countdownForm.image_url}
-                onChange={event => setCountdownForm({ ...countdownForm, image_url: event.target.value })}
-              />
-            </div>
-            <div>
               <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Background image URL</label>
               <input
                 className={inputClasses}
@@ -849,8 +838,6 @@ export default function AdminPromotions() {
                 onChange={event => setCountdownForm({ ...countdownForm, background_image_url: event.target.value })}
               />
             </div>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Button text</label>
               <input
@@ -860,14 +847,97 @@ export default function AdminPromotions() {
                 onChange={event => setCountdownForm({ ...countdownForm, button_text: event.target.value })}
               />
             </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Button link</label>
-              <input
-                className={inputClasses}
-                placeholder="/store"
-                value={countdownForm.button_link}
-                onChange={event => setCountdownForm({ ...countdownForm, button_link: event.target.value })}
-              />
+          </div>
+
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <label className="mb-3 block text-sm font-medium text-[#0B1B48]">Button click target</label>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              {([
+                ['product', 'Product'],
+                ['category', 'Category'],
+                ['brand', 'Brand'],
+                ['custom', 'Custom'],
+              ] as const).map(([type, label]) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => {
+                    setCountdownLinkTargetType(type);
+                    setCountdownLinkTargetValue('');
+                  }}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    countdownLinkTargetType === type
+                      ? 'border-accent bg-accent text-white'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-accent hover:text-accent'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {countdownLinkTargetType === 'product' && (
+                <>
+                  <input
+                    className={inputClasses}
+                    placeholder="Search products by name, SKU, brand, or category"
+                    value={countdownProductSearch}
+                    onChange={event => setCountdownProductSearch(event.target.value)}
+                  />
+                  <select
+                    className={inputClasses}
+                    value={countdownLinkTargetValue}
+                    onChange={event => setCountdownLinkTargetValue(event.target.value)}
+                  >
+                    <option value="">Select product</option>
+                    {filteredCountdownProducts.map(product => (
+                      <option key={product.id} value={product.slug}>
+                        {product.name}{product.brand ? ` - ${product.brand}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
+
+              {countdownLinkTargetType === 'category' && (
+                <select
+                  className={inputClasses}
+                  value={countdownLinkTargetValue}
+                  onChange={event => setCountdownLinkTargetValue(event.target.value)}
+                >
+                  <option value="">Select category</option>
+                  {categories.map(category => (
+                    <option key={category.id} value={category.slug}>{category.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {countdownLinkTargetType === 'brand' && (
+                <select
+                  className={inputClasses}
+                  value={countdownLinkTargetValue}
+                  onChange={event => setCountdownLinkTargetValue(event.target.value)}
+                >
+                  <option value="">Select brand</option>
+                  {brands.filter(brand => brand.is_active).map(brand => (
+                    <option key={brand.id} value={brand.slug}>{brand.name}</option>
+                  ))}
+                </select>
+              )}
+
+              {countdownLinkTargetType === 'custom' && (
+                <input
+                  className={inputClasses}
+                  placeholder="/store, /store?sort=rating, or https://example.com"
+                  value={countdownLinkTargetValue}
+                  onChange={event => setCountdownLinkTargetValue(event.target.value)}
+                />
+              )}
+
+              <p className="rounded-md bg-white px-3 py-2 text-xs text-slate-500">
+                Link preview: <span className="font-medium text-[#0B1B48]">{getPromotionLink(countdownLinkTargetType, countdownLinkTargetValue) || 'No link selected'}</span>
+              </p>
             </div>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

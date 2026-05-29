@@ -68,14 +68,6 @@ function createEmptyForm(categoryId = ''): ProductFormData {
   };
 }
 
-const emptyBrandForm = {
-  name: '',
-  slug: '',
-  logo_url: '',
-  description: '',
-  is_active: true,
-};
-
 function slugify(value: string): string {
   return value
     .toLowerCase()
@@ -116,8 +108,6 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
-  const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
 
   // Pagination & Search
   const [page, setPage] = useState(1);
@@ -128,7 +118,6 @@ export default function AdminProducts() {
   const [importCsv, setImportCsv] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
-  const [brandForm, setBrandForm] = useState(emptyBrandForm);
 
   // Form State
   const [formData, setFormData] = useState<ProductFormData>(() => createEmptyForm());
@@ -375,52 +364,6 @@ export default function AdminProducts() {
     }));
   };
 
-  const handleBrandNameChange = (name: string) => {
-    setBrandForm(current => ({
-      ...current,
-      name,
-      slug: !editingBrand && (!current.slug || current.slug === slugify(current.name)) ? slugify(name) : current.slug,
-    }));
-  };
-
-  const openBrandModal = (brand?: Brand) => {
-    setEditingBrand(brand || null);
-    setBrandForm(brand ? {
-      name: brand.name,
-      slug: brand.slug,
-      logo_url: brand.logo_url || '',
-      description: brand.description || '',
-      is_active: brand.is_active,
-    } : emptyBrandForm);
-    setIsBrandModalOpen(true);
-  };
-
-  const saveBrand = async (event: React.FormEvent) => {
-    event.preventDefault();
-    const payload = {
-      name: brandForm.name.trim(),
-      slug: brandForm.slug.trim() || slugify(brandForm.name),
-      logo_url: brandForm.logo_url.trim() || null,
-      description: brandForm.description.trim() || null,
-      is_active: brandForm.is_active,
-    };
-
-    if (editingBrand) {
-      await api.put(`/api/admin/brands/${editingBrand.id}`, payload);
-    } else {
-      await api.post('/api/admin/brands', payload);
-    }
-
-    setIsBrandModalOpen(false);
-    await fetchProducts();
-  };
-
-  const deleteBrand = async (brand: Brand) => {
-    if (!confirm(`Delete ${brand.name}? Existing products will keep their brand text but lose the brand link.`)) return;
-    await api.delete(`/api/admin/brands/${brand.id}`);
-    await fetchProducts();
-  };
-
   const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
 
   const renderProductImage = (product: Product, size: 'table' | 'grid' = 'table') => {
@@ -574,45 +517,6 @@ export default function AdminProducts() {
         </div>
       {importMessage && <p className="mt-2 text-sm text-slate-500">{importMessage}</p>}
       </div>
-
-      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/80">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-semibold text-[#0B1B48]">Brands</h2>
-            <p className="text-sm text-slate-500">Create brands once, then choose them when adding products.</p>
-          </div>
-          <button
-            onClick={() => openBrandModal()}
-            className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:border-accent hover:text-accent"
-          >
-            <Plus className="h-4 w-4" />
-            Add Brand
-          </button>
-        </div>
-
-        {brands.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {brands.map((brand) => (
-              <div key={brand.id} className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-sm text-[#0B1B48]">
-                <span className={!brand.is_active ? 'text-slate-400 line-through' : ''}>{brand.name}</span>
-                {typeof brand.product_count === 'number' && (
-                  <span className="rounded-full bg-white px-1.5 text-xs text-slate-500">{brand.product_count}</span>
-                )}
-                <button onClick={() => openBrandModal(brand)} className="text-slate-400 hover:text-accent" aria-label={`Edit ${brand.name}`}>
-                  <Edit2 className="h-3.5 w-3.5" />
-                </button>
-                <button onClick={() => void deleteBrand(brand)} className="text-slate-400 hover:text-red-500" aria-label={`Delete ${brand.name}`}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-500">
-            No brands yet. Add your first brand before creating products.
-          </p>
-        )}
-      </section>
 
       {viewMode === 'table' ? (
         <DataTable data={products} columns={columns} keyExtractor={(p) => p.id} emptyMessage="No products found" />
@@ -993,71 +897,6 @@ export default function AdminProducts() {
         </form>
       </Modal>
 
-      <Modal isOpen={isBrandModalOpen} onClose={() => setIsBrandModalOpen(false)} title={editingBrand ? 'Edit Brand' : 'Add Brand'}>
-        <form onSubmit={saveBrand} className="space-y-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Brand Name</label>
-            <input
-              required
-              className={inputClasses}
-              placeholder="Samsung"
-              value={brandForm.name}
-              onChange={event => handleBrandNameChange(event.target.value)}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Slug</label>
-            <input
-              required
-              className={inputClasses}
-              placeholder="samsung"
-              value={brandForm.slug}
-              onChange={event => setBrandForm({...brandForm, slug: slugify(event.target.value)})}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Logo URL</label>
-            <input
-              className={inputClasses}
-              placeholder="https://example.com/logo.png"
-              value={brandForm.logo_url}
-              onChange={event => setBrandForm({...brandForm, logo_url: event.target.value})}
-            />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Description</label>
-            <textarea
-              rows={3}
-              className={inputClasses}
-              value={brandForm.description}
-              onChange={event => setBrandForm({...brandForm, description: event.target.value})}
-            />
-          </div>
-          <label className="flex items-center gap-3 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={brandForm.is_active}
-              onChange={event => setBrandForm({...brandForm, is_active: event.target.checked})}
-            />
-            Active
-          </label>
-          <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-4">
-            <button
-              type="button"
-              onClick={() => setIsBrandModalOpen(false)}
-              className="rounded-lg px-4 py-2.5 text-slate-600 transition-colors hover:text-[#0B1B48]"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="rounded-xl bg-accent px-6 py-2.5 font-medium text-white shadow-lg shadow-accent/25 transition-all hover:bg-accent-glow"
-            >
-              Save Brand
-            </button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 }

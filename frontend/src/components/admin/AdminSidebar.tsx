@@ -3,7 +3,7 @@
 import type { ComponentType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, Grid, Users, ShoppingCart, LogOut, Image as ImageIcon, Zap, X, AlertTriangle, BadgePercent, Megaphone, Search, MessageSquare } from 'lucide-react';
+import { LayoutDashboard, Package, Grid, Users, ShoppingCart, LogOut, Image as ImageIcon, Zap, X, AlertTriangle, BadgePercent, Megaphone, Search, MessageSquare, Tags } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { AdminPermission, hasAdminPermission } from '../../lib/adminPermissions';
 
@@ -12,6 +12,7 @@ const navItems = [
   { name: 'Carousel', href: '/admin/carousel', icon: ImageIcon, permission: 'content' },
   { name: 'Products', href: '/admin/products', icon: Package, permission: 'products' },
   { name: 'Categories', href: '/admin/categories', icon: Grid, permission: 'products' },
+  { name: 'Brands', href: '/admin/brands', icon: Tags, permission: 'products' },
   { name: 'Customers', href: '/admin/customers', icon: Users, permission: 'users' },
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'orders' },
   { name: 'Reviews', href: '/admin/reviews', icon: MessageSquare, permission: 'reviews' },

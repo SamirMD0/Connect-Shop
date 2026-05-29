@@ -6,13 +6,14 @@ import { ProductGrid } from '@/components/products/ProductGrid';
 import { HeroCarousel } from '@/components/home/HeroCarousel';
 import { ServiceFeatures } from '@/components/home/ServiceFeatures';
 import { BrowseCategories } from '@/components/home/BrowseCategories';
+import { BrandShowcase } from '@/components/home/BrandShowcase';
 import { NextmercePromoBanners } from '@/components/home/NextmercePromoBanners';
 import { BestSellers } from '@/components/home/BestSellers';
 import { CountdownPromo } from '@/components/home/CountdownPromo';
 import { Testimonials } from '@/components/home/Testimonials';
 import { Newsletter } from '@/components/home/Newsletter';
 import { api } from '@/lib/api';
-import { Product, Category, CarouselSlide, HomepageContent, HomepageContentResponse, HomepageSectionItem } from '@/lib/types';
+import { Product, Category, Brand, CarouselSlide, HomepageContent, HomepageContentResponse, HomepageSectionItem } from '@/lib/types';
 import { ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
@@ -72,22 +73,25 @@ export default async function HomePage() {
   let featured: Product[] = [];
   let trending: Product[] = [];
   let categories: Category[] = [];
+  let brands: Brand[] = [];
   let slides: CarouselSlide[] = [];
   let homepage: HomepageContent = emptyHomepageContent;
 
   try {
-    const [featuredRes, trendingRes, catRes, slidesRes, homepageRes] = await Promise.all([
+    const [featuredRes, trendingRes, catRes, brandsRes, slidesRes, homepageRes] = await Promise.all([
       api.get<{ success: boolean; products: Product[] }>('/api/products/featured'),
       api.get<{ success: boolean; products: Product[] }>('/api/products', {
         params: { sort: 'rating', limit: 8 },
       }),
       api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
+      api.get<{ success: boolean; brands: Brand[] }>('/api/brands').catch(() => ({ success: false, brands: [] })),
       api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel').catch(() => ({ success: false, slides: [] })),
       api.get<HomepageContentResponse>('/api/homepage', { cache: 'no-store' }).catch(() => ({ success: false, homepage: emptyHomepageContent })),
     ]);
     featured = featuredRes.products || [];
     trending = trendingRes.products || [];
     categories = catRes.categories || [];
+    brands = brandsRes.brands || [];
     slides = slidesRes.slides || [];
     homepage = homepageRes.homepage || emptyHomepageContent;
   } catch (error) {
@@ -174,6 +178,8 @@ export default async function HomePage() {
           <ServiceFeatures features={homepage.service_features} />
         </Container>
       </section>
+
+      <BrandShowcase brands={brands} />
 
       <BrowseCategories categories={displayCategories} fallbackImages={categoryImages} />
 

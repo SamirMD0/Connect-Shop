@@ -22,6 +22,7 @@ import ordersRoutes from './routes/orders.routes';
 import adminRoutes from './routes/admin.routes';
 import carouselRoutes from './routes/carousel.routes';
 import categoriesRoutes from './routes/categories.routes';
+import brandsRoutes from './routes/brands.routes';
 import reviewRoutes from './routes/review.routes';
 import wishlistRoutes from './routes/wishlist.routes';
 import usersRoutes from './routes/users.routes';
@@ -66,6 +67,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/products', productsRoutes);
 app.use('/api/v1/categories', categoriesRoutes);
+app.use('/api/v1/brands', brandsRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', ordersRoutes);
 app.use('/api/v1/admin', adminRoutes);
