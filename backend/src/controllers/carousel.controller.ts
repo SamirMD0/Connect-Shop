@@ -1,19 +1,29 @@
 // backend/src/controllers/carousel.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import {
+  CarouselSlide,
   getActiveSlides,
   getAllSlides,
   createSlide,
   updateSlide,
   deleteSlide,
 } from '../services/carousel.service';
+import { getJsonCache, setJsonCache } from '../config/redis';
+import { CACHE_KEYS, CACHE_TTL_SECONDS } from '../utils/cachePolicy';
 import { NotFoundError } from '../utils/errors';
 
 // ─── Public ──────────────────────────────────────────────────────────────────
 
 export async function getActive(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    const cached = await getJsonCache<CarouselSlide[]>(CACHE_KEYS.carouselActive);
+    if (cached) {
+      res.json({ success: true, slides: cached });
+      return;
+    }
+
     const slides = await getActiveSlides();
+    await setJsonCache(CACHE_KEYS.carouselActive, slides, CACHE_TTL_SECONDS.carousel);
     res.json({ success: true, slides });
   } catch (err) {
     next(err);

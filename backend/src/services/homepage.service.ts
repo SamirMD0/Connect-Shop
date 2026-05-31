@@ -1,4 +1,6 @@
 import { query } from '../config/db';
+import { delCache } from '../config/redis';
+import { CACHE_KEYS } from '../utils/cachePolicy';
 
 export const HOMEPAGE_SECTION_KEYS = [
   'hero_carousel',
@@ -125,6 +127,10 @@ export function createEmptyHomepageContent(): HomepageContent {
     testimonials: [],
     newsletter: null,
   };
+}
+
+async function invalidateHomepageCache(): Promise<void> {
+  await delCache(CACHE_KEYS.homepageActive);
 }
 
 function nestSections(
@@ -274,6 +280,7 @@ export async function createHomepageSection(data: HomepageSectionInput): Promise
     ]
   );
 
+  await invalidateHomepageCache();
   return rows[0];
 }
 
@@ -312,6 +319,10 @@ export async function updateHomepageSection(
     values
   );
 
+  if (rows[0]) {
+    await invalidateHomepageCache();
+  }
+
   return rows[0] || null;
 }
 
@@ -320,6 +331,10 @@ export async function deleteHomepageSection(id: string): Promise<boolean> {
     `DELETE FROM homepage_sections WHERE id = $1 RETURNING id`,
     [id]
   );
+
+  if (rows.length > 0) {
+    await invalidateHomepageCache();
+  }
 
   return rows.length > 0;
 }
@@ -349,6 +364,10 @@ export async function createHomepageSectionItem(
       data.metadata ?? {},
     ]
   );
+
+  if (rows[0]) {
+    await invalidateHomepageCache();
+  }
 
   return rows[0] || null;
 }
@@ -384,6 +403,10 @@ export async function updateHomepageSectionItem(
     values
   );
 
+  if (rows[0]) {
+    await invalidateHomepageCache();
+  }
+
   return rows[0] || null;
 }
 
@@ -392,6 +415,10 @@ export async function deleteHomepageSectionItem(id: string): Promise<boolean> {
     `DELETE FROM homepage_section_items WHERE id = $1 RETURNING id`,
     [id]
   );
+
+  if (rows.length > 0) {
+    await invalidateHomepageCache();
+  }
 
   return rows.length > 0;
 }

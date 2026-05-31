@@ -4,6 +4,8 @@ import { User } from './auth.service';
 import { Order } from './orders.service';
 import { AppError, NotFoundError } from '../utils/errors';
 import { AdminRepository } from '../repositories/admin.repository';
+import { delCache } from '../config/redis';
+import { CACHE_KEYS } from '../utils/cachePolicy';
 
 export interface MonthlyRevenue {
   month: string;
@@ -407,6 +409,7 @@ export async function createPromotion(data: PromotionInput): Promise<Record<stri
       data.is_active ?? true,
     ]
   );
+  await delCache(CACHE_KEYS.homepageActive);
   return rows[0];
 }
 
@@ -429,11 +432,17 @@ export async function updatePromotion(id: number, data: PromotionInput): Promise
       id,
     ]
   );
+  if (rows[0]) {
+    await delCache(CACHE_KEYS.homepageActive);
+  }
   return rows[0] || null;
 }
 
 export async function deletePromotion(id: number): Promise<boolean> {
   const rows = await query<{ id: number }>(`DELETE FROM promotions WHERE id = $1 RETURNING id`, [id]);
+  if (rows.length > 0) {
+    await delCache(CACHE_KEYS.homepageActive);
+  }
   return rows.length > 0;
 }
 

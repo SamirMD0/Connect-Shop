@@ -107,6 +107,32 @@ Production database notes:
 - Do not rely on free/trial databases for serious production.
 - Users, products, orders, carts, admin data, and homepage CMS content are business-critical.
 - Verify migrations by checking the `schema_migrations` table.
+- Enable Render PostgreSQL backups/snapshots if the selected plan supports them.
+- Confirm backup retention is acceptable for the business; upgrade the database plan if it is not.
+- Take a backup before running production migrations or bulk product imports.
+- Test restore on a staging or temporary database before launch.
+
+Manual backup option:
+
+```bash
+mkdir -p backups
+pg_dump "$DATABASE_URL" | gzip > backups/connect-shop-YYYY-MM-DD.sql.gz
+```
+
+Manual restore should be tested on staging first:
+
+```bash
+gunzip -c backups/connect-shop-YYYY-MM-DD.sql.gz | psql "$DATABASE_URL"
+```
+
+The repository also includes manual helper scripts:
+
+```bash
+bash scripts/backup-db.sh
+bash scripts/restore-db.sh backups/connect-shop-YYYY-MM-DD.sql.gz
+```
+
+On Windows, run these scripts through Git Bash/WSL or use the `pg_dump` and `psql` commands manually. See `BACKUP_AND_RECOVERY.md` for the full backup and recovery guide.
 
 ## 5. Namecheap Domain And DNS
 
@@ -177,13 +203,33 @@ See `IMAGEKIT_SETUP.md` for detailed setup and troubleshooting.
 
 ## 8. Redis
 
-Redis is optional for demos. The backend can run without `REDIS_URL` and will use in-memory rate limiting.
+Redis is optional for demos and local development. The backend can run without `REDIS_URL` and will use in-memory rate limiting with no read-through cache.
 
 For production:
 
 - Use Render Redis-compatible Key Value or Upstash Redis.
 - Set `REDIS_URL` in Render.
-- Use Redis-backed rate limiting/cache when traffic grows or multiple backend instances are used.
+- Use Redis-backed rate limiting when traffic grows or multiple backend instances are used.
+- Use Redis read-through caching for safe public reads.
+
+Cached public reads:
+
+- Homepage CMS: 180 seconds.
+- Categories: 600 seconds.
+- Featured products: 180 seconds.
+- Product detail by slug: 180 seconds.
+- Product list/search/filter pages: 45 seconds.
+- Public carousel: 180 seconds.
+
+Not cached:
+
+- Auth/session/CSRF endpoints.
+- Cart, wishlist, checkout, and orders.
+- Admin permission checks.
+- User-specific or personalized responses.
+- Error responses.
+
+Redis failures are handled as cache misses. The API should continue working without exposing Redis errors to clients. See `REDIS_CACHE_POLICY.md` for cache keys and invalidation rules.
 
 ## 9. Deployment Verification
 
@@ -193,8 +239,13 @@ After deployment:
 - Render backend responds over HTTPS.
 - PostgreSQL connection works.
 - `npm run db:migrate` has completed.
+- Render PostgreSQL backups/snapshots are enabled or a manual backup plan is documented.
+- A backup has been taken before first launch.
+- Backup restore has been tested on staging or a temporary database.
 - ImageKit environment variables are set in Render.
 - Admin product image upload returns an ImageKit URL.
+- `REDIS_URL` is set if production Redis is used.
+- Public homepage, categories, featured products, and product detail endpoints still return the same response shapes with or without Redis.
 - CORS works from the frontend domain.
 - Login/register/logout work.
 - Product browsing works.

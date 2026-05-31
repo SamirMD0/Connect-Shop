@@ -1,13 +1,17 @@
 // backend/src/controllers/products.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
-import { cacheGet, cacheSetEx } from '../config/redis';
+import { getJsonCache, setJsonCache } from '../config/redis';
 import {
   listProducts,
   getProductBySlug,
   getFeaturedProducts,
   getCategories,
+  Product,
+  ProductListResult,
+  Category,
 } from '../services/products.service';
+import { CACHE_KEYS, CACHE_TTL_SECONDS, normalizeProductListCacheParams } from '../utils/cachePolicy';
 import { NotFoundError } from '../utils/errors';
 
 function buildWeakEtag(payload: string): string {
@@ -56,6 +60,27 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
             .filter(([key, value]) => key && value)
         )
       : undefined;
+    const cacheParams = normalizeProductListCacheParams({
+      page,
+      limit,
+      category,
+      search,
+      sort,
+      ids,
+      brand,
+      min_price,
+      max_price,
+      parent_id,
+      min_rating,
+      specs,
+    });
+    const cacheKey = CACHE_KEYS.productList(cacheParams);
+
+    const cached = await getJsonCache<ProductListResult>(cacheKey);
+    if (cached) {
+      sendCachedJson(req, res, { success: true, ...cached }, 30);
+      return;
+    }
 
     const result = await listProducts({
       page,
@@ -72,7 +97,8 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
       specs,
     });
 
-    res.json({ success: true, ...result });
+    await setJsonCache(cacheKey, result, CACHE_TTL_SECONDS.productList);
+    sendCachedJson(req, res, { success: true, ...result }, 30);
   } catch (err) {
     next(err);
   }
@@ -84,17 +110,18 @@ export async function list(req: Request, res: Response, next: NextFunction): Pro
  */
 export async function featured(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : 8;
-    const cacheKey = `products:featured:${limit}`;
+    const requestedLimit = req.query.limit ? parseInt(req.query.limit as string, 10) : 8;
+    const limit = Math.min(Math.max(1, requestedLimit), 100);
+    const cacheKey = CACHE_KEYS.featuredProducts(limit);
     
-    const cached = await cacheGet(cacheKey);
+    const cached = await getJsonCache<Product[]>(cacheKey);
     if (cached) {
-      sendCachedJson(req, res, { success: true, products: JSON.parse(cached) }, 300);
+      sendCachedJson(req, res, { success: true, products: cached }, 300);
       return;
     }
 
     const products = await getFeaturedProducts(limit);
-    await cacheSetEx(cacheKey, 1800, JSON.stringify(products)); // 30 min cache
+    await setJsonCache(cacheKey, products, CACHE_TTL_SECONDS.featuredProducts);
 
     sendCachedJson(req, res, { success: true, products }, 300);
   } catch (err) {
@@ -108,10 +135,10 @@ export async function featured(req: Request, res: Response, next: NextFunction):
  */
 export async function getBySlug(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const cacheKey = `products:slug:${req.params.slug}`;
-    const cached = await cacheGet(cacheKey);
+    const cacheKey = CACHE_KEYS.productSlug(req.params.slug);
+    const cached = await getJsonCache<Product>(cacheKey);
     if (cached) {
-      sendCachedJson(req, res, { success: true, product: JSON.parse(cached) }, 300);
+      sendCachedJson(req, res, { success: true, product: cached }, 300);
       return;
     }
 
@@ -121,7 +148,7 @@ export async function getBySlug(req: Request, res: Response, next: NextFunction)
       throw new NotFoundError('Product');
     }
 
-    await cacheSetEx(cacheKey, 600, JSON.stringify(product));
+    await setJsonCache(cacheKey, product, CACHE_TTL_SECONDS.productDetail);
     sendCachedJson(req, res, { success: true, product }, 300);
   } catch (err) {
     next(err);
@@ -134,16 +161,16 @@ export async function getBySlug(req: Request, res: Response, next: NextFunction)
  */
 export async function listCategories(_req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const cacheKey = 'categories:all';
-    const cached = await cacheGet(cacheKey);
+    const cacheKey = CACHE_KEYS.categoriesTree;
+    const cached = await getJsonCache<Category[]>(cacheKey);
     
     if (cached) {
-      sendCachedJson(_req, res, { success: true, categories: JSON.parse(cached) }, 600);
+      sendCachedJson(_req, res, { success: true, categories: cached }, 600);
       return;
     }
 
     const categories = await getCategories();
-    await cacheSetEx(cacheKey, 3600, JSON.stringify(categories)); // 1 hr cache
+    await setJsonCache(cacheKey, categories, CACHE_TTL_SECONDS.categories);
 
     sendCachedJson(_req, res, { success: true, categories }, 600);
   } catch (err) {

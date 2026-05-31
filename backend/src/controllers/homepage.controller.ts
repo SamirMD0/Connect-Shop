@@ -6,9 +6,12 @@ import {
   deleteHomepageSectionItem,
   getActiveHomepageContent,
   getAdminHomepageSections,
+  HomepageContent,
   updateHomepageSection,
   updateHomepageSectionItem,
 } from '../services/homepage.service';
+import { getJsonCache, setJsonCache } from '../config/redis';
+import { CACHE_KEYS, CACHE_TTL_SECONDS } from '../utils/cachePolicy';
 import { NotFoundError } from '../utils/errors';
 
 export async function getPublicHomepage(
@@ -17,7 +20,14 @@ export async function getPublicHomepage(
   next: NextFunction
 ): Promise<void> {
   try {
+    const cached = await getJsonCache<HomepageContent>(CACHE_KEYS.homepageActive);
+    if (cached) {
+      res.json({ success: true, homepage: cached });
+      return;
+    }
+
     const homepage = await getActiveHomepageContent();
+    await setJsonCache(CACHE_KEYS.homepageActive, homepage, CACHE_TTL_SECONDS.homepage);
     res.json({ success: true, homepage });
   } catch (err) {
     next(err);

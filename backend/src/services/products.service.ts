@@ -4,7 +4,8 @@ import { ProductRepository } from '../repositories/product.repository';
 import type { ProductImageInput, ProductVariantInput } from '../repositories/product.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { BrandRepository } from '../repositories/brand.repository';
-import { cacheDel } from '../config/redis';
+import { delCache, delCacheByPattern } from '../config/redis';
+import { CACHE_KEYS } from '../utils/cachePolicy';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -221,11 +222,24 @@ export async function getBrands(): Promise<Brand[]> {
 
 // ─── Admin Mutations ─────────────────────────────────────────────────────────
 
+async function invalidateCategoryCaches(): Promise<void> {
+  await delCache(CACHE_KEYS.categoriesTree);
+  await delCacheByPattern(CACHE_KEYS.productListPattern);
+}
+
+export async function invalidateProductCaches(slugs: string[] = []): Promise<void> {
+  await delCache(...slugs.map((slug) => CACHE_KEYS.productSlug(slug)));
+  await Promise.all([
+    delCacheByPattern(CACHE_KEYS.featuredProductsPattern),
+    delCacheByPattern(CACHE_KEYS.productListPattern),
+  ]);
+}
+
 export async function createCategory(data: { name: string; slug: string; image_url: string | null; parent_id?: number | null; depth?: number }): Promise<Category> {
   try {
     const category = await normalizeCategoryInput(data);
     const created = await CategoryRepository.create(category);
-    await cacheDel('categories:all');
+    await invalidateCategoryCaches();
     return created;
   } catch (error: any) {
     if (error.code === '23505') {
@@ -245,7 +259,7 @@ export async function updateCategory(id: number, data: { name: string; slug: str
     }
     const category = await normalizeCategoryInput(data);
     const updated = await CategoryRepository.update(id, category);
-    await cacheDel('categories:all');
+    await invalidateCategoryCaches();
     return updated;
   } catch (error: any) {
     if (error.code === '23505') {
@@ -261,7 +275,7 @@ export async function deleteCategory(id: number): Promise<boolean> {
     throw new ConflictError('Cannot delete category: It has existing products. Please reassign or delete the products first.');
   }
   const deleted = await CategoryRepository.delete(id);
-  if (deleted) await cacheDel('categories:all');
+  if (deleted) await invalidateCategoryCaches();
   return deleted;
 }
 
@@ -287,7 +301,8 @@ export async function createProduct(data: {
   try {
     const productInput = await normalizeProductBrandInput(data);
     const product = await ProductRepository.create(productInput);
-    await cacheDel('categories:all', `products:featured:8`, `products:slug:${product.slug}`);
+    await invalidateCategoryCaches();
+    await invalidateProductCaches([product.slug]);
     return product;
   } catch (error: any) {
     handleProductWriteError(error);
@@ -317,12 +332,11 @@ export async function updateProduct(id: string, data: {
     const existing = await ProductRepository.getById(id);
     const productInput = await normalizeProductBrandInput(data);
     const product = await ProductRepository.update(id, productInput);
-    await cacheDel(
-      'categories:all',
-      `products:featured:8`,
-      ...(existing ? [`products:slug:${existing.slug}`] : []),
-      ...(product ? [`products:slug:${product.slug}`] : [])
-    );
+    await invalidateCategoryCaches();
+    await invalidateProductCaches([
+      ...(existing ? [existing.slug] : []),
+      ...(product ? [product.slug] : []),
+    ]);
     return product;
   } catch (error: any) {
     handleProductWriteError(error);
@@ -337,11 +351,8 @@ export async function deleteProduct(id: string): Promise<boolean> {
   }
   const deleted = await ProductRepository.delete(id);
   if (deleted) {
-    await cacheDel(
-      'categories:all',
-      `products:featured:8`,
-      ...(existing ? [`products:slug:${existing.slug}`] : [])
-    );
+    await invalidateCategoryCaches();
+    await invalidateProductCaches(existing ? [existing.slug] : []);
   }
   return deleted;
 }
@@ -430,7 +441,7 @@ export async function updateBrand(id: number, data: {
   try {
     const brand = await BrandRepository.update(id, data);
     if (brand) {
-      await cacheDel(`products:featured:8`);
+      await invalidateProductCaches();
     }
     return brand;
   } catch (error: any) {
@@ -442,5 +453,9 @@ export async function updateBrand(id: number, data: {
 }
 
 export async function deleteBrand(id: number): Promise<boolean> {
-  return BrandRepository.delete(id);
+  const deleted = await BrandRepository.delete(id);
+  if (deleted) {
+    await invalidateProductCaches();
+  }
+  return deleted;
 }

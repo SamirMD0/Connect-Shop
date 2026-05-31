@@ -1,5 +1,7 @@
 // backend/src/services/carousel.service.ts
 import { query } from '../config/db';
+import { delCache } from '../config/redis';
+import { CACHE_KEYS } from '../utils/cachePolicy';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -17,6 +19,10 @@ export interface CarouselSlide {
 }
 
 // ─── Service Functions ───────────────────────────────────────────────────────
+
+async function invalidateCarouselCache(): Promise<void> {
+  await delCache(CACHE_KEYS.carouselActive);
+}
 
 /** Public: returns only active slides ordered by display_order */
 export async function getActiveSlides(): Promise<CarouselSlide[]> {
@@ -53,6 +59,7 @@ export async function createSlide(
       data.is_active,
     ]
   );
+  await invalidateCarouselCache();
   return rows[0];
 }
 
@@ -80,6 +87,9 @@ export async function updateSlide(
     `UPDATE carousel_slides SET ${fields.join(', ')} WHERE id = $${paramIndex} RETURNING *`,
     values
   );
+  if (rows[0]) {
+    await invalidateCarouselCache();
+  }
   return rows[0] || null;
 }
 
@@ -89,5 +99,8 @@ export async function deleteSlide(id: number): Promise<boolean> {
     `DELETE FROM carousel_slides WHERE id = $1 RETURNING id`,
     [id]
   );
+  if (rows.length > 0) {
+    await invalidateCarouselCache();
+  }
   return rows.length > 0;
 }

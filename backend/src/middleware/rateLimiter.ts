@@ -8,15 +8,16 @@ const isDev = env.NODE_ENV !== 'production';
 const GENERAL_LIMIT = isDev ? 1000 : 100;
 const AUTH_LIMIT = isDev ? 200 : 20;
 
-const redisStore = (() => {
+function createRedisStore(prefix: string) {
   if (!redisClient) return undefined;
 
   const client = redisClient;
   return new RedisStore({
+    prefix,
     sendCommand: (command: string, ...args: string[]) =>
       client.call(command, ...args) as Promise<any>,
   });
-})();
+}
 
 /**
  * General rate limiter — applies to all routes.
@@ -28,7 +29,7 @@ export const generalLimiter = rateLimit({
   limit: GENERAL_LIMIT,
   standardHeaders: true,    // Return rate limit info in `RateLimit-*` headers
   legacyHeaders: false,     // Disable `X-RateLimit-*` headers
-  store: redisStore,
+  store: createRedisStore('rl:general:'),
   passOnStoreError: true,
   message: {
     success: false,
@@ -46,7 +47,7 @@ export const authLimiter = rateLimit({
   limit: AUTH_LIMIT,
   standardHeaders: true,
   legacyHeaders: false,
-  store: redisStore,
+  store: createRedisStore('rl:auth:'),
   passOnStoreError: true,
   message: {
     success: false,

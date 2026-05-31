@@ -25,6 +25,8 @@ Use this checklist before selling or launching Connect-Shop / ElecSHOP for a rea
 - [ ] `FRONTEND_URL` matches the final frontend origin.
 - [ ] Google OAuth vars are set if OAuth is used.
 - [ ] `REDIS_URL` is set if production Redis is used.
+- [ ] Redis fallback has been checked by running without `REDIS_URL` in local/staging.
+- [ ] Public read cache behavior is documented in `project-docs/REDIS_CACHE_POLICY.md`.
 - [ ] `IMAGEKIT_PUBLIC_KEY`, `IMAGEKIT_PRIVATE_KEY`, and `IMAGEKIT_URL_ENDPOINT` are set in Render.
 - [ ] ImageKit private key is not exposed to the frontend.
 - [ ] Logs are accessible in Render.
@@ -34,7 +36,12 @@ Use this checklist before selling or launching Connect-Shop / ElecSHOP for a rea
 
 - [ ] Render PostgreSQL database created.
 - [ ] Production database is not a temporary free/trial database for a real business.
+- [ ] Render PostgreSQL backups/snapshots are enabled if the plan supports them.
+- [ ] Backup retention is confirmed for the selected database plan.
+- [ ] Manual backup process is documented.
+- [ ] Backup has been taken before first launch.
 - [ ] `npm run db:migrate` has been run.
+- [ ] Backup has been taken before production migrations.
 - [ ] `schema_migrations` table confirms migrations applied.
 - [ ] Backups/snapshots are configured.
 - [ ] Backup restore has been tested in staging or a temporary database.
@@ -55,6 +62,7 @@ Use this checklist before selling or launching Connect-Shop / ElecSHOP for a rea
 - [ ] Product browsing works.
 - [ ] Product detail pages work.
 - [ ] Search/filter/sort/pagination work.
+- [ ] Homepage, categories, featured products, product detail, and product list response shapes match with and without Redis.
 - [ ] Product images display.
 - [ ] Product image upload returns an ImageKit URL in production.
 - [ ] Product image URL is saved in PostgreSQL as text.
@@ -74,6 +82,9 @@ Use this checklist before selling or launching Connect-Shop / ElecSHOP for a rea
 - [ ] Error pages are tested.
 - [ ] Logs do not expose secrets.
 - [ ] Database backup responsibility is assigned.
+- [ ] Backup storage location is private and access-controlled.
+- [ ] Restore approval process is agreed with the business owner/client.
 - [ ] ImageKit account ownership, billing, and access are assigned.
 - [ ] Redis is configured if traffic or multiple backend instances require it.
+- [ ] Redis cache invalidation is checked after product, category, homepage, and carousel admin updates.
 - [ ] Render backend plan is always-on for production.

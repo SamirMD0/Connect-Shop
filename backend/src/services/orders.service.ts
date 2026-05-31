@@ -3,6 +3,7 @@ import { PoolClient } from 'pg';
 import { query, withTransaction } from '../config/db';
 import { AppError } from '../utils/errors';
 import { addToCart } from './cart.service';
+import { invalidateProductCaches } from './products.service';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -412,6 +413,18 @@ async function createOrderFromItems(
 
 // ─── Service Functions ───────────────────────────────────────────────────────
 
+async function invalidateCachesForProductIds(productIds: string[]): Promise<void> {
+  const uniqueProductIds = [...new Set(productIds)];
+  if (uniqueProductIds.length === 0) return;
+
+  const products = await query<{ slug: string }>(
+    `SELECT slug FROM products WHERE id = ANY($1::uuid[])`,
+    [uniqueProductIds]
+  );
+
+  await invalidateProductCaches(products.map((product) => product.slug));
+}
+
 /**
  * Place an order from the user's current cart.
  * Runs in a transaction:
@@ -428,7 +441,9 @@ export async function placeOrder(
   paymentMethod: string = CASH_ON_DELIVERY,
   options: { couponCode?: string; deliverySlot?: string | null } = {}
 ): Promise<Order> {
-  return withTransaction(async (client) => {
+  let affectedProductIds: string[] = [];
+
+  const order = await withTransaction(async (client) => {
     const cartResult = await client.query<{
       product_id: string;
       variant_id: string | null;
@@ -444,6 +459,7 @@ export async function placeOrder(
       variantId: item.variant_id,
       quantity: item.quantity,
     })));
+    affectedProductIds = cartItems.map((item) => item.product_id);
 
     const order = await createOrderFromItems(client, {
       userId,
@@ -458,6 +474,9 @@ export async function placeOrder(
 
     return order;
   });
+
+  await invalidateCachesForProductIds(affectedProductIds);
+  return order;
 }
 
 export async function placeGuestOrder(
@@ -467,8 +486,11 @@ export async function placeGuestOrder(
   paymentMethod: string = CASH_ON_DELIVERY,
   options: { couponCode?: string; deliverySlot?: string | null } = {}
 ): Promise<Order> {
-  return withTransaction(async (client) => {
+  let affectedProductIds: string[] = [];
+
+  const order = await withTransaction(async (client) => {
     const resolvedItems = await resolveOrderItems(client, items);
+    affectedProductIds = resolvedItems.map((item) => item.product_id);
     return createOrderFromItems(client, {
       userId: null,
       guestEmail,
@@ -479,6 +501,9 @@ export async function placeGuestOrder(
       deliverySlot: options.deliverySlot,
     });
   });
+
+  await invalidateCachesForProductIds(affectedProductIds);
+  return order;
 }
 
 /**

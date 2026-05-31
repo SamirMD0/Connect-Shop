@@ -11,13 +11,11 @@ import { env } from './env';
  */
 export const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (e.g. curl, Postman, server-to-server)
-    // only in development mode
+    // No-Origin requests come from curl, health checks, direct browser
+    // navigation, and same-origin/server-to-server callers. They are not
+    // browser cross-origin requests, so let them through without CORS headers.
     if (!origin) {
-      if (env.NODE_ENV === 'development') {
-        return callback(null, true);
-      }
-      return callback(new Error('CORS: Missing Origin header'), false);
+      return callback(null, false);
     }
 
     if (origin === env.FRONTEND_URL) {

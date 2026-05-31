@@ -22,6 +22,9 @@ Use this checklist before giving the finished store to a real small-business cli
 - [ ] Admin order management is tested.
 - [ ] Image upload/display is tested.
 - [ ] Backup plan is explained.
+- [ ] Backup frequency and retention are explained.
+- [ ] Backup storage ownership/access is explained.
+- [ ] Restore responsibility and approval process are explained.
 
 ## Credentials
 
@@ -33,6 +36,7 @@ Credentials and account access may include:
 - Hosting accounts.
 - Domain registrar account.
 - Database access if applicable.
+- Backup storage or Render PostgreSQL backup access if applicable.
 - Image storage access if applicable.
 - Redis provider access if applicable.
 
@@ -62,6 +66,6 @@ Train the client on:
 - [ ] Client approves Privacy Policy, Return Policy, and Terms.
 - [ ] Client understands hosting costs.
 - [ ] Client understands backup responsibility.
+- [ ] Client understands who can access and restore backups.
 - [ ] Client understands maintenance/support terms.
 - [ ] Client understands which future features cost extra.
-

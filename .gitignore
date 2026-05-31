@@ -152,3 +152,10 @@ vite.config.ts.timestamp-*
 .vite/
 
 backend/src/db/local-seeds/
+
+# Database backup files. Keep migration SQL tracked under backend/src/db.
+backups/
+*.dump
+*.backup
+*.sql.gz
+!backend/src/db/**/*.sql

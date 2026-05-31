@@ -14,8 +14,7 @@ This project is intended as a practical small-business ecommerce system, not a m
 - Cart, wishlist, and orders
 - Homepage CMS
 - Image handling
-- Rate limiting
-- Optional Redis for production rate limiting/cache
+- Redis-backed rate limiting and optional public read caching
 
 ## Main Features
 
@@ -118,6 +117,7 @@ See [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](
 - [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md)
 - [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md)
 - [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md)
+- [Redis Cache Policy](project-docs/REDIS_CACHE_POLICY.md)
 - [Sellable Version Checklist](project-docs/SELLABLE_VERSION_CHECKLIST.md)
 - [ImageKit Setup](project-docs/IMAGEKIT_SETUP.md)
 - [Technical Audit and Scalability Review](project-docs/PROJECT_TECHNICAL_AUDIT_AND_SCALABILITY_REVIEW.md)
