@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Container } from './Container';
 import { CartIcon } from '@/components/cart/CartIcon';
-import { LoginButton } from '@/components/auth/LoginButton';
 import { UserMenu } from '@/components/auth/UserMenu';
 import { MobileMenu } from './MobileMenu';
 import { useAuth } from '@/hooks/useAuth';
@@ -124,11 +123,16 @@ export function Navbar() {
                         <path fillRule="evenodd" clipRule="evenodd" d="M12 12.25C9.68646 12.25 7.55494 12.7759 5.97546 13.6643C4.4195 14.5396 3.25001 15.8661 3.25001 17.5C3.25001 18.8078 3.2097 19.544 4.52642 21.2635C5.15589 21.7761 6.03649 22.1406 7.22622 22.3815C8.41927 22.6229 9.97424 22.75 12 22.75C14.0258 22.75 15.5808 22.6229 16.7738 22.3815C17.9635 22.1406 18.8441 21.7761 19.4736 21.2635C20.7526 20.222 20.75 18.7638 20.75 17.5C20.75 15.8661 19.5805 14.5396 18.0246 13.6643C16.4451 12.7759 14.3136 12.25 12 12.25ZM4.75001 17.5C4.75001 16.6487 5.37139 15.7251 6.71085 14.9717C8.02681 14.2315 9.89529 13.75 12 13.75C14.1047 13.75 15.9732 14.2315 17.2892 14.9717C18.6286 15.7251 19.25 16.6487 19.25 17.5C19.25 18.8078 19.2097 19.544 18.5264 20.1004C18.1559 20.4022 17.5365 20.6967 16.4762 20.9113C15.4193 21.1252 13.9742 21.25 12 21.25C10.0258 21.25 8.58075 21.1252 7.5238 20.9113C6.46354 20.6967 5.84413 20.4022 5.4736 20.1004C4.79033 19.544 4.75001 18.8078 4.75001 17.5Z" fill="currentColor" />
                       </svg>
                     </span>
-                    <div className="flex flex-col items-start">
+                    <div className="flex flex-col items-start gap-1">
                       <span className="block text-[10px] font-semibold uppercase leading-4 text-text-muted">
                         Account
                       </span>
-                      <LoginButton />
+                      <Link
+                        href="/auth/register"
+                        className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#0B1B48]"
+                      >
+                        Sign up
+                      </Link>
                     </div>
                   </div>
                 )}
@@ -168,7 +172,7 @@ export function Navbar() {
                   </Link>
                 </li>
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <Link href="/" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                  <Link href="/contact" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
                     Contact
                   </Link>
                 </li>
@@ -189,6 +193,12 @@ export function Navbar() {
                     <li><Link href="/checkout" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Checkout</Link></li>
                     <li><Link href="/cart" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Cart</Link></li>
                     <li><Link href="/wishlist" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Wishlist</Link></li>
+                    <li><Link href="/about" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">About</Link></li>
+                    <li><Link href="/contact" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Contact</Link></li>
+                    <li><Link href="/faq" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">FAQ</Link></li>
+                    <li><Link href="/privacy-policy" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Privacy Policy</Link></li>
+                    <li><Link href="/return-policy" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Return Policy</Link></li>
+                    <li><Link href="/terms" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Terms</Link></li>
                     <li><Link href="/auth/login" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Sign in</Link></li>
                     <li><Link href="/auth/register" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Sign up</Link></li>
                     <li><Link href="/account" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">My Account</Link></li>

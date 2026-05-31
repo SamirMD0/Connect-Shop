@@ -14,6 +14,7 @@ import {
   reviewModerationRules,
   returnStatusRules,
   trackingRules,
+  orderIdRules,
   homepageSectionCreateRules,
   homepageSectionUpdateRules,
   homepageItemCreateRules,
@@ -72,7 +73,7 @@ router.put('/users/:id/role', requireAdminPermission('users'), adminController.u
 
 // Orders
 router.get('/orders', requireAdminPermission('orders'), adminController.listOrders);
-router.get('/orders/:id', requireAdminPermission('orders'), adminController.getOrderDetail);
+router.get('/orders/:id', requireAdminPermission('orders'), ...orderIdRules, validate, adminController.getOrderDetail);
 router.put('/orders/:id/status', requireAdminPermission('orders'), ...adminOrderStatusRules, validate, adminController.updateOrderStatus);
 router.put('/orders/:id/tracking', requireAdminPermission('orders'), ...trackingRules, validate, adminController.updateOrderTracking);
 router.put('/returns/:id/status', requireAdminPermission('orders'), ...returnStatusRules, validate, adminController.updateReturnRequestStatus);

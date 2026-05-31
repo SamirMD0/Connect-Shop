@@ -108,8 +108,8 @@ export async function listProducts(options: {
   min_rating?: number;
   specs?: Record<string, string>;
 }): Promise<ProductListResult> {
-  const page = options.page ?? 1;
-  const limit = options.limit ?? 12;
+  const page = Math.max(1, Math.floor(options.page ?? 1));
+  const limit = Math.min(Math.max(1, Math.floor(options.limit ?? 12)), 100);
   const offset = (page - 1) * limit;
 
   const conditions: string[] = [];
@@ -176,6 +176,7 @@ export async function listProducts(options: {
     price_desc: 'p.price DESC',
     newest: 'p.created_at DESC',
     rating: 'p.rating DESC',
+    popular: 'p.review_count DESC, p.rating DESC',
   };
   const orderBy = sortMap[options.sort ?? ''] ?? 'p.is_featured DESC, p.created_at DESC';
 
@@ -189,7 +190,7 @@ export async function listProducts(options: {
     total,
     page,
     limit,
-    totalPages: Math.ceil(total / limit),
+    totalPages: Math.max(1, Math.ceil(total / limit)),
   };
 }
 
@@ -239,6 +240,9 @@ export async function updateCategory(id: number, data: { name: string; slug: str
     if (data.parent_id === id) {
       throw new AppError('A category cannot be its own parent.', 400);
     }
+    if (data.parent_id && await CategoryRepository.isDescendant(id, data.parent_id)) {
+      throw new AppError('A category cannot use one of its descendants as its parent.', 400);
+    }
     const category = await normalizeCategoryInput(data);
     const updated = await CategoryRepository.update(id, category);
     await cacheDel('categories:all');
@@ -280,10 +284,14 @@ export async function createProduct(data: {
   gallery_images?: ProductImageInput[];
   variants?: ProductVariantInput[];
 }): Promise<Product> {
-  const productInput = await normalizeProductBrandInput(data);
-  const product = await ProductRepository.create(productInput);
-  await cacheDel('categories:all', `products:featured:8`, `products:slug:${product.slug}`);
-  return product;
+  try {
+    const productInput = await normalizeProductBrandInput(data);
+    const product = await ProductRepository.create(productInput);
+    await cacheDel('categories:all', `products:featured:8`, `products:slug:${product.slug}`);
+    return product;
+  } catch (error: any) {
+    handleProductWriteError(error);
+  }
 }
 
 export async function updateProduct(id: string, data: {
@@ -305,16 +313,20 @@ export async function updateProduct(id: string, data: {
   gallery_images?: ProductImageInput[];
   variants?: ProductVariantInput[];
 }): Promise<Product | null> {
-  const existing = await ProductRepository.getById(id);
-  const productInput = await normalizeProductBrandInput(data);
-  const product = await ProductRepository.update(id, productInput);
-  await cacheDel(
-    'categories:all',
-    `products:featured:8`,
-    ...(existing ? [`products:slug:${existing.slug}`] : []),
-    ...(product ? [`products:slug:${product.slug}`] : [])
-  );
-  return product;
+  try {
+    const existing = await ProductRepository.getById(id);
+    const productInput = await normalizeProductBrandInput(data);
+    const product = await ProductRepository.update(id, productInput);
+    await cacheDel(
+      'categories:all',
+      `products:featured:8`,
+      ...(existing ? [`products:slug:${existing.slug}`] : []),
+      ...(product ? [`products:slug:${product.slug}`] : [])
+    );
+    return product;
+  } catch (error: any) {
+    handleProductWriteError(error);
+  }
 }
 
 export async function deleteProduct(id: string): Promise<boolean> {
@@ -349,6 +361,25 @@ async function normalizeCategoryInput(data: { name: string; slug: string; image_
     parent_id: data.parent_id,
     depth: parent.depth + 1,
   };
+}
+
+function handleProductWriteError(error: any): never {
+  if (error.code === '23505') {
+    const constraint = String(error.constraint || '');
+    if (constraint.includes('slug')) {
+      throw new ConflictError('A product with this slug already exists.');
+    }
+    if (constraint.includes('sku')) {
+      throw new ConflictError('A product or variant with this SKU already exists.');
+    }
+    throw new ConflictError('A product with the same unique value already exists.');
+  }
+
+  if (error.code === '23503') {
+    throw new AppError('Selected category, brand, or variant reference is invalid.', 400);
+  }
+
+  throw error;
 }
 
 async function normalizeProductBrandInput<T extends { brand_id?: number | null; brand?: string | null }>(data: T): Promise<T> {

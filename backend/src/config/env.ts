@@ -4,6 +4,16 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+const optionalEnvString = z.preprocess(
+  (value) => value === '' ? undefined : value,
+  z.string().optional()
+);
+
+const optionalEnvUrl = z.preprocess(
+  (value) => value === '' ? undefined : value,
+  z.string().url().optional()
+);
+
 const envSchema = z.object({
   // Server
   PORT: z
@@ -42,11 +52,38 @@ const envSchema = z.object({
   // Redis
   REDIS_URL: z.string().url().optional(),
 
+  // ImageKit
+  IMAGEKIT_PUBLIC_KEY: optionalEnvString,
+  IMAGEKIT_PRIVATE_KEY: optionalEnvString,
+  IMAGEKIT_URL_ENDPOINT: optionalEnvUrl,
+  IMAGEKIT_FOLDER: z.preprocess(
+    (value) => value === '' ? undefined : value,
+    z.string().default('/connect-shop')
+  ),
+
   // Cookie
   COOKIE_MAX_AGE: z
     .string()
     .default('604800000')
     .transform((v) => parseInt(v, 10)),
+}).superRefine((env, ctx) => {
+  if (env.NODE_ENV !== 'production') return;
+
+  const requiredImageKitKeys = [
+    'IMAGEKIT_PUBLIC_KEY',
+    'IMAGEKIT_PRIVATE_KEY',
+    'IMAGEKIT_URL_ENDPOINT',
+  ] as const;
+
+  for (const key of requiredImageKitKeys) {
+    if (!env[key]) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: [key],
+        message: `${key} is required in production`,
+      });
+    }
+  }
 });
 
 function validateEnv() {

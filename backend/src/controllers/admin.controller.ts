@@ -1,11 +1,9 @@
 // backend/src/controllers/admin.controller.ts
 import { Request, Response, NextFunction } from 'express';
-import crypto from 'crypto';
-import path from 'path';
-import { promises as fs } from 'fs';
 import * as adminService from '../services/admin.service';
 import * as productsService from '../services/products.service';
 import { ReviewService, Review } from '../services/review.service';
+import { uploadImageToImageKit } from '../services/imageUpload.service';
 import { AppError, NotFoundError } from '../utils/errors';
 
 function parseCsv(csv: string): string[][] {
@@ -169,28 +167,16 @@ export async function importProductsCsv(req: Request, res: Response, next: NextF
 export async function uploadImage(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     const { fileName, dataUrl } = req.body as { fileName?: string; dataUrl?: string };
-    if (!dataUrl || typeof dataUrl !== 'string') {
-      throw new AppError('dataUrl is required', 400);
-    }
+    const uploadedImage = await uploadImageToImageKit({ fileName, dataUrl: dataUrl || '' });
 
-    const match = dataUrl.match(/^data:image\/(png|jpe?g|webp|gif);base64,([A-Za-z0-9+/=]+)$/);
-    if (!match) {
-      throw new AppError('Only PNG, JPG, WEBP, or GIF data URLs are supported', 400);
-    }
-
-    const extension = match[1] === 'jpeg' ? 'jpg' : match[1];
-    const baseName = (fileName || 'admin-upload')
-      .replace(/\.[a-z0-9]+$/i, '')
-      .replace(/[^a-z0-9-_]+/gi, '-')
-      .replace(/^-+|-+$/g, '')
-      .toLowerCase() || 'admin-upload';
-    const safeName = `${baseName}-${crypto.randomBytes(6).toString('hex')}.${extension}`;
-    const uploadDir = path.resolve(__dirname, '../../../frontend/public/uploads/admin');
-
-    await fs.mkdir(uploadDir, { recursive: true });
-    await fs.writeFile(path.join(uploadDir, safeName), Buffer.from(match[2], 'base64'));
-
-    res.status(201).json({ success: true, url: `/uploads/admin/${safeName}` });
+    res.status(201).json({
+      success: true,
+      url: uploadedImage.url,
+      ...(uploadedImage.fileId && { fileId: uploadedImage.fileId }),
+      ...(uploadedImage.name && { name: uploadedImage.name }),
+      ...(uploadedImage.thumbnailUrl && { thumbnailUrl: uploadedImage.thumbnailUrl }),
+      provider: uploadedImage.provider,
+    });
   } catch (err) {
     next(err);
   }
@@ -317,7 +303,9 @@ export async function listOrders(req: Request, res: Response, next: NextFunction
   try {
     const page = parseInt(req.query.page as string || '1', 10);
     const limit = parseInt(req.query.limit as string || '10', 10);
-    const result = await adminService.getAllOrders(page, limit);
+    const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+    const search = typeof req.query.search === 'string' ? req.query.search.slice(0, 100) : undefined;
+    const result = await adminService.getAllOrders(page, limit, { status, search });
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);

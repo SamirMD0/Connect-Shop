@@ -14,12 +14,26 @@ import { CountdownPromo } from '@/components/home/CountdownPromo';
 import { Testimonials } from '@/components/home/Testimonials';
 import { Newsletter } from '@/components/home/Newsletter';
 import { api } from '@/lib/api';
+import { APP_NAME } from '@/lib/constants';
 import { Product, Category, Brand, CarouselSlide, HomepageContent, HomepageContentResponse, HomepageSectionItem } from '@/lib/types';
 import { ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: 'ELECTRO SHOP | Premium Electronics & Gadgets',
-  description: 'Shop the latest electronics, laptops, smartphones, and accessories at ELECTRO SHOP.',
+  title: `${APP_NAME} | Premium Electronics & Gadgets`,
+  description: `Shop electronics, laptops, smartphones, appliances, and accessories at ${APP_NAME} with cash-on-delivery support.`,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    title: `${APP_NAME} | Premium Electronics & Gadgets`,
+    description: `Browse products, categories, and cash-on-delivery deals from ${APP_NAME}.`,
+    type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${APP_NAME} | Premium Electronics & Gadgets`,
+    description: `Browse products, categories, and cash-on-delivery deals from ${APP_NAME}.`,
+  },
 };
 
 export const dynamic = 'force-dynamic';

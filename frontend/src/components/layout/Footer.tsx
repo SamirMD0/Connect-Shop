@@ -2,7 +2,8 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Container } from './Container';
 import { APP_NAME } from '@/lib/constants';
-import { Mail, MapPin, Phone, Zap } from 'lucide-react';
+import { businessContact, createWhatsAppUrl } from '@/lib/business-config';
+import { Mail, MapPin, MessageCircle, Phone, Zap } from 'lucide-react';
 import type { JSX } from 'react';
 
 const footerLinks = [
@@ -28,8 +29,9 @@ const footerLinks = [
   {
     title: 'Company',
     links: [
-      { label: 'About Us', href: '#' },
-      { label: 'Contact', href: '#' },
+      { label: 'About Us', href: '/about' },
+      { label: 'Contact', href: '/contact' },
+      { label: 'FAQ', href: '/faq' },
       { label: 'Careers', href: '#' },
       { label: 'Press', href: '#' },
     ],
@@ -68,18 +70,29 @@ export function Footer() {
             <ul className="flex flex-col gap-3 text-sm leading-6 text-slate-600">
               <li className="flex gap-4">
                 <MapPin className="mt-0.5 h-6 w-6 shrink-0 text-[#3C50E0]" />
-                Delivery and support across Lebanon.
+                {businessContact.address}
               </li>
               <li>
-                <a href="#" className="flex items-center gap-4 transition-colors hover:text-[#3C50E0]">
+                <a href={`tel:${businessContact.phone.replace(/[^\d+]/g, '')}`} className="flex items-center gap-4 transition-colors hover:text-[#3C50E0]">
                   <Phone className="h-6 w-6 shrink-0 text-[#3C50E0]" />
-                  Customer support available online.
+                  {businessContact.phone}
                 </a>
               </li>
               <li>
-                <a href="#" className="flex items-center gap-4 transition-colors hover:text-[#3C50E0]">
+                <a
+                  href={createWhatsAppUrl('Hello, I need help with an order.')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-4 transition-colors hover:text-[#3C50E0]"
+                >
+                  <MessageCircle className="h-6 w-6 shrink-0 text-[#25D366]" />
+                  WhatsApp support
+                </a>
+              </li>
+              <li>
+                <a href={`mailto:${businessContact.email}`} className="flex items-center gap-4 transition-colors hover:text-[#3C50E0]">
                   <Mail className="h-6 w-6 shrink-0 text-[#3C50E0]" />
-                  support@example.com
+                  {businessContact.email}
                 </a>
               </li>
             </ul>
@@ -127,13 +140,23 @@ export function Footer() {
 
             <ul className="flex flex-col gap-3 text-sm text-slate-600">
               <li>
-                <Link className="transition-colors hover:text-[#3C50E0]" href="#">
+                <Link className="transition-colors hover:text-[#3C50E0]" href="/privacy-policy">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link className="transition-colors hover:text-[#3C50E0]" href="#">
+                <Link className="transition-colors hover:text-[#3C50E0]" href="/terms">
                   Terms of Use
+                </Link>
+              </li>
+              <li>
+                <Link className="transition-colors hover:text-[#3C50E0]" href="/return-policy">
+                  Return Policy
+                </Link>
+              </li>
+              <li>
+                <Link className="transition-colors hover:text-[#3C50E0]" href="/faq">
+                  FAQ
                 </Link>
               </li>
               {quickLinks.map(link => (

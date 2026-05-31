@@ -33,37 +33,82 @@ export interface OrderListResult {
   totalPages: number;
 }
 
+export const ORDER_STATUS_VALUES = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
+export type AdminOrderStatus = typeof ORDER_STATUS_VALUES[number];
+
 export const ADMIN_ROLES = ['customer', 'support', 'manager', 'admin', 'super_admin'] as const;
 export type AdminRole = typeof ADMIN_ROLES[number];
 
-export async function getAllOrders(page = 1, limit = 10): Promise<OrderListResult> {
-  const offset = (page - 1) * limit;
+export async function getAllOrders(
+  page = 1,
+  limit = 10,
+  filters: { status?: string; search?: string } = {}
+): Promise<OrderListResult> {
+  const safePage = Math.max(1, page);
+  const safeLimit = Math.min(Math.max(1, limit), 100);
+  const offset = (safePage - 1) * safeLimit;
+  const whereClauses: string[] = [];
+  const params: any[] = [];
 
-  const countRows = await query<{ count: string }>(`SELECT COUNT(*) as count FROM orders`);
+  if (filters.status && filters.status !== 'all') {
+    if (!ORDER_STATUS_VALUES.includes(filters.status as AdminOrderStatus)) {
+      throw new AppError('Invalid order status filter', 400);
+    }
+    params.push(filters.status);
+    whereClauses.push(`o.status = $${params.length}`);
+  }
+
+  const search = filters.search?.trim();
+  if (search) {
+    params.push(`%${search}%`);
+    const paramIndex = params.length;
+    whereClauses.push(`(
+      o.id::text ILIKE $${paramIndex}
+      OR COALESCE(u.name, o.shipping_address ->> 'fullName', '') ILIKE $${paramIndex}
+      OR COALESCE(u.email, o.guest_email, '') ILIKE $${paramIndex}
+      OR COALESCE(u.phone, o.shipping_address ->> 'phone', '') ILIKE $${paramIndex}
+    )`);
+  }
+
+  const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+  const countRows = await query<{ count: string }>(
+    `SELECT COUNT(*) as count
+     FROM orders o
+     LEFT JOIN users u ON u.id = o.user_id
+     ${whereSql}`,
+    params
+  );
   const total = parseInt(countRows[0].count, 10);
 
   const orders = await query<Order>(
     `SELECT o.*,
             COALESCE(u.name, o.shipping_address ->> 'fullName') as customer_name,
             COALESCE(u.email, o.guest_email) as customer_email,
+            COALESCE(u.phone, o.shipping_address ->> 'phone') as customer_phone,
             (SELECT COUNT(*)::int FROM order_items oi WHERE oi.order_id = o.id) AS item_count
      FROM orders o
      LEFT JOIN users u ON u.id = o.user_id
+     ${whereSql}
      ORDER BY o.created_at DESC
-     LIMIT $1 OFFSET $2`,
-    [limit, offset]
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, safeLimit, offset]
   );
 
   return {
     orders,
     total,
-    page,
-    limit,
-    totalPages: Math.ceil(total / limit),
+    page: safePage,
+    limit: safeLimit,
+    totalPages: Math.max(1, Math.ceil(total / safeLimit)),
   };
 }
 
 export async function updateOrderStatus(id: string, status: string): Promise<Order | null> {
+  if (!ORDER_STATUS_VALUES.includes(status as AdminOrderStatus)) {
+    throw new AppError('Invalid order status', 400);
+  }
+
   const rows = await query<Order>(
     `UPDATE orders
      SET status = $1, updated_at = NOW()

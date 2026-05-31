@@ -2,17 +2,19 @@
 
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Grid } from 'lucide-react';
-import Image from 'next/image';
-import { api } from '../../../lib/api';
+import { api, ApiError } from '../../../lib/api';
 import { Category } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 export default function AdminCategories() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -65,14 +67,24 @@ export default function AdminCategories() {
       setEditingCategory(null);
       setFormData({ name: '', slug: '', image_url: '', parent_id: '' });
     }
+    setFormError('');
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+    setSubmitting(true);
     try {
+      if (!formData.name.trim()) throw new Error('Category name is required.');
+      if (!formData.slug.trim()) throw new Error('Category slug is required.');
+      if (editingCategory && formData.parent_id && parseInt(formData.parent_id, 10) === editingCategory.id) {
+        throw new Error('A category cannot be its own parent.');
+      }
+
       const payload = {
-        ...formData,
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
         image_url: formData.image_url.trim() || null,
         parent_id: formData.parent_id ? parseInt(formData.parent_id, 10) : null,
       };
@@ -82,10 +94,14 @@ export default function AdminCategories() {
         await api.post('/api/admin/categories', payload);
       }
       setIsModalOpen(false);
-      fetchCategories();
+      await fetchCategories();
     } catch (error: any) {
-      console.error('Failed to save category:', error);
-      alert(error.message || 'Failed to save category. Please check your inputs.');
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to save category. Please check your inputs.';
+      setFormError(message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -105,7 +121,14 @@ export default function AdminCategories() {
     { header: 'Image', cell: (c: Category) => (
       <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center overflow-hidden ring-1 ring-slate-200">
         {c.image_url ? (
-          <Image src={c.image_url} alt={c.name} width={24} height={24} className="object-contain" />
+          <SafeImage
+            src={c.image_url}
+            alt={c.name}
+            width={24}
+            height={24}
+            className="object-contain"
+            fallback={<Grid className="w-5 h-5 text-slate-500" />}
+          />
         ) : (
           <Grid className="w-5 h-5 text-slate-500" />
         )}
@@ -160,6 +183,11 @@ export default function AdminCategories() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCategory ? 'Edit Category' : 'Add Category'}>
         <form onSubmit={handleSubmit} className="space-y-5">
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           <div>
             <label htmlFor="category-name" className="block text-sm font-medium text-[#0B1B48] mb-2">Name</label>
             <input 
@@ -194,6 +222,21 @@ export default function AdminCategories() {
               value={formData.image_url} 
               onChange={e => setFormData({...formData, image_url: e.target.value})} 
             />
+            {formData.image_url && (
+              <div className="mt-3 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  <SafeImage
+                    src={formData.image_url}
+                    alt="Category preview"
+                    width={32}
+                    height={32}
+                    className="object-contain"
+                    fallback={<Grid className="h-5 w-5 text-slate-400" />}
+                  />
+                </div>
+                <p className="text-xs text-slate-500">Image preview</p>
+              </div>
+            )}
           </div>
           <div>
             <label htmlFor="category-parent" className="block text-sm font-medium text-[#0B1B48] mb-2">Parent Category</label>
@@ -219,9 +262,10 @@ export default function AdminCategories() {
             </button>
             <button 
               type="submit" 
-              className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all"
+              disabled={submitting}
+              className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all disabled:opacity-60"
             >
-              Save
+              {submitting ? 'Saving...' : 'Save'}
             </button>
           </div>
         </form>

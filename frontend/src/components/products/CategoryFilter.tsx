@@ -1,7 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import { Category } from '@/lib/types';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 interface CategoryFilterProps {
   categories: Category[];
@@ -36,7 +36,13 @@ export function CategoryFilter({ categories, selected, onSelect }: CategoryFilte
         >
           {cat.image_url && (
             <div className="relative w-5 h-5">
-              <Image src={cat.image_url} alt={cat.name} fill className="object-contain" />
+              <SafeImage
+                src={cat.image_url}
+                alt={cat.name}
+                fill
+                className="object-contain"
+                fallback={null}
+              />
             </div>
           )}
           <span>{cat.name}</span>

@@ -15,7 +15,7 @@ interface MobileMenuProps {
 }
 
 export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps) {
-  const { user, login, logout } = useAuth();
+  const { user, logout } = useAuth();
 
   // Prevent body scroll when menu is open
   useEffect(() => {
@@ -75,7 +75,7 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-5">
           <Link
-            href="/"
+            href="/contact"
             onClick={onClose}
             className="block rounded-md px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
           >
@@ -130,6 +130,41 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
             <p className="px-3 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
               Pages
             </p>
+            <Link
+              href="/about"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              About
+            </Link>
+            <Link
+              href="/faq"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              FAQ
+            </Link>
+            <Link
+              href="/privacy-policy"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/return-policy"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              Return Policy
+            </Link>
+            <Link
+              href="/terms"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              Terms
+            </Link>
             <Link
               href="/auth/login"
               onClick={onClose}
@@ -218,9 +253,11 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
               </Button>
             </div>
           ) : (
-            <Button variant="primary" className="w-full" onClick={() => { onClose(); login(); }}>
-              Sign in with Google
-            </Button>
+            <Link href="/auth/register" onClick={onClose}>
+              <Button variant="primary" className="w-full">
+                Sign up
+              </Button>
+            </Link>
           )}
         </div>
       </div>

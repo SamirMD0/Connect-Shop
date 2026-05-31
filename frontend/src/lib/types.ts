@@ -144,13 +144,14 @@ export interface GuestCartItem {
 // ─── Order ───────────────────────────────────────────────────────────────────
 export interface ShippingAddress {
   fullName: string;
-  phone?: string;
+  phone: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
   state: string;
   zipCode?: string;
   country: string;
+  notes?: string;
 }
 
 export interface OrderItem {

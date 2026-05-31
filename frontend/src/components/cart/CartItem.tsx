@@ -1,10 +1,10 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
 import { CartItem as CartItemType } from '@/lib/types';
 import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/useToast';
+import { SafeImage } from '@/components/ui/SafeImage';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 
 interface CartItemProps {
@@ -45,21 +45,20 @@ export function CartItemCard({ item }: CartItemProps) {
       {/* Product Image */}
       <Link href={`/store/${item.slug}`} className="shrink-0">
         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white overflow-hidden relative border border-slate-200/60">
-          {item.image_url ? (
-            <Image
-              src={item.image_url}
-              alt={item.name}
-              fill
-              className="object-cover"
-              sizes="96px"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/10 to-accent-glow/10">
-              <span className="text-lg font-bold text-accent/40">
-                {item.name.charAt(0)}
-              </span>
-            </div>
-          )}
+          <SafeImage
+            src={item.image_url}
+            alt={item.name}
+            fill
+            className="object-cover"
+            sizes="96px"
+            fallback={
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/10 to-accent-glow/10">
+                <span className="text-lg font-bold text-accent/40">
+                  {item.name.charAt(0)}
+                </span>
+              </div>
+            }
+          />
         </div>
       </Link>
 

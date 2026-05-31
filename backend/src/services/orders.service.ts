@@ -8,13 +8,14 @@ import { addToCart } from './cart.service';
 
 export interface ShippingAddress {
   fullName: string;
-  phone?: string;
+  phone: string;
   addressLine1: string;
   addressLine2?: string;
   city: string;
   state?: string;
   zipCode?: string;
   country: string;
+  notes?: string;
 }
 
 export interface CheckoutItemInput {
@@ -89,7 +90,7 @@ const SHIPPING_BY_REGION: Record<string, number> = {
   south: 5,
   bekaa: 5,
 };
-const PAYMENT_METHODS = new Set(['cod', 'bank_transfer', 'omt', 'whish_money']);
+const CASH_ON_DELIVERY = 'cash_on_delivery';
 
 function normalizeRegion(shippingAddress: ShippingAddress): string {
   return (shippingAddress.state || shippingAddress.city || '').trim().toLowerCase();
@@ -101,8 +102,18 @@ function calculateShippingCost(shippingAddress: ShippingAddress, subtotal: numbe
   return SHIPPING_BY_REGION[region] ?? 4;
 }
 
-function paymentStatusFor(method: string): string {
-  return method === 'cod' ? 'pending' : 'pending_payment';
+function normalizePaymentMethod(method?: string): string {
+  const value = (method || CASH_ON_DELIVERY).trim();
+
+  if (value === CASH_ON_DELIVERY || value === 'cod') {
+    return CASH_ON_DELIVERY;
+  }
+
+  throw new AppError('Cash on delivery is the only supported payment method for checkout.', 400);
+}
+
+function paymentStatusFor(_method: string): string {
+  return 'pending';
 }
 
 function roundMoney(value: number): number {
@@ -115,6 +126,40 @@ function estimateDeliveryDate(shippingAddress: ShippingAddress): string {
   const date = new Date();
   date.setDate(date.getDate() + deliveryDays);
   return date.toISOString().slice(0, 10);
+}
+
+function requireText(value: unknown, message: string): string {
+  const text = typeof value === 'string' ? value.trim() : '';
+  if (!text) throw new AppError(message, 400);
+  return text;
+}
+
+function optionalText(value: unknown): string | undefined {
+  const text = typeof value === 'string' ? value.trim() : '';
+  return text || undefined;
+}
+
+function normalizeShippingAddress(shippingAddress: ShippingAddress): ShippingAddress {
+  if (!shippingAddress || typeof shippingAddress !== 'object') {
+    throw new AppError('Delivery address is required.', 400);
+  }
+
+  const phone = requireText(shippingAddress.phone, 'Phone number is required.');
+  if (phone.length < 7 || phone.length > 30) {
+    throw new AppError('Phone number must be 7-30 characters.', 400);
+  }
+
+  return {
+    fullName: requireText(shippingAddress.fullName, 'Recipient name is required.'),
+    phone,
+    addressLine1: requireText(shippingAddress.addressLine1, 'Address line 1 is required.'),
+    addressLine2: optionalText(shippingAddress.addressLine2),
+    city: requireText(shippingAddress.city, 'City is required.'),
+    state: optionalText(shippingAddress.state),
+    zipCode: optionalText(shippingAddress.zipCode),
+    country: requireText(shippingAddress.country, 'Country is required.'),
+    notes: optionalText(shippingAddress.notes),
+  };
 }
 
 function pdfEscape(value: unknown): string {
@@ -242,9 +287,8 @@ async function createOrderFromItems(
     deliverySlot?: string | null;
   }
 ): Promise<Order> {
-  if (!PAYMENT_METHODS.has(options.paymentMethod)) {
-    throw new AppError('Invalid payment method.', 400);
-  }
+  const paymentMethod = normalizePaymentMethod(options.paymentMethod);
+  const normalizedShippingAddress = normalizeShippingAddress(options.shippingAddress);
 
   for (const item of options.items) {
     if (item.stock < item.quantity) {
@@ -260,14 +304,14 @@ async function createOrderFromItems(
   const { coupon, discount } = await applyCoupon(client, options.couponCode, subtotal);
   const taxableAmount = Math.max(0, subtotal - discount);
   const taxAmount = roundMoney(taxableAmount * TAX_RATE);
-  const shippingCost = calculateShippingCost(options.shippingAddress, subtotal);
+  const shippingCost = calculateShippingCost(normalizedShippingAddress, subtotal);
   const total = roundMoney(taxableAmount + taxAmount + shippingCost);
 
   const shippingAddress = {
-    ...options.shippingAddress,
+    ...normalizedShippingAddress,
     deliverySlot: options.deliverySlot || null,
   };
-  const estimatedDeliveryDate = estimateDeliveryDate(options.shippingAddress);
+  const estimatedDeliveryDate = estimateDeliveryDate(normalizedShippingAddress);
 
   const orderResult = await client.query<Order>(
     `INSERT INTO orders (
@@ -287,8 +331,8 @@ async function createOrderFromItems(
       coupon?.code || null,
       total.toFixed(2),
       JSON.stringify(shippingAddress),
-      options.paymentMethod,
-      paymentStatusFor(options.paymentMethod),
+      paymentMethod,
+      paymentStatusFor(paymentMethod),
       options.deliverySlot || null,
       estimatedDeliveryDate,
     ]
@@ -381,7 +425,7 @@ async function createOrderFromItems(
 export async function placeOrder(
   userId: string,
   shippingAddress: ShippingAddress,
-  paymentMethod: string = 'cod',
+  paymentMethod: string = CASH_ON_DELIVERY,
   options: { couponCode?: string; deliverySlot?: string | null } = {}
 ): Promise<Order> {
   return withTransaction(async (client) => {
@@ -420,7 +464,7 @@ export async function placeGuestOrder(
   guestEmail: string,
   items: CheckoutItemInput[],
   shippingAddress: ShippingAddress,
-  paymentMethod: string = 'cod',
+  paymentMethod: string = CASH_ON_DELIVERY,
   options: { couponCode?: string; deliverySlot?: string | null } = {}
 ): Promise<Order> {
   return withTransaction(async (client) => {

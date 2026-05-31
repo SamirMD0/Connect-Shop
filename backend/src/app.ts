@@ -46,6 +46,7 @@ app.use(pinoHttp({
 }));
 
 // ─── Body Parsing ────────────────────────────────────────────────────────────
+app.use('/api/v1/admin/uploads/image', express.json({ limit: '6mb' }));
 app.use(express.json({ limit: '10kb' }));   // Limit body size to prevent abuse
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(cookieParser(env.SESSION_SECRET));  // Signed cookies

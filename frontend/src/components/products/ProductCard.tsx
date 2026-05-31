@@ -1,13 +1,13 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { Product } from '@/lib/types';
 import { RatingStars } from './RatingStars';
 import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/useToast';
+import { SafeImage } from '@/components/ui/SafeImage';
 import { Heart, Scale } from 'lucide-react';
 
 interface ProductCardProps {
@@ -83,23 +83,21 @@ export function ProductCard({ product }: ProductCardProps) {
   return (
     <Link href={`/store/${product.slug}`} className="group block">
       <div className="h-full">
-        <div className="relative mb-4 flex min-h-[270px] items-center justify-center overflow-hidden rounded-lg border border-slate-200/60 bg-white">
-          {product.image_url ? (
-            <Image
-              src={product.image_url}
-              alt={product.name}
-              fill
-              className="object-contain p-8 transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <span className="text-5xl font-bold text-accent/30">
-                {product.name.charAt(0)}
-              </span>
-            </div>
-          )}
-
+        <div className="relative mb-4 flex min-h-[220px] items-center justify-center overflow-hidden rounded-lg border border-slate-200/60 bg-white sm:min-h-[270px]">
+          <SafeImage
+            src={product.image_url}
+            alt={product.name}
+            fill
+            className="object-contain p-8 transition-transform duration-500 group-hover:scale-105"
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            fallback={
+              <div className="flex h-full w-full items-center justify-center">
+                <span className="text-5xl font-bold text-accent/30">
+                  {product.name.charAt(0)}
+                </span>
+              </div>
+            }
+          />
           {product.stock === 0 && (
             <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm">
               <span className="rounded-full bg-black/40 px-4 py-2 text-sm font-semibold text-white">
@@ -108,7 +106,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </div>
           )}
 
-          <div className="absolute bottom-0 left-0 z-30 flex w-full translate-y-full items-center justify-center gap-2.5 pb-5 transition-transform duration-200 ease-linear group-hover:translate-y-0">
+          <div className="absolute bottom-0 left-0 z-30 flex w-full translate-y-0 items-center justify-center gap-2.5 pb-4 transition-transform duration-200 ease-linear sm:translate-y-full sm:pb-5 sm:group-hover:translate-y-0">
             <button
               onClick={handleCompare}
               className="flex h-9 w-9 items-center justify-center rounded-[5px] bg-white text-[#0B1B48] shadow-md transition-colors duration-200 hover:text-accent"
@@ -120,7 +118,7 @@ export function ProductCard({ product }: ProductCardProps) {
             <button
               onClick={handleAddToCart}
               disabled={product.stock === 0}
-              className="inline-flex rounded-[5px] bg-accent px-5 py-[7px] text-sm font-medium text-white transition-colors duration-200 hover:bg-[#0B1B48] disabled:pointer-events-none disabled:opacity-50"
+              className="inline-flex rounded-[5px] bg-accent px-4 py-[7px] text-sm font-medium text-white transition-colors duration-200 hover:bg-[#0B1B48] disabled:pointer-events-none disabled:opacity-50 sm:px-5"
               aria-label={`Add ${product.name} to cart`}
             >
               Add to cart

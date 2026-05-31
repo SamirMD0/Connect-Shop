@@ -1,12 +1,12 @@
 'use client';
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
 import Link from 'next/link';
 import { X } from 'lucide-react';
 import { Product } from '@/lib/types';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 export function ProductComparison() {
   const [ids, setIds] = useState<string[]>([]);
@@ -95,7 +95,14 @@ export function ProductComparison() {
                 </button>
                 <Link href={`/store/${product.slug}`} className="block pr-8">
                   <div className="relative mb-3 h-24 overflow-hidden rounded-lg border border-slate-200/60 bg-white">
-                    {product.image_url && <Image src={product.image_url} alt={product.name} fill className="object-cover" sizes="180px" />}
+                    <SafeImage
+                      src={product.image_url}
+                      alt={product.name}
+                      fill
+                      className="object-cover"
+                      sizes="180px"
+                      fallback={<div className="h-full w-full bg-slate-50" />}
+                    />
                   </div>
                   <p className="line-clamp-2 text-sm font-semibold text-text-primary">{product.name}</p>
                 </Link>

@@ -4,19 +4,19 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Container } from '@/components/layout/Container';
 import { Button } from '@/components/ui/Button';
+import { LoginButton } from '@/components/auth/LoginButton';
 import { api, ApiError } from '@/lib/api';
 import { z } from 'zod';
-import { Lock, Mail, Phone, ShieldCheck, User, WalletCards } from 'lucide-react';
+import { Lock, Mail, ShieldCheck, User, WalletCards } from 'lucide-react';
 
 const registerSchema = z.object({
   name: z.string().trim().min(1, 'Full name is required').max(255),
   email: z.string().trim().email('Enter a valid email address').max(255),
-  phone: z.string().trim().max(30, 'Phone must be under 30 characters').optional().or(z.literal('')),
   password: z.string().min(8, 'Password must be at least 8 characters').max(128),
 });
 
 export default function RegisterPage() {
-  const [form, setForm] = useState({ name: '', email: '', phone: '', password: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -53,33 +53,32 @@ export default function RegisterPage() {
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-text-primary">Full name</span>
               <div className="relative">
-                <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field pl-11" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                <User className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                <input className="input-field !pl-12" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
               </div>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-text-primary">Email</span>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field pl-11" type="email" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
-              </div>
-            </label>
-            <label className="block">
-              <span className="mb-2 block text-sm font-medium text-text-primary">Phone</span>
-              <div className="relative">
-                <Phone className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field pl-11" placeholder="+961 XX XXX XXX" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                <input className="input-field !pl-12" type="email" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
               </div>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-text-primary">Password</span>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field pl-11" type="password" placeholder="At least 8 characters" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+                <Lock className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                <input className="input-field !pl-12" type="password" placeholder="At least 8 characters" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
               </div>
             </label>
             {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>}
             <Button type="submit" className="w-full" loading={loading}>Create account</Button>
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">or</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+            <LoginButton className="w-full" />
             <p className="text-sm text-text-muted">Already registered? <Link className="font-medium text-accent" href="/auth/login">Sign in</Link></p>
           </form>
         </div>

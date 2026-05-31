@@ -308,7 +308,7 @@ CREATE TABLE IF NOT EXISTS orders (
                                   CHECK (status IN ('confirmed', 'processing', 'shipped', 'delivered', 'cancelled')),
   total            DECIMAL(10, 2) NOT NULL CHECK (total >= 0),
   shipping_address JSONB          NOT NULL,
-  payment_method   VARCHAR(30)    NOT NULL DEFAULT 'cod',
+  payment_method   VARCHAR(30)    NOT NULL DEFAULT 'cash_on_delivery',
   payment_status   VARCHAR(30)    NOT NULL DEFAULT 'pending',
   created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW()
 );
@@ -320,7 +320,7 @@ BEGIN
     SELECT 1 FROM information_schema.columns
     WHERE table_name = 'orders' AND column_name = 'payment_method'
   ) THEN
-    ALTER TABLE orders ADD COLUMN payment_method VARCHAR(30) NOT NULL DEFAULT 'cod';
+    ALTER TABLE orders ADD COLUMN payment_method VARCHAR(30) NOT NULL DEFAULT 'cash_on_delivery';
     ALTER TABLE orders ADD COLUMN payment_status VARCHAR(30) NOT NULL DEFAULT 'pending';
   END IF;
 END;

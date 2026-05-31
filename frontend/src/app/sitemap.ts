@@ -1,16 +1,26 @@
 import { MetadataRoute } from 'next';
 import { api } from '@/lib/api';
+import { SITE_URL } from '@/lib/constants';
 import { Product, Category } from '@/lib/types';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000';
+  const staticRoutes: MetadataRoute.Sitemap = [
+    { url: SITE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
+    { url: `${SITE_URL}/store`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
+    { url: `${SITE_URL}/about`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${SITE_URL}/contact`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.6 },
+    { url: `${SITE_URL}/faq`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.5 },
+    { url: `${SITE_URL}/privacy-policy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/return-policy`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
+    { url: `${SITE_URL}/terms`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.3 },
+  ];
 
   try {
-    const productsRes = await api.get<{ success: boolean; products: Product[] }>('/api/products?limit=1000');
+    const productsRes = await api.get<{ success: boolean; products: Product[] }>('/api/products?limit=100');
     const products = productsRes.products || [];
 
     const productUrls = products.map((product) => ({
-      url: `${baseUrl}/store/${product.slug}`,
+      url: `${SITE_URL}/store/${product.slug}`,
       lastModified: new Date(product.updated_at),
       changeFrequency: 'weekly' as const,
       priority: 0.8,
@@ -20,33 +30,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const categories = categoriesRes.categories || [];
 
     const categoryUrls = categories.map((category) => ({
-      url: `${baseUrl}/store?category=${category.slug}`,
+      url: `${SITE_URL}/store?category=${category.slug}`,
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: 0.7,
     }));
 
     return [
-      {
-        url: baseUrl,
-        lastModified: new Date(),
-        changeFrequency: 'daily',
-        priority: 1.0,
-      },
-      {
-        url: `${baseUrl}/store`,
-        lastModified: new Date(),
-        changeFrequency: 'daily',
-        priority: 0.9,
-      },
+      ...staticRoutes,
       ...categoryUrls,
       ...productUrls,
     ];
   } catch (error) {
     console.error('Error generating sitemap:', error);
-    return [
-      { url: baseUrl, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
-      { url: `${baseUrl}/store`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.9 },
-    ];
+    return staticRoutes;
   }
 }

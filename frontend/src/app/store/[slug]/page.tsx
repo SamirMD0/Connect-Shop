@@ -8,6 +8,7 @@ import { ProductReviews } from '@/components/products/ProductReviews';
 import { ProductQuestions } from '@/components/products/ProductQuestions';
 import { RecentlyViewedProducts } from '@/components/products/RecentlyViewedProducts';
 import { api } from '@/lib/api';
+import { APP_NAME, SITE_URL } from '@/lib/constants';
 import { Product } from '@/lib/types';
 import { ChevronRight } from 'lucide-react';
 
@@ -29,7 +30,7 @@ async function getProduct(slug: string) {
 export async function generateStaticParams() {
   try {
     const res = await api.get<{ success: boolean; products: Product[] }>('/api/products', {
-      params: { limit: 1000 },
+      params: { limit: 100 },
     });
     return (res.products || []).map((product) => ({ slug: product.slug }));
   } catch {
@@ -42,22 +43,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const product = await getProduct(p.slug);
   
   if (!product) {
-    return { title: 'Product Not Found | ELECTRO SHOP' };
+    return { title: `Product Not Found | ${APP_NAME}` };
   }
+
+  const description = product.meta_description || product.description?.slice(0, 160) || `Buy ${product.name} at ${APP_NAME}.`;
+  const title = product.meta_title || `${product.name} | ${APP_NAME}`;
+  const productUrl = `${SITE_URL}/store/${product.slug}`;
   
   return {
-    title: product.meta_title || `${product.name} | ELECTRO SHOP`,
-    description: product.meta_description || product.description?.slice(0, 160) || `Buy ${product.name} at ELECTRO SHOP`,
+    title,
+    description,
     openGraph: {
-      title: product.meta_title || product.name,
-      description: product.meta_description || product.description || undefined,
+      title,
+      description,
+      url: productUrl,
       images: product.image_url ? [product.image_url] : undefined,
       type: 'website',
     },
     twitter: {
       card: 'summary_large_image',
-      title: product.meta_title || product.name,
-      description: product.meta_description || product.description?.slice(0, 160) || undefined,
+      title,
+      description,
       images: product.image_url ? [product.image_url] : undefined,
     },
     alternates: {
@@ -91,7 +97,6 @@ export default async function ProductDetailPage({ params }: Props) {
     product.image_url,
     ...(product.gallery_images || []).map((image) => image.image_url),
   ].filter(Boolean) as string[];
-  const baseUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'http://localhost:3000';
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -110,7 +115,7 @@ export default async function ProductDetailPage({ params }: Props) {
       price: product.price,
       priceCurrency: 'USD',
       availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
-      url: `${baseUrl}/store/${product.slug}`,
+      url: `${SITE_URL}/store/${product.slug}`,
     },
   };
 

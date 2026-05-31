@@ -38,6 +38,21 @@ export class CategoryRepository {
     return rows[0] || null;
   }
 
+  static async isDescendant(categoryId: number, possibleDescendantId: number) {
+    const rows = await query<{ id: number }>(
+      `WITH RECURSIVE descendants AS (
+         SELECT id, parent_id FROM categories WHERE parent_id = $1
+         UNION ALL
+         SELECT c.id, c.parent_id
+         FROM categories c
+         JOIN descendants d ON c.parent_id = d.id
+       )
+       SELECT id FROM descendants WHERE id = $2 LIMIT 1`,
+      [categoryId, possibleDescendantId]
+    );
+    return rows.length > 0;
+  }
+
   static async countProducts(id: number) {
     const rows = await query<{ count: string }>(`SELECT COUNT(*) FROM products WHERE category_id = $1`, [id]);
     return parseInt(rows[0].count, 10);

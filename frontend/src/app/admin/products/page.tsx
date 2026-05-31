@@ -1,12 +1,12 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Image from 'next/image';
 import { Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Download, Upload, LayoutGrid, List, Package } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { api, ApiError } from '../../../lib/api';
 import { Product, Category, Brand } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
+import { SafeImage } from '@/components/ui/SafeImage';
 
 interface VariantForm {
   sku: string;
@@ -118,6 +118,8 @@ export default function AdminProducts() {
   const [importCsv, setImportCsv] = useState('');
   const [importMessage, setImportMessage] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   // Form State
   const [formData, setFormData] = useState<ProductFormData>(() => createEmptyForm());
@@ -200,12 +202,28 @@ export default function AdminProducts() {
       setEditingProduct(null);
       setFormData(createEmptyForm(categories[0]?.id.toString() || ''));
     }
+    setFormError('');
     setIsModalOpen(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+    setSubmitting(true);
     try {
+      const price = parseFloat(formData.price);
+      const stock = parseInt(formData.stock, 10);
+      const categoryId = parseInt(formData.category_id, 10);
+
+      if (!formData.name.trim()) throw new Error('Product name is required.');
+      if (!formData.slug.trim()) throw new Error('Product slug is required.');
+      if (!Number.isFinite(price) || price <= 0) throw new Error('Price must be greater than 0.');
+      if (!Number.isInteger(stock) || stock < 0) throw new Error('Stock must be 0 or greater.');
+      if (!Number.isInteger(categoryId)) throw new Error('Please select a category.');
+      if (formData.compare_at_price && Number(formData.compare_at_price) <= 0) {
+        throw new Error('Compare-at price must be greater than 0.');
+      }
+
       const galleryImages = formData.gallery_images_text
         .split('\n')
         .map(url => url.trim())
@@ -228,9 +246,9 @@ export default function AdminProducts() {
         slug: formData.slug.trim(),
         image_url: formData.image_url.trim() || null,
         description: formData.description.trim() || null,
-        price: parseFloat(formData.price),
-        category_id: parseInt(formData.category_id, 10),
-        stock: parseInt(formData.stock, 10),
+        price,
+        category_id: categoryId,
+        stock,
         is_featured: formData.is_featured,
         brand_id: formData.brand_id ? parseInt(formData.brand_id, 10) : null,
         brand: formData.brand.trim() || null,
@@ -249,10 +267,14 @@ export default function AdminProducts() {
         await api.post('/api/admin/products', payload);
       }
       setIsModalOpen(false);
-      fetchProducts();
+      await fetchProducts();
     } catch (error) {
-      console.error('Failed to save product:', error);
-      alert('Failed to save product. Please check your inputs and variant attributes JSON.');
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to save product. Please check your inputs and variant attributes JSON.';
+      setFormError(message);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -294,6 +316,7 @@ export default function AdminProducts() {
 
   const handleImageUpload = async (file: File) => {
     setUploadingImage(true);
+    setFormError('');
     try {
       const dataUrl = await readFileAsDataUrl(file);
       const res = await api.post<{ success: boolean; url: string }>('/api/admin/uploads/image', {
@@ -301,6 +324,11 @@ export default function AdminProducts() {
         dataUrl,
       });
       setFormData(current => ({ ...current, image_url: res.url }));
+    } catch (error) {
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to upload image.';
+      setFormError(message);
     } finally {
       setUploadingImage(false);
     }
@@ -374,12 +402,17 @@ export default function AdminProducts() {
     return (
       <div className={frameClasses}>
         {product.image_url ? (
-          <Image
+          <SafeImage
             src={product.image_url}
             alt={product.name}
             fill
             sizes={size === 'grid' ? '(min-width: 1280px) 28vw, (min-width: 640px) 45vw, 90vw' : '56px'}
             className={size === 'grid' ? 'object-contain p-4' : 'object-contain p-1.5'}
+            fallback={
+              <div className="flex h-full w-full items-center justify-center text-slate-300">
+                <Package className={size === 'grid' ? 'h-10 w-10' : 'h-5 w-5'} />
+              </div>
+            }
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-slate-300">
@@ -589,6 +622,11 @@ export default function AdminProducts() {
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingProduct ? 'Edit Product' : 'Add Product'}>
         <form onSubmit={handleSubmit} className="space-y-5">
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           <div>
             <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Name</label>
             <input 
@@ -708,6 +746,25 @@ export default function AdminProducts() {
               value={formData.image_url} 
               onChange={e => setFormData({...formData, image_url: e.target.value})} 
             />
+            {formData.image_url && (
+              <div className="mt-3 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  <SafeImage
+                    src={formData.image_url}
+                    alt="Product preview"
+                    fill
+                    className="object-contain p-1"
+                    sizes="64px"
+                    fallback={
+                      <div className="flex h-full w-full items-center justify-center text-slate-300">
+                        <Package className="h-5 w-5" />
+                      </div>
+                    }
+                  />
+                </div>
+                <p className="text-xs text-slate-500">Image preview</p>
+              </div>
+            )}
             <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:border-accent hover:text-accent">
               <Upload className="h-4 w-4" />
               {uploadingImage ? 'Uploading...' : 'Upload image'}
@@ -889,9 +946,10 @@ export default function AdminProducts() {
             </button>
             <button 
               type="submit" 
-              className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all"
+              disabled={submitting}
+              className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all disabled:opacity-60"
             >
-              Save
+              {submitting ? 'Saving...' : 'Save'}
             </button>
           </div>
         </form>

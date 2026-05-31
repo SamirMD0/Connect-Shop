@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
+import { createWhatsAppUrl } from '@/lib/business-config';
 import { API_URL } from '@/lib/constants';
 import { Order } from '@/lib/types';
 import { RotateCcw, FileText, MessageCircle, XCircle, Undo2 } from 'lucide-react';
@@ -282,7 +283,7 @@ export default function OrdersPage() {
                         </button>
                       )}
                       <a
-                        href={`https://wa.me/96181000000?text=Hello,%20I%20need%20an%20update%20on%20order%20${expandedOrder.id.slice(0, 8).toUpperCase()}.`}
+                        href={createWhatsAppUrl(`Hello, I need an update on order #${expandedOrder.id.slice(0, 8).toUpperCase()}.`)}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-2 rounded-lg border border-[#25D366]/30 px-3 py-2 text-xs font-medium text-[#25D366] hover:bg-[#25D366]/10"

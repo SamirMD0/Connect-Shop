@@ -10,22 +10,59 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/useToast';
 import { api } from '@/lib/api';
+import { createWhatsAppUrl } from '@/lib/business-config';
 import { ShippingAddress, Order, UserAddress } from '@/lib/types';
 import DOMPurify from 'dompurify';
 import { z } from 'zod';
-import { CheckCircle2, ShoppingBag, Package, ArrowLeft, Lock, TicketPercent } from 'lucide-react';
+import { CheckCircle2, ShoppingBag, Package, ArrowLeft, Lock, TicketPercent, MessageCircle } from 'lucide-react';
+
+type CheckoutPaymentMethod = 'cash_on_delivery';
+
+const phoneRegions = [
+  { country: 'Lebanon', flagCode: 'lb', code: '+961' },
+  { country: 'Jordan', flagCode: 'jo', code: '+962' },
+  { country: 'Syria', flagCode: 'sy', code: '+963' },
+  { country: 'Palestine', flagCode: 'ps', code: '+970' },
+  { country: 'UAE', flagCode: 'ae', code: '+971' },
+  { country: 'Saudi Arabia', flagCode: 'sa', code: '+966' },
+  { country: 'Qatar', flagCode: 'qa', code: '+974' },
+  { country: 'Kuwait', flagCode: 'kw', code: '+965' },
+  { country: 'Bahrain', flagCode: 'bh', code: '+973' },
+  { country: 'Oman', flagCode: 'om', code: '+968' },
+  { country: 'Iraq', flagCode: 'iq', code: '+964' },
+  { country: 'Egypt', flagCode: 'eg', code: '+20' },
+];
+
+const defaultPhoneRegion = phoneRegions[0].code;
+
+function splitPhoneNumber(phone: string): { code: string; localNumber: string } {
+  const normalizedPhone = phone.trim();
+  const matchingRegion = [...phoneRegions]
+    .sort((a, b) => b.code.length - a.code.length)
+    .find((region) => normalizedPhone.startsWith(region.code));
+
+  if (!matchingRegion) {
+    return { code: defaultPhoneRegion, localNumber: normalizedPhone };
+  }
+
+  return {
+    code: matchingRegion.code,
+    localNumber: normalizedPhone.slice(matchingRegion.code.length).trim(),
+  };
+}
 
 const shippingSchema = z.object({
   guestEmail: z.string().email('Valid email is required for guest checkout').optional().or(z.literal('')),
   fullName: z.string().trim().min(1, 'Full name is required').max(200),
-  phone: z.string().trim().min(7, 'Phone number must be at least 7 characters').max(20, 'Phone number is too long'),
+  phone: z.string().trim().min(7, 'Phone number must be at least 7 characters').max(30, 'Phone number is too long'),
   addressLine1: z.string().trim().min(1, 'Address line 1 is required').max(300),
   addressLine2: z.string().trim().max(300).optional(),
   city: z.string().trim().min(1, 'City is required').max(100),
   state: z.string().trim().max(100).optional(),
   zipCode: z.string().trim().max(20).optional(),
   country: z.string().trim().min(1, 'Country is required').max(100),
-  paymentMethod: z.enum(['cod', 'bank_transfer', 'omt', 'whish_money']).default('cod'),
+  notes: z.string().trim().max(1000, 'Notes must be under 1000 characters').optional(),
+  paymentMethod: z.enum(['cash_on_delivery']).default('cash_on_delivery'),
   couponCode: z.string().trim().max(50).optional(),
   deliverySlot: z.string().trim().min(1, 'Delivery time slot is required').max(100),
 });
@@ -56,8 +93,11 @@ export default function CheckoutPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [couponCode, setCouponCode] = useState('');
   const [guestEmail, setGuestEmail] = useState('');
+  const [formError, setFormError] = useState('');
+  const [phoneRegionCode, setPhoneRegionCode] = useState(defaultPhoneRegion);
+  const [phoneRegionMenuOpen, setPhoneRegionMenuOpen] = useState(false);
   const [deliverySlot, setDeliverySlot] = useState(deliverySlots[0]);
-  const [form, setForm] = useState<ShippingAddress & { paymentMethod: 'cod' | 'bank_transfer' | 'omt' | 'whish_money' }>({
+  const [form, setForm] = useState<ShippingAddress & { paymentMethod: CheckoutPaymentMethod }>({
     fullName: '',
     phone: '',
     addressLine1: '',
@@ -66,7 +106,8 @@ export default function CheckoutPage() {
     state: '',
     zipCode: '',
     country: 'Lebanon',
-    paymentMethod: 'cod',
+    notes: '',
+    paymentMethod: 'cash_on_delivery',
   });
 
   useEffect(() => {
@@ -92,39 +133,54 @@ export default function CheckoutPage() {
     );
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormError('');
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   };
+
+  const selectedPhoneRegion = phoneRegions.find((region) => region.code === phoneRegionCode) || phoneRegions[0];
 
   const applyAddress = (addressId: string) => {
     const address = addresses.find((item) => item.id === addressId);
     if (!address) return;
+    const phoneParts = splitPhoneNumber(address.phone);
+    setPhoneRegionCode(phoneParts.code);
 
     setForm((prev) => ({
       ...prev,
       fullName: address.recipient_name,
-      phone: address.phone,
+      phone: phoneParts.localNumber,
       addressLine1: address.address_line1,
       addressLine2: address.address_line2 || '',
       city: address.city,
       state: address.state || '',
       zipCode: address.zip_code || '',
       country: address.country,
+      notes: address.notes || '',
     }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
+
+    if (itemCount === 0) {
+      const message = 'Your cart is empty. Add at least one product before checkout.';
+      setFormError(message);
+      addToast(message, 'error');
+      return;
+    }
 
     const sanitizedForm = {
       fullName: DOMPurify.sanitize(form.fullName),
-      phone: DOMPurify.sanitize(form.phone || ''),
+      phone: DOMPurify.sanitize(form.phone.trim().startsWith('+') ? form.phone : `${phoneRegionCode} ${form.phone}`),
       addressLine1: DOMPurify.sanitize(form.addressLine1),
       addressLine2: form.addressLine2 ? DOMPurify.sanitize(form.addressLine2) : '',
       city: DOMPurify.sanitize(form.city),
       state: form.state ? DOMPurify.sanitize(form.state) : '',
       zipCode: form.zipCode ? DOMPurify.sanitize(form.zipCode) : '',
       country: DOMPurify.sanitize(form.country),
+      notes: form.notes ? DOMPurify.sanitize(form.notes) : '',
       paymentMethod: form.paymentMethod,
       couponCode: DOMPurify.sanitize(couponCode),
       deliverySlot: DOMPurify.sanitize(deliverySlot),
@@ -133,17 +189,23 @@ export default function CheckoutPage() {
 
     const validation = shippingSchema.safeParse(sanitizedForm);
     if (!validation.success) {
-      addToast(validation.error.issues[0].message, 'error');
+      const message = validation.error.issues[0].message;
+      setFormError(message);
+      addToast(message, 'error');
       return;
     }
 
     if (!user && !validation.data.guestEmail) {
-      addToast('Email is required for guest checkout.', 'error');
+      const message = 'Email is required for guest checkout.';
+      setFormError(message);
+      addToast(message, 'error');
       return;
     }
 
     if (!acceptTerms) {
-      addToast('Please accept the terms and delivery policy.', 'error');
+      const message = 'Please accept the terms and delivery policy.';
+      setFormError(message);
+      addToast(message, 'error');
       return;
     }
 
@@ -167,6 +229,7 @@ export default function CheckoutPage() {
             state: validation.data.state,
             zipCode: validation.data.zipCode,
             country: validation.data.country,
+            notes: validation.data.notes,
           },
           paymentMethod: validation.data.paymentMethod,
           couponCode: validation.data.couponCode || undefined,
@@ -191,7 +254,9 @@ export default function CheckoutPage() {
       clearCart();
       addToast('Order placed successfully!', 'success');
     } catch (error: any) {
-      addToast(error.message || 'Failed to place order. Please try again.', 'error');
+      const message = error.message || 'Failed to place order. Please try again.';
+      setFormError(message);
+      addToast(message, 'error');
     } finally {
       setPlacing(false);
     }
@@ -214,13 +279,16 @@ export default function CheckoutPage() {
           <p className="text-text-muted mb-2">
             Your order has been placed successfully.
           </p>
+          <p className="text-sm text-text-muted mb-2">
+            We will contact you to confirm the delivery details before dispatch.
+          </p>
           <p className="text-sm text-text-muted mb-8">
             Order ID: <span className="text-accent font-mono font-medium">{orderPlaced.id.slice(0, 8).toUpperCase()}</span>
           </p>
           <div className="mb-8 rounded-2xl border border-slate-200/60 bg-bg-surface p-4 text-left">
             <div className="flex justify-between text-sm text-text-muted">
               <span>Payment</span>
-              <span className="font-medium text-text-primary">{orderPlaced.payment_method}</span>
+              <span className="font-medium text-text-primary">Cash on Delivery</span>
             </div>
             <div className="mt-2 flex justify-between text-sm text-text-muted">
               <span>Total</span>
@@ -235,11 +303,12 @@ export default function CheckoutPage() {
           </div>
           <div className="flex gap-4 justify-center flex-wrap">
             <a 
-              href={`https://wa.me/96181000000?text=Hello,%20I%20just%20placed%20order%20${orderPlaced.id.slice(0, 8).toUpperCase()}%20for%20$${orderPlaced.total}.`} 
+              href={createWhatsAppUrl(`Hello, I placed order #${orderPlaced.id.slice(0, 8).toUpperCase()} and want to confirm it.`)}
               target="_blank" 
               rel="noopener noreferrer"
             >
               <Button variant="primary" size="lg" className="bg-[#25D366] hover:bg-[#1ebd5a] text-white border-none">
+                <MessageCircle className="w-4 h-4 mr-2" />
                 Contact via WhatsApp
               </Button>
             </a>
@@ -333,14 +402,55 @@ export default function CheckoutPage() {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-text-primary mb-2">Phone Number *</label>
-                      <input 
-                        name="phone" 
-                        value={form.phone} 
-                        onChange={handleChange} 
-                        className="input-field" 
-                        placeholder="+961 XX XXX XXX" 
-                        required 
-                      />
+                      <div className="relative flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setPhoneRegionMenuOpen((open) => !open)}
+                          className="flex h-[46px] w-[104px] shrink-0 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-bg-surface px-3 text-sm font-medium text-text-primary transition-all hover:border-slate-300 focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                          aria-label={`Phone region code: ${selectedPhoneRegion.country} ${selectedPhoneRegion.code}`}
+                          aria-expanded={phoneRegionMenuOpen}
+                        >
+                          <img
+                            src={`https://flagcdn.com/w20/${selectedPhoneRegion.flagCode}.png`}
+                            alt=""
+                            className="h-3.5 w-5 rounded-sm object-cover"
+                          />
+                          <span>{selectedPhoneRegion.code}</span>
+                        </button>
+                        {phoneRegionMenuOpen && (
+                          <div className="absolute left-0 top-full z-20 mt-2 max-h-64 w-32 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-xl shadow-slate-200/80">
+                            {phoneRegions.map((region) => (
+                              <button
+                                key={region.code}
+                                type="button"
+                                onClick={() => {
+                                  setFormError('');
+                                  setPhoneRegionCode(region.code);
+                                  setPhoneRegionMenuOpen(false);
+                                }}
+                                className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-primary transition-colors hover:bg-slate-50"
+                                aria-label={`${region.country} ${region.code}`}
+                              >
+                                <img
+                                  src={`https://flagcdn.com/w20/${region.flagCode}.png`}
+                                  alt=""
+                                  className="h-3.5 w-5 rounded-sm object-cover"
+                                />
+                                <span>{region.code}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <input
+                          name="phone"
+                          type="tel"
+                          value={form.phone}
+                          onChange={handleChange}
+                          className="input-field min-w-0 flex-1"
+                          placeholder="81 000 000"
+                          required
+                        />
+                      </div>
                     </div>
                   </div>
                   <div>
@@ -372,7 +482,7 @@ export default function CheckoutPage() {
                         value={form.city} 
                         onChange={handleChange} 
                         className="input-field" 
-                        placeholder="New York" 
+                        placeholder="Beirut" 
                         required 
                       />
                     </div>
@@ -413,6 +523,16 @@ export default function CheckoutPage() {
                       readOnly 
                     />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-text-primary mb-2">Delivery Notes</label>
+                    <textarea
+                      name="notes"
+                      value={form.notes || ''}
+                      onChange={handleChange}
+                      className="input-field min-h-24 resize-y"
+                      placeholder="Optional building, floor, landmark, or delivery instructions"
+                    />
+                  </div>
                   <label className="flex items-center gap-2 text-sm text-text-muted">
                     <input type="checkbox" disabled={!user} checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />
                     Save this address to my account
@@ -445,42 +565,14 @@ export default function CheckoutPage() {
                       <input 
                         type="radio" 
                         name="paymentMethod" 
-                        value="cod" 
-                        checked={form.paymentMethod === 'cod'} 
+                        value="cash_on_delivery" 
+                        checked={form.paymentMethod === 'cash_on_delivery'} 
                         onChange={handleChange}
                         className="w-4 h-4 text-accent"
                       />
                       <div>
-                        <p className="font-medium text-text-primary">Cash on Delivery (COD)</p>
-                        <p className="text-sm text-text-muted">Pay when your order arrives.</p>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
-                      <input 
-                        type="radio" 
-                        name="paymentMethod" 
-                        value="bank_transfer" 
-                        checked={form.paymentMethod === 'bank_transfer'} 
-                        onChange={handleChange}
-                        className="w-4 h-4 text-accent"
-                      />
-                      <div>
-                        <p className="font-medium text-text-primary">Bank Transfer (Whish / OMT)</p>
-                        <p className="text-sm text-text-muted">We will contact you with payment details.</p>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
-                      <input type="radio" name="paymentMethod" value="omt" checked={form.paymentMethod === 'omt'} onChange={handleChange} className="w-4 h-4 text-accent" />
-                      <div>
-                        <p className="font-medium text-text-primary">OMT Money Transfer</p>
-                        <p className="text-sm text-text-muted">Reserve the order and pay by OMT before delivery.</p>
-                      </div>
-                    </label>
-                    <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
-                      <input type="radio" name="paymentMethod" value="whish_money" checked={form.paymentMethod === 'whish_money'} onChange={handleChange} className="w-4 h-4 text-accent" />
-                      <div>
-                        <p className="font-medium text-text-primary">Whish Money</p>
-                        <p className="text-sm text-text-muted">Reserve the order and pay by Whish Money before delivery.</p>
+                        <p className="font-medium text-text-primary">Cash on Delivery</p>
+                        <p className="text-sm text-text-muted">Pay in cash when your order arrives.</p>
                       </div>
                     </label>
                   </div>
@@ -563,6 +655,12 @@ export default function CheckoutPage() {
                   <Lock className="w-4 h-4 mr-2" />
                   Place Order
                 </Button>
+
+                {formError && (
+                  <p className="mt-4 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+                    {formError}
+                  </p>
+                )}
 
                 <p className="text-xs text-text-muted text-center mt-4">
                   Your order details are secure.

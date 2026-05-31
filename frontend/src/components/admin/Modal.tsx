@@ -6,9 +6,10 @@ interface ModalProps {
   onClose: () => void;
   title: string;
   children: React.ReactNode;
+  size?: 'default' | 'wide';
 }
 
-export function Modal({ isOpen, onClose, title, children }: ModalProps) {
+export function Modal({ isOpen, onClose, title, children, size = 'default' }: ModalProps) {
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
@@ -28,7 +29,7 @@ export function Modal({ isOpen, onClose, title, children }: ModalProps) {
         className="fixed inset-0 bg-slate-950/35 backdrop-blur-sm transition-opacity" 
         onClick={onClose} 
       />
-      <div className="relative z-10 flex max-h-[90vh] w-full max-w-lg animate-scale-in flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl shadow-slate-300/60 sm:my-8">
+      <div className={`relative z-10 flex max-h-[90vh] w-full animate-scale-in flex-col overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl shadow-slate-300/60 sm:my-8 ${size === 'wide' ? 'max-w-5xl' : 'max-w-lg'}`}>
         <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
           <h3 className="text-lg font-semibold text-[#0B1B48]">{title}</h3>
           <button 

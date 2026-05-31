@@ -76,20 +76,25 @@ export default function LoginPage() {
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-text-primary">Email</span>
               <div className="relative">
-                <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field pl-11" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                <input className="input-field !pl-12" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
               </div>
             </label>
             <label className="block">
               <span className="mb-2 block text-sm font-medium text-text-primary">Password</span>
               <div className="relative">
-                <Lock className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field pl-11" type="password" placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <Lock className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
+                <input className="input-field !pl-12" type="password" placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
             </label>
             {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>}
             <Button type="submit" className="w-full" loading={loading}>Sign in</Button>
-            <LoginButton />
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-slate-200" />
+              <span className="text-xs font-medium uppercase tracking-[0.14em] text-text-muted">or</span>
+              <span className="h-px flex-1 bg-slate-200" />
+            </div>
+            <LoginButton className="w-full" />
             <div className="flex justify-between text-sm">
               <Link className="font-medium text-accent" href="/auth/register">Create account</Link>
               <Link className="font-medium text-accent" href="/auth/forgot-password">Forgot password?</Link>

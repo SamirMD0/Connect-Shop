@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import Image from 'next/image';
 import { Product, ProductVariant } from '@/lib/types';
 import { RatingStars } from '@/components/products/RatingStars';
 import { StockBadge } from '@/components/products/StockBadge';
 import { AddToCartClient } from '@/components/products/AddToCartClient';
+import { SafeImage } from '@/components/ui/SafeImage';
 import { Truck, Shield, RotateCcw, Share2, MessageCircle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { SITE_URL } from '@/lib/constants';
 
 interface ProductDisplayProps {
   product: Product;
@@ -84,22 +85,21 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
       {/* Product Image Gallery */}
       <div className="flex flex-col gap-4">
         <div className="relative aspect-square rounded-3xl bg-white overflow-hidden border border-slate-200/60">
-          {mainImage ? (
-            <Image
-              src={mainImage}
-              alt={product.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-              priority
-            />
-          ) : (
-            <div className="w-full h-full bg-white flex items-center justify-center">
-              <span className="text-8xl font-bold text-accent/30">
-                {product.name.charAt(0)}
-              </span>
-            </div>
-          )}
+          <SafeImage
+            src={mainImage}
+            alt={product.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 1024px) 100vw, 50vw"
+            priority
+            fallback={
+              <div className="w-full h-full bg-white flex items-center justify-center">
+                <span className="text-8xl font-bold text-accent/30">
+                  {product.name.charAt(0)}
+                </span>
+              </div>
+            }
+          />
           <div className="absolute left-4 top-4 flex flex-wrap gap-2">
             {product.is_featured && (
               <span className="bg-accent text-white text-sm font-semibold px-4 py-2 rounded-full shadow-lg shadow-accent/25">
@@ -131,12 +131,20 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
               <button
                 key={idx}
                 onClick={() => setMainImage(img)}
+                aria-label={`View ${product.name} image ${idx + 1}`}
                 className={cn(
                   "relative w-20 h-20 rounded-xl overflow-hidden border-2 shrink-0 transition-all",
                   mainImage === img ? "border-accent bg-white" : "border-slate-200 bg-white hover:border-slate-300"
                 )}
               >
-                <Image src={img} alt={`Thumbnail ${idx + 1}`} fill className="object-cover" sizes="80px" />
+                <SafeImage
+                  src={img}
+                  alt={`Thumbnail ${idx + 1}`}
+                  fill
+                  className="object-cover"
+                  sizes="80px"
+                  fallback={<div className="h-full w-full bg-slate-100" />}
+                />
               </button>
             ))}
           </div>
@@ -156,7 +164,7 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
           <span className="font-medium text-accent">{product.category_name}</span>
         </div>
         
-        <h1 className="text-3xl lg:text-4xl font-bold text-text-primary tracking-tight mb-2">
+        <h1 className="text-2xl font-bold tracking-tight text-text-primary sm:text-3xl lg:text-4xl">
           {product.name}
         </h1>
 
@@ -168,8 +176,8 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
           <RatingStars rating={parseFloat(product.rating)} reviewCount={product.review_count} size="md" />
         </div>
 
-        <div className="flex items-end gap-3 mb-4">
-          <p className="text-4xl font-bold text-accent">
+        <div className="mb-4 flex flex-wrap items-end gap-3">
+          <p className="text-3xl font-bold text-accent sm:text-4xl">
             ${displayPrice.toFixed(2)}
           </p>
           {discountPercent && !selectedVariant && (
@@ -263,13 +271,13 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
             <Share2 className="w-4 h-4" /> Share:
           </span>
           <div className="flex gap-2">
-            <a href={`https://www.facebook.com/sharer/sharer.php?u=https://elecshop.com/store/${product.slug}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1877F2] hover:text-white transition-colors" aria-label="Share on Facebook">
+            <a href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(`${SITE_URL}/store/${product.slug}`)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1877F2] hover:text-white transition-colors" aria-label="Share on Facebook">
               <span className="text-sm font-bold" aria-hidden="true">f</span>
             </a>
-            <a href={`https://twitter.com/intent/tweet?url=https://elecshop.com/store/${product.slug}&text=Check out this ${product.name}!`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1DA1F2] hover:text-white transition-colors" aria-label="Share on Twitter">
+            <a href={`https://twitter.com/intent/tweet?url=${encodeURIComponent(`${SITE_URL}/store/${product.slug}`)}&text=${encodeURIComponent(`Check out this ${product.name}!`)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#1DA1F2] hover:text-white transition-colors" aria-label="Share on Twitter">
               <span className="text-xs font-bold" aria-hidden="true">X</span>
             </a>
-            <a href={`https://wa.me/?text=Check out this ${product.name}! https://elecshop.com/store/${product.slug}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-colors" aria-label="Share on WhatsApp">
+            <a href={`https://wa.me/?text=${encodeURIComponent(`Check out this ${product.name}! ${SITE_URL}/store/${product.slug}`)}`} target="_blank" rel="noopener noreferrer" className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center hover:bg-[#25D366] hover:text-white transition-colors" aria-label="Share on WhatsApp">
               <MessageCircle className="w-4 h-4" />
             </a>
           </div>

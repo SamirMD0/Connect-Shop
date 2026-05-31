@@ -7,6 +7,7 @@ import { StorePagination } from '@/components/products/StorePagination';
 import { ProductComparison } from '@/components/products/ProductComparison';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { api } from '@/lib/api';
+import { APP_NAME } from '@/lib/constants';
 import { Product, Category, PaginatedProducts } from '@/lib/types';
 import { Search, SlidersHorizontal, Sparkles } from 'lucide-react';
 
@@ -23,21 +24,27 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
     categorySlug ? `${categorySlug.replace(/-/g, ' ')} products` : null,
   ].filter(Boolean);
   const title = titleParts.length > 0
-    ? `${titleParts.join(' - ')} | ELECTRO SHOP`
-    : 'Store | ELECTRO SHOP';
+    ? `${titleParts.join(' - ')} | ${APP_NAME}`
+    : `Store | ${APP_NAME}`;
+  const description = search
+    ? `Shop ${APP_NAME} products matching ${search}.`
+    : `Browse electronics, laptops, smartphones, accessories, and appliances at ${APP_NAME}.`;
 
   return {
     title,
-    description: search
-      ? `Shop ELECTRO SHOP products matching ${search}.`
-      : 'Browse electronics, laptops, smartphones, accessories, and appliances at ELECTRO SHOP.',
+    description,
     alternates: {
       canonical: '/store',
     },
     openGraph: {
       title,
-      description: 'Browse electronics, laptops, smartphones, accessories, and appliances at ELECTRO SHOP.',
+      description,
       type: 'website',
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
     },
   };
 }

@@ -64,7 +64,7 @@ export function StoreFilters({
   );
 
   return (
-    <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-4 mb-8 shadow-sm">
+    <div className="rounded-2xl border border-slate-200/60 bg-bg-surface p-3 shadow-sm sm:p-4">
       <div className="flex flex-col lg:flex-row gap-4">
         <div className="flex-1">
           <SearchBar
@@ -84,6 +84,7 @@ export function StoreFilters({
             <option value="price_desc">Price: High to Low</option>
             <option value="newest">Newest First</option>
             <option value="rating">Highest Rated</option>
+            <option value="popular">Most Popular</option>
           </select>
           <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
         </div>
@@ -98,23 +99,25 @@ export function StoreFilters({
           />
         </div>
 
-        <div className="flex gap-4 flex-wrap lg:flex-nowrap">
-          <div className="flex-1">
+        <div className="flex w-full flex-wrap gap-3 lg:w-auto lg:flex-nowrap">
+          <div className="w-full sm:flex-1 lg:w-40">
             <input
               type="text"
               placeholder="Brand"
-              value={currentBrand}
-              onChange={(e) => updateParams({ brand: e.target.value })}
-              className="w-full px-4 py-2 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
-            />
+            value={currentBrand}
+            onChange={(e) => updateParams({ brand: e.target.value })}
+            aria-label="Filter by brand"
+            className="w-full px-4 py-2 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+          />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid w-full grid-cols-[1fr_auto_1fr] items-center gap-2 sm:w-auto">
             <input
               type="number"
               placeholder="Min $"
               value={minPrice}
               onChange={(e) => updateParams({ min_price: e.target.value })}
-              className="w-24 px-3 py-2 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              aria-label="Minimum price"
+              className="w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:w-24"
             />
             <span className="text-text-muted">-</span>
             <input
@@ -122,13 +125,15 @@ export function StoreFilters({
               placeholder="Max $"
               value={maxPrice}
               onChange={(e) => updateParams({ max_price: e.target.value })}
-              className="w-24 px-3 py-2 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              aria-label="Maximum price"
+              className="w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:w-24"
             />
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <select
               value={minRating}
               onChange={(e) => updateParams({ min_rating: e.target.value })}
+              aria-label="Minimum rating"
               className="appearance-none w-full lg:w-40 px-4 py-2 pr-10 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 cursor-pointer transition-all"
             >
               <option value="">Any rating</option>
@@ -138,20 +143,22 @@ export function StoreFilters({
             </select>
             <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted pointer-events-none" />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid w-full grid-cols-2 gap-2 sm:w-auto">
             <input
               type="text"
               placeholder="Spec"
               value={specKey}
               onChange={(e) => updateParams({ spec_key: e.target.value })}
-              className="w-24 px-3 py-2 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              aria-label="Specification name"
+              className="w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:w-24"
             />
             <input
               type="text"
               placeholder="Value"
               value={specValue}
               onChange={(e) => updateParams({ spec_value: e.target.value })}
-              className="w-28 px-3 py-2 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
+              aria-label="Specification value"
+              className="w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20 sm:w-28"
             />
           </div>
         </div>

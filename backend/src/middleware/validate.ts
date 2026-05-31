@@ -201,8 +201,8 @@ export const placeOrderRules: ValidationChain[] = [
     .trim()
     .notEmpty()
     .withMessage('Phone number is required')
-    .isLength({ min: 7, max: 20 })
-    .withMessage('Phone number must be 7-20 characters')
+    .isLength({ min: 7, max: 30 })
+    .withMessage('Phone number must be 7-30 characters')
     .escape(),
   body('shippingAddress.addressLine1')
     .trim()
@@ -233,6 +233,12 @@ export const placeOrderRules: ValidationChain[] = [
     .trim()
     .isLength({ max: 20 })
     .escape(),
+  body('shippingAddress.notes')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('Notes must be under 1000 characters')
+    .escape(),
   body('shippingAddress.country')
     .trim()
     .notEmpty()
@@ -241,8 +247,8 @@ export const placeOrderRules: ValidationChain[] = [
     .escape(),
   body('paymentMethod')
     .optional()
-    .isIn(['cod', 'bank_transfer', 'omt', 'whish_money'])
-    .withMessage('Payment method must be cod, bank_transfer, omt, or whish_money'),
+    .isIn(['cash_on_delivery', 'cod'])
+    .withMessage('Cash on delivery is the only supported payment method'),
   body('couponCode')
     .optional({ nullable: true })
     .trim()
@@ -301,8 +307,8 @@ export const productQueryRules: ValidationChain[] = [
     .escape(),
   query('sort')
     .optional()
-    .isIn(['price_asc', 'price_desc', 'newest', 'rating', ''])
-    .withMessage('sort must be one of: price_asc, price_desc, newest, rating'),
+    .isIn(['price_asc', 'price_desc', 'newest', 'rating', 'popular', ''])
+    .withMessage('sort must be one of: price_asc, price_desc, newest, rating, popular'),
   query('brand')
     .optional()
     .trim()

@@ -8,8 +8,9 @@ import { WishlistProvider } from '@/context/WishlistContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { Navbar } from '@/components/layout/Navbar';
 import { Footer } from '@/components/layout/Footer';
+import { WhatsAppButton } from '@/components/common/WhatsAppButton';
 import { PhantomUiProvider } from '@/components/phantom/PhantomUiProvider';
-import { APP_NAME } from '@/lib/constants';
+import { APP_NAME, SITE_URL } from '@/lib/constants';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -17,12 +18,39 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
+  applicationName: APP_NAME,
   title: {
     default: `${APP_NAME} — Premium Electronics Store`,
     template: `%s | ${APP_NAME}`,
   },
   description:
-    'Shop the latest smartphones, laptops, audio gear, wearables, gaming accessories, and more. Premium electronics with free shipping.',
+    'Shop smartphones, laptops, audio gear, appliances, gaming accessories, and more with cash-on-delivery support.',
+  keywords: [
+    'electronics store',
+    'online electronics shop',
+    'smartphones',
+    'laptops',
+    'cash on delivery',
+    APP_NAME,
+  ],
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    url: SITE_URL,
+    siteName: APP_NAME,
+    title: `${APP_NAME} — Premium Electronics Store`,
+    description:
+      'Browse electronics, appliances, accessories, and cash-on-delivery products from a small-business ecommerce store.',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: `${APP_NAME} — Premium Electronics Store`,
+    description:
+      'Browse electronics, appliances, accessories, and cash-on-delivery products from a small-business ecommerce store.',
+  },
 };
 
 export default function RootLayout({
@@ -41,6 +69,7 @@ export default function RootLayout({
                 <Navbar />
                 <main className="w-full flex-1">{children}</main>
                 <Footer />
+                <WhatsAppButton />
               </ToastProvider>
             </CartProvider>
           </WishlistProvider>
