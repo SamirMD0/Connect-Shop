@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { getUserWishlist, addToWishlist, removeFromWishlist } from '../controllers/wishlist.controller';
 import { requireAuth } from '../middleware/auth';
+import { wishlistMutationLimiter } from '../middleware/rateLimiter';
 import { validate } from '../middleware/validate';
 import { param, body } from 'express-validator';
 
@@ -15,7 +16,7 @@ const productIdBodyRules = [body('productId').isUUID().withMessage('Invalid prod
 router.use(requireAuth);
 
 router.get('/', getUserWishlist);
-router.post('/', ...productIdBodyRules, validate, addToWishlist);
-router.delete('/:productId', ...productIdParamRules, validate, removeFromWishlist);
+router.post('/', wishlistMutationLimiter, ...productIdBodyRules, validate, addToWishlist);
+router.delete('/:productId', wishlistMutationLimiter, ...productIdParamRules, validate, removeFromWishlist);
 
 export default router;

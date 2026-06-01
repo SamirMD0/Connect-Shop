@@ -2,6 +2,7 @@
 import { Router } from 'express';
 import { getProductReviews, createReview, deleteReview } from '../controllers/review.controller';
 import { requireAuth } from '../middleware/auth';
+import { reviewMutationLimiter } from '../middleware/rateLimiter';
 import { reviewRules, validate } from '../middleware/validate';
 import { param } from 'express-validator';
 
@@ -18,6 +19,7 @@ router.get('/:productId', ...productIdRules, validate, getProductReviews);
 router.post(
   '/:productId',
   requireAuth,
+  reviewMutationLimiter,
   ...productIdRules,
   ...reviewRules,
   validate,

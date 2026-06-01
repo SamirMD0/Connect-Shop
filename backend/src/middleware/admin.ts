@@ -1,6 +1,7 @@
 // backend/src/middleware/admin.ts
 import { Request, Response, NextFunction } from 'express';
 import { ForbiddenError } from '../utils/errors';
+import { logAdminSuspiciousAction } from '../services/securityEvent.service';
 
 export type AdminPermission =
   | 'analytics'
@@ -35,10 +36,12 @@ export function hasAdminPermission(
 export function isAdmin(req: Request, _res: Response, next: NextFunction): void {
   try {
     if (!req.user) {
+      logAdminSuspiciousAction(req, 'admin_auth_required');
       throw new ForbiddenError('Access denied: Authentication required');
     }
 
     if (!hasAdminPermission(req.user)) {
+      logAdminSuspiciousAction(req, 'admin_privileges_required');
       throw new ForbiddenError('Access denied: Admin privileges required');
     }
 
@@ -52,10 +55,12 @@ export function requireAdminPermission(permission: AdminPermission) {
   return (req: Request, _res: Response, next: NextFunction): void => {
     try {
       if (!req.user) {
+        logAdminSuspiciousAction(req, 'admin_permission_auth_required', { permission });
         throw new ForbiddenError('Access denied: Authentication required');
       }
 
       if (!hasAdminPermission(req.user, permission)) {
+        logAdminSuspiciousAction(req, 'insufficient_admin_permission', { permission });
         throw new ForbiddenError('Access denied: Insufficient admin permissions');
       }
 

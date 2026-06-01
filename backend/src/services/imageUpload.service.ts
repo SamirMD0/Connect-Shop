@@ -5,8 +5,11 @@ import { env } from '../config/env';
 import { getImageKitClient, imageKitFolder } from '../config/imagekit';
 import { AppError } from '../utils/errors';
 
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const DATA_URL_PATTERN = /^data:image\/(png|jpe?g|webp|gif);base64,([A-Za-z0-9+/=]+)$/;
+const EXTENSION_ALIASES: Record<string, string> = {
+  jpeg: 'jpg',
+};
 
 type UploadProvider = 'imagekit' | 'local';
 
@@ -54,7 +57,7 @@ function parseImageDataUrl(dataUrl: string): ParsedImageDataUrl {
     throw new AppError('Only PNG, JPG, WEBP, or GIF data URLs are supported', 400);
   }
 
-  const extension = match[1] === 'jpeg' ? 'jpg' : match[1];
+  const extension = EXTENSION_ALIASES[match[1]] || match[1];
   const base64 = match[2];
   const buffer = Buffer.from(base64, 'base64');
 
@@ -63,7 +66,7 @@ function parseImageDataUrl(dataUrl: string): ParsedImageDataUrl {
   }
 
   if (buffer.length > MAX_IMAGE_BYTES) {
-    throw new AppError('Image must be 4MB or smaller', 400);
+    throw new AppError('Image is too large. Maximum allowed size is 5MB.', 400);
   }
 
   if (detectImageExtension(buffer) !== extension) {
@@ -73,6 +76,28 @@ function parseImageDataUrl(dataUrl: string): ParsedImageDataUrl {
   return { base64, buffer, extension };
 }
 
+function getSafeOriginalExtension(fileName: string | undefined): string | null {
+  if (!fileName) return null;
+
+  const extension = path.extname(fileName).slice(1).toLowerCase();
+  if (!extension) return null;
+
+  return EXTENSION_ALIASES[extension] || extension;
+}
+
+function assertFileNameExtensionMatches(fileName: string | undefined, detectedExtension: string): void {
+  const originalExtension = getSafeOriginalExtension(fileName);
+  if (!originalExtension) return;
+
+  if (!['png', 'jpg', 'webp', 'gif'].includes(originalExtension)) {
+    throw new AppError('Only PNG, JPG, WEBP, or GIF files are supported', 400);
+  }
+
+  if (originalExtension !== detectedExtension) {
+    throw new AppError('File extension does not match the uploaded image type', 400);
+  }
+}
+
 function createSafeFileName(fileName: string | undefined, extension: string): string {
   const baseName = (fileName || 'admin-upload')
     .replace(/\.[a-z0-9]+$/i, '')
@@ -80,7 +105,7 @@ function createSafeFileName(fileName: string | undefined, extension: string): st
     .replace(/^-+|-+$/g, '')
     .toLowerCase() || 'admin-upload';
 
-  return `${baseName}-${crypto.randomBytes(6).toString('hex')}.${extension}`;
+  return `${baseName}-${Date.now()}-${crypto.randomBytes(6).toString('hex')}.${extension}`;
 }
 
 async function uploadImageLocally(fileName: string, buffer: Buffer): Promise<UploadedImage> {
@@ -102,6 +127,7 @@ export async function uploadImageToImageKit(input: { fileName?: string; dataUrl:
   }
 
   const parsedImage = parseImageDataUrl(input.dataUrl);
+  assertFileNameExtensionMatches(input.fileName, parsedImage.extension);
   const fileName = createSafeFileName(input.fileName, parsedImage.extension);
   const imageKit = getImageKitClient();
 

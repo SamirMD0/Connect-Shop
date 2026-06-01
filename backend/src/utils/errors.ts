@@ -1,6 +1,7 @@
 // backend/src/utils/errors.ts
 import { Request, Response, NextFunction } from 'express';
 import { logger } from './logger';
+import { logUploadRejected } from '../services/securityEvent.service';
 
 // ─── Custom Error Classes ────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ export class ConflictError extends AppError {
 
 export function errorHandler(
   err: Error,
-  _req: Request,
+  req: Request,
   res: Response,
   _next: NextFunction
 ): void {
@@ -70,6 +71,17 @@ export function errorHandler(
   } else if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
+  } else if ((err as any).type === 'entity.too.large' || (err as any).status === 413) {
+    statusCode = 413;
+    if (req.originalUrl.includes('/api/v1/admin/uploads/image')) {
+      message = 'Image is too large. Maximum allowed size is 5MB.';
+      logUploadRejected(req, 'oversized', { source: 'body_parser' });
+    } else {
+      message = 'Request body is too large.';
+    }
+  } else if ((err as any).status && (err as any).status >= 400 && (err as any).status < 500) {
+    statusCode = (err as any).status;
+    message = 'Invalid request body.';
   } else {
     logger.error({ err }, '❌ Unexpected error');
     statusCode = 500;
@@ -79,8 +91,5 @@ export function errorHandler(
     success: false,
     message,
     ...(errors && { errors }),
-    ...(process.env.NODE_ENV === 'development' && {
-      stack: err.stack,
-    }),
   });
 }

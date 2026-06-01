@@ -5,6 +5,7 @@ import * as productsService from '../services/products.service';
 import { ReviewService, Review } from '../services/review.service';
 import { uploadImageToImageKit } from '../services/imageUpload.service';
 import { AppError, NotFoundError } from '../utils/errors';
+import { logUploadRejected } from '../services/securityEvent.service';
 
 function parseCsv(csv: string): string[][] {
   const rows: string[][] = [];
@@ -61,6 +62,30 @@ function normalizeDateInput(value: unknown): string | null {
   if (typeof value !== 'string' || !value) return null;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
+function classifyUploadRejection(err: unknown): string {
+  const message = err instanceof Error ? err.message : '';
+  if (message.includes('too large')) return 'oversized';
+  if (message.includes('data URLs') || message.includes('files are supported')) return 'invalid_mime';
+  if (message.includes('contents do not match')) return 'invalid_magic_bytes';
+  if (message.includes('extension does not match')) return 'extension_mismatch';
+  if (message.includes('ImageKit is not configured')) return 'provider_unavailable';
+  if (message.includes('Image upload failed')) return 'provider_failed';
+  return 'upload_rejected';
+}
+
+function getDeclaredUploadMime(dataUrl: unknown): string | undefined {
+  if (typeof dataUrl !== 'string') return undefined;
+  const match = dataUrl.match(/^data:([^;]+);base64,/);
+  return match?.[1];
+}
+
+function estimateDecodedBytes(dataUrl: unknown): number | undefined {
+  if (typeof dataUrl !== 'string') return undefined;
+  const base64 = dataUrl.split(',')[1];
+  if (!base64) return undefined;
+  return Math.floor((base64.length * 3) / 4);
 }
 
 // ─── Analytics ───────────────────────────────────────────────────────────────
@@ -178,6 +203,12 @@ export async function uploadImage(req: Request, res: Response, next: NextFunctio
       provider: uploadedImage.provider,
     });
   } catch (err) {
+    const { fileName, dataUrl } = req.body as { fileName?: string; dataUrl?: string };
+    logUploadRejected(req, classifyUploadRejection(err), {
+      fileName,
+      declaredMime: getDeclaredUploadMime(dataUrl),
+      estimatedDecodedBytes: estimateDecodedBytes(dataUrl),
+    });
     next(err);
   }
 }

@@ -4,6 +4,7 @@ import { requireAuth } from '../middleware/auth';
 import { isAdmin, requireAdminPermission } from '../middleware/admin';
 import { requireAdminMfa } from '../middleware/mfa';
 import { adminAudit } from '../middleware/adminAudit';
+import { adminMutationLimiter, uploadLimiter } from '../middleware/rateLimiter';
 import {
   validate,
   adminProductRules,
@@ -39,6 +40,15 @@ const router = Router();
 router.use(requireAuth);
 router.use(isAdmin);
 router.use(requireAdminMfa);
+router.use(adminMutationLimiter);
+router.use((req, res, next) => {
+  if (req.method === 'POST' && req.path === '/uploads/image') {
+    uploadLimiter(req, res, next);
+    return;
+  }
+
+  next();
+});
 router.use(adminAudit);
 
 // Analytics

@@ -30,6 +30,10 @@ import homepageRoutes from './routes/homepage.routes';
 
 const app = express();
 
+// Trust the first deployment proxy (Render/load balancer) so req.ip and
+// rate-limit keys use the client IP instead of the immediate proxy address.
+app.set('trust proxy', 1);
+
 // ─── Security Middleware ─────────────────────────────────────────────────────
 app.use(helmet());                          // Secure HTTP headers
 app.use(cors(corsOptions));                 // Strict CORS
@@ -46,7 +50,7 @@ app.use(pinoHttp({
 }));
 
 // ─── Body Parsing ────────────────────────────────────────────────────────────
-app.use('/api/v1/admin/uploads/image', express.json({ limit: '6mb' }));
+app.use('/api/v1/admin/uploads/image', express.json({ limit: '7mb' }));
 app.use(express.json({ limit: '10kb' }));   // Limit body size to prevent abuse
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(cookieParser(env.SESSION_SECRET));  // Signed cookies

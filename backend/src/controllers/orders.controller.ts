@@ -9,9 +9,12 @@ import {
   createReturnRequest,
   reorder,
   generateInvoicePdf,
+  CheckoutAbuseError,
+  MAX_ACTIVE_COD_ORDERS,
 } from '../services/orders.service';
 import { EmailService } from '../services/email.service';
 import { NotFoundError, AppError } from '../utils/errors';
+import { logCheckoutBlocked, maskPhone } from '../services/securityEvent.service';
 
 /**
  * POST /api/orders
@@ -39,10 +42,32 @@ export async function create(req: Request, res: Response, next: NextFunction): P
       order,
     });
   } catch (err) {
+    if (err instanceof CheckoutAbuseError) {
+      logCheckoutBlocked(req, err.reason, {
+        activeOrderCount: err.activeOrderCount,
+        activeOrderLimit: MAX_ACTIVE_COD_ORDERS,
+        paymentMethod: req.body.paymentMethod || 'cash_on_delivery',
+        phoneMasked: maskPhone(req.body.shippingAddress?.phone),
+      });
+      return next(err);
+    }
+
     // Convert known business logic errors
     if (err instanceof Error && (err.message.includes('Cart is empty') || err.message.includes('Insufficient stock'))) {
+      logCheckoutBlocked(req, err.message.includes('Cart is empty') ? 'empty_cart' : 'invalid_checkout', {
+        paymentMethod: req.body.paymentMethod || 'cash_on_delivery',
+        phoneMasked: maskPhone(req.body.shippingAddress?.phone),
+      });
       return next(new AppError(err.message, 400));
     }
+
+    if (err instanceof AppError && err.statusCode === 400) {
+      logCheckoutBlocked(req, 'invalid_checkout', {
+        paymentMethod: req.body.paymentMethod || 'cash_on_delivery',
+        phoneMasked: maskPhone(req.body.shippingAddress?.phone),
+      });
+    }
+
     next(err);
   }
 }

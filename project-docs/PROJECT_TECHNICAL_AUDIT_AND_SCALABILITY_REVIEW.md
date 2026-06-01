@@ -12,7 +12,7 @@ The biggest missing business feature is an automated, robust transactional email
 **Ratings:**
 - **Portfolio readiness: 9.5/10** — Demonstrates excellent system design, security mindfulness, and clean code architecture.
 - **Small business readiness: 7.5/10** — Core flows (cart, checkout, admin) are there, but needs a production deployment pipeline, external image storage, and client handover docs.
-- **Production readiness: 7/10** — Has rate limiting and Redis, but needs staging tests, proper domain setup, and cloud storage configured.
+- **Production readiness: 7.5/10** — Has rate limiting, Redis, ImageKit guidance, backup guidance, monitoring/alerting guidance, and Cloudflare/WAF deployment guidance, but needs staging tests and final domain setup.
 - **Security readiness: 9/10** — Exceptional. Implements `scrypt` hashing, signed HTTP-only cookies, CSRF protection, input sanitization, parameterized queries, and Admin MFA.
 - **Scalability readiness: 8/10** — Raw SQL with `pg_trgm` indexes, Redis-backed rate limiting, and connection pooling are ready for high traffic.
 - **Maintainability: 9/10** — Code is modular (routes/controllers/services/repositories), cleanly typed, and refrains from over-abstraction.
@@ -33,10 +33,10 @@ The biggest missing business feature is an automated, robust transactional email
 - **Routing/Controller/Service structure:** Strict layered architecture. Routes map to Controllers, which handle HTTP, delegating to Services for business logic, which delegate to Repositories for DB access.
 - **Validation:** Uses `zod` for strict runtime schema validation, plus custom sanitization middleware.
 - **Auth/Session handling:** Custom session management stored in PostgreSQL (`sessions` table) with signed, HTTP-only cookies. Passwords use `scrypt`.
-- **Rate limiting:** `express-rate-limit` backed by Redis (`rate-limit-redis`). Separate limits for general API vs auth endpoints.
+- **Rate limiting:** `express-rate-limit` backed by Redis (`rate-limit-redis`). Separate limits exist for general API traffic, auth endpoints, and high-value identity-aware mutations such as checkout, cart, wishlist, admin changes, admin image uploads, reviews, and product questions.
 - **Redis usage:** Used for rate limiting and cache invalidation utilities.
 - **Error handling:** Global error handler mapping custom error classes (`AppError`, `NotFoundError`, etc.) to standard HTTP responses.
-- **Logging:** `pino` and `pino-http` with request IDs for high-performance JSON logging.
+- **Logging and monitoring:** `pino` and `pino-http` with request IDs for high-performance JSON logging, plus a lightweight `security_events` table for failed auth, rate-limit hits, checkout abuse blocks, upload rejections, suspicious admin access attempts, and progressive cooldown events. A practical `MONITORING_AND_ALERTING_PLAN.md` now documents uptime checks, provider log review, alert severity, backup monitoring, and incident response for a small-business launch.
 
 **Database:**
 - **PostgreSQL schema:** Highly relational, comprehensive schema (Users, Sessions, Products, Variants, Categories, Orders, Cart Items, Coupons, Reviews, Audit Logs).
@@ -121,13 +121,13 @@ The current schema and API can likely handle **10,000 to 100,000 products** smoo
 **Is Redis caching fully implemented?**
 **Partially implemented.**
 
-- **Rate Limiting:** Fully implemented. Redis handles the `express-rate-limit` store flawlessly.
+- **Rate Limiting:** Fully implemented. Redis handles the `express-rate-limit` store for global IP limits, auth IP limits, and Phase 1 identity-aware mutation limits.
 - **Cache Invalidation:** The utilities (`cacheDel`) are wired up in services (e.g., clearing `categories:all` when a category is updated).
 - **Data Caching (Read-through):** While the utilities (`cacheGet`, `cacheSetEx`) exist, active read-through caching for high-traffic endpoints (like `listProducts`) isn't heavily utilized across the board yet.
 
 **Recommendation:**
 - Redis is **not required** for local development (the codebase gracefully falls back to memory).
-- Redis **is recommended** for production to prevent memory leaks in rate limiting and to speed up the homepage.
+- Redis **is recommended** for production to keep rate-limit counters consistent across instances and to speed up the homepage.
 - **What to cache first:** Homepage CMS response, categories tree, and featured products (since they rarely change but are queried on every homepage load).
 - **What NOT to cache:** Cart mutations, checkout endpoints, user sessions (DB-backed is safer here), and admin analytics.
 
@@ -150,7 +150,7 @@ Migrating to an ORM now will slow down your time-to-market, complicate the deplo
 **For customers: No. For Admins: Yes, and you already have it.**
 
 - **Customer Auth:** You have email verification and secure password resets via token hashes. For a starter ecommerce site, this is plenty. Do not add SMS OTP (it's expensive, requires a provider like Twilio, and adds friction).
-- **Admin Auth:** You have implemented TOTP (Authenticator App) MFA for admins. This is excellent and enterprise-grade. 
+- **Admin Auth:** You have implemented TOTP (Authenticator App) MFA for admins, with a temporary cooldown after repeated failed MFA attempts. This is excellent and enterprise-grade.
 
 **Verdict:** Your current auth verification is more than enough for a sellable version.
 
@@ -172,11 +172,11 @@ The project inherently mitigates most of the OWASP Top 10 (2021) vulnerabilities
 2. **A02: Cryptographic Failures:** Passwords are hashed using the highly secure `scrypt` algorithm. Session tokens are hashed before DB storage (`crypto.ts`). Requires forcing HTTPS in production to fully mitigate.
 3. **A03: Injection:** Mitigated. `pg` driver is used strictly with parameterized queries (`$1, $2`). No dynamic SQL string concatenation found.
 4. **A04: Insecure Design:** The system uses secure-by-default architectural patterns (e.g., checkout uses `FOR UPDATE` locks preventing overselling race conditions).
-5. **A05: Security Misconfiguration:** Good posture (uses `helmet` for HTTP headers). Will rely on final Vercel/Render production environment configurations.
+5. **A05: Security Misconfiguration:** Good posture (uses `helmet` for HTTP headers). Cloudflare/WAF deployment guidance is documented, but final Vercel/Render/Cloudflare settings must still be verified in production.
 6. **A06: Vulnerable and Outdated Components:** Needs standard npm audits, but currently relies on maintained packages.
-7. **A07: Identification and Authentication Failures:** Excellent mitigation. Uses signed HTTP-only cookies, robust session invalidation, and TOTP-based Admin MFA.
+7. **A07: Identification and Authentication Failures:** Excellent mitigation. Uses signed HTTP-only cookies, robust session invalidation, TOTP-based Admin MFA, and temporary cooldowns after repeated failed login or MFA attempts.
 8. **A08: Software and Data Integrity Failures:** Integrates well with standard CI/CD and signed commits if deployed correctly.
-9. **A09: Security Logging and Monitoring Failures:** Exceptional implementation here. High-performance JSON logging via `pino` and comprehensive admin action tracking via the `admin_audit_logs` table.
+9. **A09: Security Logging and Monitoring Failures:** Strong implementation here. High-performance JSON logging via `pino`, comprehensive admin action tracking via `admin_audit_logs`, and lightweight security event logging via `security_events`.
 10. **A10: Server-Side Request Forgery (SSRF):** Not highly applicable as the backend does not fetch user-provided URLs.
 
 ### Zero Trust Architecture Principles
@@ -186,7 +186,7 @@ Zero Trust operates on the principle of "never trust, always verify." Here is ho
 - **Use Least Privilege Access:** The system employs granular admin roles (`super_admin`, `admin`, `manager`, `support`). For example, `support` cannot manage products, only orders and reviews.
 - **Assume Breach:** 
   - Admin actions require an additional layer of verification (TOTP MFA), acknowledging that a compromised password alone is insufficient for sensitive actions.
-  - Rate limiting is deployed globally and strictly on authentication endpoints to slow down lateral movement and automated attacks.
+  - Rate limiting is deployed globally, strictly on authentication endpoints, and identity-aware on high-value mutation endpoints to slow down lateral movement and automated abuse.
   - Sensitive tokens in the database (like session tokens and OAuth states) are stored as cryptographic hashes, preventing an attacker who dumps the database from hijacking active sessions.
 
 ### General Threat Matrix
@@ -198,7 +198,7 @@ Zero Trust operates on the principle of "never trust, always verify." Here is ho
 | **CSRF** | Low | Double-submit cookie middleware (`x-csrf-token`). | None | Ensure CORS is strictly bound to frontend URL. |
 | **Brute-force Login** | Low | Redis-backed `authLimiter` (20 req/15min). | None | Monitor Redis uptime. |
 | **Session Hijacking** | Low | Signed, `httpOnly`, `sameSite=lax` cookies. DB-backed session invalidation. | None | Enforce HTTPS in production. |
-| **Insecure File Upload** | Medium | `express.json({ limit: '5mb' })` | Where are images saved? If local disk, they will be lost on PaaS restarts. | Integrate ImageKit, AWS S3, or Cloudinary. |
+| **Insecure File Upload** | Low | Admin uploads use ImageKit/local fallback with 5MB decoded size cap, MIME/extension checks, magic-byte validation, safe filenames, MFA, permissions, and upload rate limiting. | Production must keep ImageKit configured and monitor storage quota. | Test upload rejection cases before launch. |
 | **Admin Privilege Abuse** | Low | Granular roles, TOTP MFA, `admin_audit_logs` tracking every action. | None | Review audit logs periodically. |
 | **Race Conditions (Overselling)**| Low | Checkout uses `FOR UPDATE` row-level locking. | None | Outstanding implementation. |
 
@@ -244,12 +244,12 @@ It is not a marketplace (no vendor dashboards), and it shouldn't be sold as one.
 
 The architecture is **excellent**. The project is neither overengineered nor underengineered; it hits the sweet spot of maintainable, performant, and secure software. By avoiding the temptation of heavy ORMs and instead focusing on robust SQL, strict validation, and security fundamentals (MFA, CSRF, locks), you have built a system that outperforms most starter kits. 
 
-The next highest-impact fix is purely operational: **Solve image hosting and database backups.** Once those are done, you have a commercial-grade product.
+The next highest-impact work is operational: keep image hosting, backups, monitoring, and staging checks verified before launch. Once those are done, you have a commercial-grade product.
 
 ## 15. Action Plan
 
 - **Phase 1 (Immediate):** Implement Cloudinary/AWS S3 for admin image uploads. Remove local file storage.
-- **Phase 2 (Staging):** Deploy to Vercel (Frontend) and Render (Backend + DB). Ensure HTTPS and CORS are locked down.
+- **Phase 2 (Staging):** Deploy to Vercel (Frontend), Render (Backend + DB), and Cloudflare (DNS/WAF). Ensure HTTPS, CORS, and WAF rules are locked down.
 - **Phase 3 (Operations):** Write a bash script or use a Render cron job to `pg_dump` the database daily.
 - **Phase 4 (Business):** Finalize the Client Admin Guide and prepare the pricing/maintenance contract.
 - **Phase 5 (Future):** Implement Redis caching for catalog reads when traffic grows.

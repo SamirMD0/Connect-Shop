@@ -105,10 +105,14 @@ Recommended deployment stack:
 - Domain: Namecheap
 - Redis: optional Render Redis-compatible Key Value or Upstash Redis
 
-See [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md), and [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md).
+See [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md), [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md), and [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md).
 
 ## Documentation
 
+- [Documentation Index](docs/DOCUMENTATION_INDEX.md)
+- [Final Gemini Review Package](docs/FINAL_GEMINI_REVIEW_PACKAGE.md)
+- [Final Production Cost Review](docs/FINAL_PRODUCTION_COST_REVIEW.md)
+- [Phases Completion Summary](docs/PHASES_COMPLETION_SUMMARY.md)
 - [Admin Guide](docs/ADMIN_GUIDE.md)
 - [Client Handover Checklist](docs/CLIENT_HANDOVER_CHECKLIST.md)
 - [Maintenance and Support](docs/MAINTENANCE_AND_SUPPORT.md)
@@ -116,11 +120,16 @@ See [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](
 - [Launch Checklist](docs/LAUNCH_CHECKLIST.md)
 - [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md)
 - [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md)
+- [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md)
 - [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md)
 - [Redis Cache Policy](project-docs/REDIS_CACHE_POLICY.md)
 - [Sellable Version Checklist](project-docs/SELLABLE_VERSION_CHECKLIST.md)
 - [ImageKit Setup](project-docs/IMAGEKIT_SETUP.md)
 - [Technical Audit and Scalability Review](project-docs/PROJECT_TECHNICAL_AUDIT_AND_SCALABILITY_REVIEW.md)
+- [Rate Limiting and API Security Audit](RATE_LIMITING_AND_API_SECURITY_AUDIT.md)
+- [Progressive Protection](PROGRESSIVE_PROTECTION.md)
+- [Security Monitoring](SECURITY_MONITORING.md)
+- [Cloudflare WAF Setup](CLOUDFLARE_WAF_SETUP.md)
 
 ## Notes For Client Delivery
 

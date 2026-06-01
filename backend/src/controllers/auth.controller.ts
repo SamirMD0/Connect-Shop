@@ -19,10 +19,24 @@ import {
   createOAuthState,
   consumeOAuthState,
 } from '../services/auth.service';
-import { AppError, ForbiddenError, NotFoundError } from '../utils/errors';
+import { AppError, ForbiddenError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import { generateBrowserToken } from '../utils/crypto';
 import { issueCsrfToken } from '../middleware/csrf';
 import { createMfaSetup, verifyMfaCode } from '../services/mfa.service';
+import {
+  logSecurityEvent,
+  maskEmail,
+  requestSecurityContext,
+} from '../services/securityEvent.service';
+import {
+  getLoginIdentifierHash,
+  isLoginCooldownActive,
+  isMfaCooldownActive,
+  LOGIN_COOLDOWN_MESSAGE,
+  MFA_COOLDOWN_MESSAGE,
+  recordFailedLoginAttempt,
+  recordFailedMfaAttempt,
+} from '../services/progressiveProtection.service';
 
 const oauthClient = new OAuth2Client(
   env.GOOGLE_CLIENT_ID,
@@ -237,7 +251,15 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
 export async function login(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const user = await loginWithPassword(assertEmail(req.body.email), assertPassword(req.body.password));
+    const email = assertEmail(req.body.email);
+    const password = assertPassword(req.body.password);
+    const emailHash = getLoginIdentifierHash(email);
+
+    if (await isLoginCooldownActive(req, emailHash)) {
+      throw new AppError(LOGIN_COOLDOWN_MESSAGE, 429);
+    }
+
+    const user = await loginWithPassword(email, password);
     await setSessionForUser(req, res, user.id);
 
     res.json({
@@ -253,6 +275,13 @@ export async function login(req: Request, res: Response, next: NextFunction): Pr
       },
     });
   } catch (err) {
+    if (err instanceof UnauthorizedError && typeof req.body.email === 'string') {
+      const cooldownTriggered = await recordFailedLoginAttempt(req, req.body.email);
+      if (cooldownTriggered) {
+        return next(new AppError(LOGIN_COOLDOWN_MESSAGE, 429));
+      }
+    }
+
     next(err);
   }
 }
@@ -276,6 +305,16 @@ export async function forgotPassword(req: Request, res: Response, next: NextFunc
     await requestPasswordReset(assertEmail(req.body.email));
     res.json({ success: true, message: 'If an account exists, a reset link has been sent' });
   } catch (err) {
+    void logSecurityEvent({
+      ...requestSecurityContext(req),
+      eventType: 'auth.password_reset_failed',
+      severity: 'warning',
+      metadata: {
+        reason: 'invalid_request',
+        emailHash: typeof req.body.email === 'string' ? getLoginIdentifierHash(req.body.email) : undefined,
+        emailMasked: maskEmail(req.body.email),
+      },
+    });
     next(err);
   }
 }
@@ -288,6 +327,12 @@ export async function handleResetPassword(req: Request, res: Response, next: Nex
     await resetPassword(token, assertPassword(req.body.password));
     res.json({ success: true, message: 'Password reset successfully' });
   } catch (err) {
+    void logSecurityEvent({
+      ...requestSecurityContext(req),
+      eventType: 'auth.password_reset_failed',
+      severity: 'warning',
+      metadata: { reason: 'invalid_or_expired_token' },
+    });
     next(err);
   }
 }
@@ -401,14 +446,26 @@ export async function setupMfa(req: Request, res: Response, next: NextFunction):
  */
 export async function verifyMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
+    if (await isMfaCooldownActive(req)) {
+      throw new AppError(MFA_COOLDOWN_MESSAGE, 429);
+    }
+
     const code = typeof req.body.code === 'string' ? req.body.code.trim() : '';
 
     if (!/^\d{6}$/.test(code)) {
+      const cooldownTriggered = await recordFailedMfaAttempt(req, 'invalid_format');
+      if (cooldownTriggered) {
+        throw new AppError(MFA_COOLDOWN_MESSAGE, 429);
+      }
       throw new AppError('MFA code must be 6 digits', 400);
     }
 
     const verified = await verifyMfaCode(req.user!.id, req.user!.session_id!, code);
     if (!verified) {
+      const cooldownTriggered = await recordFailedMfaAttempt(req, 'invalid_code');
+      if (cooldownTriggered) {
+        throw new AppError(MFA_COOLDOWN_MESSAGE, 429);
+      }
       throw new ForbiddenError('Invalid MFA code');
     }
 

@@ -7,9 +7,12 @@ This guide prepares Connect-Shop / ElecSHOP for the selected production stack:
 - Database: Render PostgreSQL
 - Images: ImageKit for production admin uploads, local fallback for development only
 - Domain: Namecheap
+- Edge protection: Cloudflare DNS/proxy/WAF
 - Redis: optional Render Redis-compatible Key Value or Upstash Redis
 
 Use placeholder values only in committed files. Real secrets belong in Vercel and Render environment settings.
+
+For production monitoring, uptime checks, alert severity, log review, and incident response, see `MONITORING_AND_ALERTING_PLAN.md`.
 
 ## 1. Required Environment Variables
 
@@ -136,20 +139,44 @@ On Windows, run these scripts through Git Bash/WSL or use the `pg_dump` and `psq
 
 ## 5. Namecheap Domain And DNS
 
-Buy or manage the domain in Namecheap, then connect it to Vercel.
+Buy or manage the domain in Namecheap, then connect it to Cloudflare and Vercel.
 
 General flow:
 
-1. Add the domain in Vercel.
-2. Copy the exact DNS records Vercel gives you.
-3. In Namecheap DNS, add the exact records from Vercel.
-4. Usually this includes an apex record and a `www` CNAME, but do not guess final values.
-5. Wait for DNS propagation.
-6. Enable/verify HTTPS in Vercel.
-7. Set `NEXT_PUBLIC_SITE_URL=https://www.your-domain.com`.
-8. Set backend `FRONTEND_URL=https://www.your-domain.com`.
+1. Add the domain in Cloudflare.
+2. Change Namecheap nameservers to the Cloudflare nameservers shown in Cloudflare.
+3. Add the domain in Vercel.
+4. Copy the exact DNS records Vercel gives you into Cloudflare DNS.
+5. Add the Render backend DNS record in Cloudflare if using a custom API subdomain such as `api.your-domain.com`.
+6. Enable the orange-cloud proxy only where Vercel/Render support proxying.
+7. Wait for DNS propagation.
+8. Enable/verify HTTPS in Vercel, Render, and Cloudflare.
+9. Set `NEXT_PUBLIC_SITE_URL=https://www.your-domain.com`.
+10. Set backend `FRONTEND_URL=https://www.your-domain.com`.
+11. If using an API subdomain, set `NEXT_PUBLIC_API_URL=https://api.your-domain.com`.
 
-## 6. CORS, Cookies, And CSRF Checks
+Do not guess final DNS values. Copy exact records from Vercel and Render dashboards. See `CLOUDFLARE_WAF_SETUP.md` for the Cloudflare DNS, SSL, WAF, bot protection, and rollback guide.
+
+## 6. Cloudflare / WAF
+
+Use Cloudflare as an edge protection layer in front of the public storefront and, where supported, the API subdomain.
+
+Recommended production shape:
+
+- `your-domain.com` -> Vercel frontend through Cloudflare.
+- `www.your-domain.com` -> Vercel frontend through Cloudflare.
+- `api.your-domain.com` -> Render backend through Cloudflare, if using a custom backend subdomain.
+
+Recommended starting protections:
+
+- Managed Challenge for admin paths and suspicious high-rate traffic.
+- Edge rate limits for auth abuse paths, checkout, product search, and admin image uploads.
+- Block unusual HTTP methods outside `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, and `OPTIONS`.
+- Bot Fight Mode if available, with false-positive monitoring.
+
+Cloudflare does not replace backend validation, CSRF, auth, admin MFA, Redis-backed rate limits, upload validation, or checkout abuse protection. Keep all backend protections enabled.
+
+## 7. CORS, Cookies, And CSRF Checks
 
 The backend has strict CORS and credential support:
 
@@ -166,7 +193,15 @@ Before launch, test:
 - Checkout submission from the production frontend.
 - Admin order status update from the production frontend.
 
-## 7. Image Storage
+If using `api.your-domain.com`, set:
+
+- Backend `FRONTEND_URL` to the exact frontend origin, for example `https://www.your-domain.com`.
+- Frontend `NEXT_PUBLIC_API_URL` to the exact API origin, for example `https://api.your-domain.com`.
+- Frontend `NEXT_PUBLIC_SITE_URL` to the exact public storefront origin.
+
+The backend currently does not use a separate `CORS_ORIGIN` variable.
+
+## 8. Image Storage
 
 Admin image uploads use ImageKit in production through `POST /api/v1/admin/uploads/image`.
 
@@ -192,16 +227,18 @@ Local development behavior:
 - If ImageKit variables exist, local uploads also go to ImageKit.
 - If ImageKit variables are missing and `NODE_ENV` is not `production`, uploads fall back to `frontend/public/uploads/admin`.
 
-Limits:
+Validation and limits:
 
 - Allowed types: PNG, JPG/JPEG, WEBP, and GIF.
-- SVG is not allowed.
-- Max decoded image size: 4 MB.
-- Upload route JSON parser limit: 6 MB for base64 overhead.
+- SVG, HTML, PDF, executables, unknown binary, and renamed text files are not allowed.
+- MIME type, original filename extension, and decoded file signature must agree.
+- Max decoded image size: 5 MB.
+- Upload route JSON parser limit: 7 MB for base64 overhead.
+- Uploaded filenames are regenerated from a sanitized base name, timestamp, random suffix, and safe extension.
 
 See `IMAGEKIT_SETUP.md` for detailed setup and troubleshooting.
 
-## 8. Redis
+## 9. Redis
 
 Redis is optional for demos and local development. The backend can run without `REDIS_URL` and will use in-memory rate limiting with no read-through cache.
 
@@ -209,8 +246,9 @@ For production:
 
 - Use Render Redis-compatible Key Value or Upstash Redis.
 - Set `REDIS_URL` in Render.
-- Use Redis-backed rate limiting when traffic grows or multiple backend instances are used.
+- Use Redis-backed rate limiting for global traffic, auth attempts, checkout, cart mutations, wishlist mutations, admin mutations, admin image uploads, reviews, and product questions.
 - Use Redis read-through caching for safe public reads.
+- Mutation-specific limits key by authenticated user ID when available and fall back to an IPv6-safe IP key for guest checkout or unauthenticated edge cases.
 
 Cached public reads:
 
@@ -231,7 +269,9 @@ Not cached:
 
 Redis failures are handled as cache misses. The API should continue working without exposing Redis errors to clients. See `REDIS_CACHE_POLICY.md` for cache keys and invalidation rules.
 
-## 9. Deployment Verification
+Rate-limit store failures also fail open (`passOnStoreError: true`) so Redis outages do not break local development or production requests. Production should still monitor Redis health because counters are only shared across instances when `REDIS_URL` is available.
+
+## 10. Deployment Verification
 
 After deployment:
 
@@ -242,9 +282,19 @@ After deployment:
 - Render PostgreSQL backups/snapshots are enabled or a manual backup plan is documented.
 - A backup has been taken before first launch.
 - Backup restore has been tested on staging or a temporary database.
+- Cloudflare DNS is active and HTTPS is valid.
+- Basic Cloudflare WAF rules are enabled for admin, auth, checkout, upload, and suspicious API traffic.
+- Cloudflare false positives are checked against normal browsing, login, checkout, admin MFA, and image upload.
 - ImageKit environment variables are set in Render.
 - Admin product image upload returns an ImageKit URL.
+- Admin product image upload rejects SVG, renamed text files, and files over 5 MB with a clean `{ success: false, message }` response.
 - `REDIS_URL` is set if production Redis is used.
+- Checkout/cart/wishlist/admin upload/admin mutation rate limits return the standard `{ success: false, message }` shape when exceeded.
+- Cash-on-delivery checkout rejects a new order when the same user or guest phone number already has 3 active COD orders.
+- Security events are recorded for failed auth attempts, rate-limit hits, checkout abuse blocks, upload rejections, and suspicious admin access attempts.
+- Security event metadata does not contain passwords, tokens, cookies, private keys, or raw image data.
+- Progressive login cooldown blocks repeated failed login attempts with a generic message.
+- Progressive admin MFA cooldown blocks repeated failed MFA attempts with a generic message.
 - Public homepage, categories, featured products, and product detail endpoints still return the same response shapes with or without Redis.
 - CORS works from the frontend domain.
 - Login/register/logout work.
@@ -252,3 +302,10 @@ After deployment:
 - Cart and cash-on-delivery checkout work.
 - Admin order management works.
 - Contact, policy, sitemap, and robots pages load.
+- Frontend homepage uptime check is configured.
+- Backend health uptime check is configured.
+- Alert email is configured for downtime.
+- Render backend logs and Vercel deployment logs are accessible.
+- Database metrics, backup status, and storage usage are visible.
+- ImageKit dashboard access is confirmed.
+- `security_events` and `admin_audit_logs` review process is defined.

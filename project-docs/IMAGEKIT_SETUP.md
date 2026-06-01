@@ -49,12 +49,24 @@ Allowed data URL image types:
 - `image/webp`
 - `image/gif`
 
-SVG upload is not allowed. The backend also checks decoded image signatures so the file contents must match the declared type.
+SVG upload is not allowed. HTML, PDF, executables, text files renamed as images, and unknown binary files are rejected.
+
+Validation rules:
+
+- The request must use a base64 image data URL.
+- The declared MIME type must be allowed.
+- The original filename extension, when provided, must match the uploaded image type.
+- The decoded file signature must match the declared type:
+  - JPEG starts with `FF D8 FF`.
+  - PNG starts with `89 50 4E 47`.
+  - WebP starts with `RIFF` and `WEBP`.
+  - GIF starts with `GIF87a` or `GIF89a`.
+- The backend generates a safe filename using a sanitized base name, timestamp, random suffix, and validated extension.
 
 Limits:
 
-- Max decoded image size: 4 MB.
-- Upload route JSON parser limit: 6 MB to account for base64 overhead.
+- Max decoded image size: 5 MB.
+- Upload route JSON parser limit: 7 MB to account for base64 overhead.
 
 ## Frontend Contract
 
@@ -93,6 +105,8 @@ In Render:
 
 - `IMAGEKIT_* is required in production`: add the missing variable in Render.
 - `Only PNG, JPG, WEBP, or GIF data URLs are supported`: the frontend sent an unsupported or malformed file.
+- `Only PNG, JPG, WEBP, or GIF files are supported`: the original filename used an unsupported extension.
+- `File extension does not match the uploaded image type`: the filename extension and decoded image type disagree.
 - `Image contents do not match the declared file type`: the file extension/MIME data does not match the actual image bytes.
-- `Image must be 4MB or smaller`: resize or compress the image before uploading.
+- `Image is too large. Maximum allowed size is 5MB.`: resize or compress the image before uploading.
 - `Image upload failed`: verify the ImageKit keys, URL endpoint, folder permissions, and account status.

@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { validateSession, User } from '../services/auth.service';
 import { UnauthorizedError } from '../utils/errors';
+import { logSecurityEvent, requestSecurityContext } from '../services/securityEvent.service';
 
 const COOKIE_NAME = 'elecshop_session';
 
@@ -28,12 +29,26 @@ export async function requireAuth(
     const token = req.signedCookies?.[COOKIE_NAME];
 
     if (!token) {
+      if (req.originalUrl.includes('/api/v1/admin')) {
+        void logSecurityEvent({
+          ...requestSecurityContext(req),
+          eventType: 'auth.required_missing',
+          severity: 'warning',
+          metadata: { reason: 'missing_session_cookie' },
+        });
+      }
       throw new UnauthorizedError('No session cookie provided');
     }
 
     const user = await validateSession(token);
 
     if (!user) {
+      void logSecurityEvent({
+        ...requestSecurityContext(req),
+        eventType: 'auth.invalid_session',
+        severity: 'warning',
+        metadata: { reason: 'invalid_or_expired_session' },
+      });
       throw new UnauthorizedError('Invalid or expired session');
     }
 
@@ -60,6 +75,13 @@ export async function optionalAuth(
       const user = await validateSession(token);
       if (user) {
         req.user = user;
+      } else {
+        void logSecurityEvent({
+          ...requestSecurityContext(req),
+          eventType: 'auth.invalid_session',
+          severity: 'info',
+          metadata: { reason: 'optional_auth_invalid_session' },
+        });
       }
     }
 

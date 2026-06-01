@@ -2,11 +2,12 @@
 import { Router } from 'express';
 import { create, list, getById, cancel, requestReturn, reorderItems, invoice } from '../controllers/orders.controller';
 import { optionalAuth, requireAuth } from '../middleware/auth';
+import { checkoutLimiter } from '../middleware/rateLimiter';
 import { placeOrderRules, orderIdRules, returnRequestRules, validate } from '../middleware/validate';
 
 const router = Router();
 
-router.post('/', optionalAuth, ...placeOrderRules, validate, create);
+router.post('/', optionalAuth, checkoutLimiter, ...placeOrderRules, validate, create);
 
 // Order history/detail requires authentication
 router.use(requireAuth);

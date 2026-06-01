@@ -29,6 +29,7 @@ The goal is to sell a practical online shop that a small business can actually o
 - [ ] Cart add/remove/update works
 - [ ] Checkout/order creation works
 - [ ] Cash on delivery supported
+- [ ] Cash-on-delivery active-order abuse protection tested
 - [ ] Customer phone number required
 - [ ] Delivery address fields exist
 - [ ] Admin can view orders
@@ -43,6 +44,11 @@ The goal is to sell a practical online shop that a small business can actually o
 - [ ] Database backup plan exists
 - [ ] Error handling does not expose sensitive data
 - [ ] Security basics enabled
+- [ ] Identity-aware mutation rate limits tested
+- [ ] Image upload file validation tested
+- [ ] Security event logging tested
+- [ ] Security event metadata checked for secrets/PII
+- [ ] Progressive login/MFA cooldowns tested
 - [ ] Domain connected
 - [ ] Business contact info exists
 
@@ -120,7 +126,7 @@ The goal is to sell a practical online shop that a small business can actually o
 - [ ] Test image uploads
 - [ ] Test database persistence
 - [ ] Test backups
-- [ ] Test rate limits
+- [ ] Test global, auth, checkout, cart, wishlist, admin upload, and admin mutation rate limits
 - [ ] Test error pages
 
 ## 4. Production Readiness Checklist

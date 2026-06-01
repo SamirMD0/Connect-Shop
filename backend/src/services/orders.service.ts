@@ -92,6 +92,20 @@ const SHIPPING_BY_REGION: Record<string, number> = {
   bekaa: 5,
 };
 const CASH_ON_DELIVERY = 'cash_on_delivery';
+export const MAX_ACTIVE_COD_ORDERS = 2;
+export const ACTIVE_COD_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'out_for_delivery', 'shipped'];
+const ACTIVE_COD_ORDER_LIMIT_MESSAGE =
+  'You already have pending cash-on-delivery orders. Please wait until they are processed before placing another order.';
+
+export class CheckoutAbuseError extends AppError {
+  constructor(
+    message: string,
+    public readonly reason: 'active_cod_order_limit',
+    public readonly activeOrderCount: number
+  ) {
+    super(message, 400);
+  }
+}
 
 function normalizeRegion(shippingAddress: ShippingAddress): string {
   return (shippingAddress.state || shippingAddress.city || '').trim().toLowerCase();
@@ -111,6 +125,11 @@ function normalizePaymentMethod(method?: string): string {
   }
 
   throw new AppError('Cash on delivery is the only supported payment method for checkout.', 400);
+}
+
+function normalizePhoneForCodLimit(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  return digits || phone.trim().toLowerCase();
 }
 
 function paymentStatusFor(_method: string): string {
@@ -161,6 +180,48 @@ function normalizeShippingAddress(shippingAddress: ShippingAddress): ShippingAdd
     country: requireText(shippingAddress.country, 'Country is required.'),
     notes: optionalText(shippingAddress.notes),
   };
+}
+
+async function assertActiveCodOrderLimit(
+  client: PoolClient,
+  input: { userId: string | null; phone: string; paymentMethod: string }
+): Promise<void> {
+  if (input.paymentMethod !== CASH_ON_DELIVERY) return;
+
+  const normalizedPhone = normalizePhoneForCodLimit(input.phone);
+  const actorKey = input.userId ? `user:${input.userId}` : `phone:${normalizedPhone}`;
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`cod-order:${actorKey}`]);
+
+  const activeOrderResult = input.userId
+    ? await client.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM orders
+       WHERE user_id = $1
+         AND payment_method = $2
+         AND status = ANY($3::text[])`,
+      [input.userId, CASH_ON_DELIVERY, ACTIVE_COD_ORDER_STATUSES]
+    )
+    : await client.query<{ count: string }>(
+      `SELECT COUNT(*) AS count
+       FROM orders
+       WHERE user_id IS NULL
+         AND payment_method = $1
+         AND status = ANY($2::text[])
+         AND (
+           regexp_replace(COALESCE(shipping_address->>'phone', ''), '\\D', '', 'g') = $3
+           OR LOWER(TRIM(COALESCE(shipping_address->>'phone', ''))) = $3
+         )`,
+      [CASH_ON_DELIVERY, ACTIVE_COD_ORDER_STATUSES, normalizedPhone]
+    );
+
+  const activeOrderCount = parseInt(activeOrderResult.rows[0]?.count || '0', 10);
+  if (activeOrderCount >= MAX_ACTIVE_COD_ORDERS) {
+    throw new CheckoutAbuseError(
+      ACTIVE_COD_ORDER_LIMIT_MESSAGE,
+      'active_cod_order_limit',
+      activeOrderCount
+    );
+  }
 }
 
 function pdfEscape(value: unknown): string {
@@ -290,6 +351,11 @@ async function createOrderFromItems(
 ): Promise<Order> {
   const paymentMethod = normalizePaymentMethod(options.paymentMethod);
   const normalizedShippingAddress = normalizeShippingAddress(options.shippingAddress);
+  await assertActiveCodOrderLimit(client, {
+    userId: options.userId,
+    phone: normalizedShippingAddress.phone,
+    paymentMethod,
+  });
 
   for (const item of options.items) {
     if (item.stock < item.quantity) {
