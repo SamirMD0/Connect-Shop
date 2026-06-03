@@ -10,7 +10,7 @@ import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';
 import { Skeleton } from '@/components/ui/Skeleton';
-import { ShoppingBag, ArrowLeft } from 'lucide-react';
+import { ShoppingBag, ArrowLeft, WalletCards, Truck } from 'lucide-react';
 
 export default function CartPage() {
   const { items, loading } = useCart();
@@ -19,7 +19,10 @@ export default function CartPage() {
   if (loading || authLoading) {
     return (
       <Container className="py-8">
-        <h1 className="text-3xl font-bold text-text-primary mb-8">Your Cart</h1>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-text-primary">Your Cart</h1>
+          <p className="mt-2 text-sm text-text-muted">Loading your selected products and order summary.</p>
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
             <PhantomSkeleton loading={true} className="block">
@@ -68,14 +71,15 @@ export default function CartPage() {
     return (
       <div className="animate-fade-in">
         <Container className="py-12">
-          <h1 className="text-3xl font-bold text-text-primary mb-8">Your Cart</h1>
-          <EmptyState
-            icon={<ShoppingBag className="w-16 h-16" />}
-            title="Your cart is empty"
-            description="Looks like you haven&apos;t added any items yet. Start exploring our products!"
-            actionLabel="Start Shopping"
-            actionHref="/store"
-          />
+          <div className="mx-auto max-w-2xl rounded-3xl border border-slate-200/70 bg-white p-8 text-center shadow-sm">
+            <EmptyState
+              icon={<ShoppingBag className="h-16 w-16" />}
+              title="Your cart is empty"
+              description="Add electronics, accessories, or appliances to your cart, then return here to review quantities before checkout."
+              actionLabel="Start Shopping"
+              actionHref="/store"
+            />
+          </div>
         </Container>
       </div>
     );
@@ -85,8 +89,12 @@ export default function CartPage() {
     <div className="animate-fade-in">
       <Container className="py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-text-primary">Your Cart</h1>
+        <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.16em] text-accent">Cart</p>
+            <h1 className="text-3xl font-bold text-text-primary">Review your cart</h1>
+            <p className="mt-2 text-sm text-text-muted">Confirm products, quantities, and estimated totals before checkout.</p>
+          </div>
           <Link href="/store" className="flex items-center gap-2 text-sm text-text-muted hover:text-accent transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Continue Shopping
@@ -96,11 +104,21 @@ export default function CartPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2">
-            <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-6 shadow-lg">
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-2">
-                <span className="text-sm font-medium text-text-muted">
+            <div className="rounded-2xl border border-slate-200/60 bg-bg-surface p-4 shadow-lg sm:p-6">
+              <div className="mb-2 flex flex-col gap-3 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm font-semibold text-text-primary">
                   {items.length} {items.length === 1 ? 'item' : 'items'} in your cart
                 </span>
+                <div className="flex flex-wrap gap-2 text-xs font-medium text-text-muted">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5">
+                    <WalletCards className="h-3.5 w-3.5 text-accent" />
+                    COD checkout
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5">
+                    <Truck className="h-3.5 w-3.5 text-accent" />
+                    Local delivery
+                  </span>
+                </div>
               </div>
               {items.map(item => (
                 <CartItemCard key={item.id} item={item} />

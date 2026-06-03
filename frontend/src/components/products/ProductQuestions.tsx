@@ -60,8 +60,9 @@ export function ProductQuestions({ slug }: { slug: string }) {
 
       {user && (
         <form onSubmit={submit} className="mb-8 rounded-2xl border border-slate-200/60 bg-slate-50 p-5">
-          <label className="mb-2 block text-sm font-medium text-text-primary">Ask about this product</label>
+          <label htmlFor="product-question" className="mb-2 block text-sm font-medium text-text-primary">Ask about this product</label>
           <textarea
+            id="product-question"
             value={question}
             onChange={(event) => setQuestion(event.target.value)}
             rows={3}

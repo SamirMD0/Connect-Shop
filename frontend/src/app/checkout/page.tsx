@@ -14,7 +14,18 @@ import { createWhatsAppUrl } from '@/lib/business-config';
 import { ShippingAddress, Order, UserAddress } from '@/lib/types';
 import DOMPurify from 'dompurify';
 import { z } from 'zod';
-import { CheckCircle2, ShoppingBag, Package, ArrowLeft, Lock, TicketPercent, MessageCircle } from 'lucide-react';
+import {
+  AlertCircle,
+  ArrowLeft,
+  CheckCircle2,
+  ClipboardCheck,
+  MapPin,
+  MessageCircle,
+  Package,
+  ShoppingBag,
+  TicketPercent,
+  WalletCards,
+} from 'lucide-react';
 
 type CheckoutPaymentMethod = 'cash_on_delivery';
 
@@ -81,6 +92,39 @@ const deliverySlots = [
   'Evening (4:00 PM - 8:00 PM)',
 ];
 
+function CheckoutSteps() {
+  const steps = [
+    { label: 'Cart', status: 'Done' },
+    { label: 'Delivery', status: 'Now' },
+    { label: 'Review', status: 'Next' },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 overflow-hidden rounded-2xl border border-slate-200/70 bg-white text-center shadow-sm">
+      {steps.map((step, index) => (
+        <div
+          key={step.label}
+          className={`border-r border-slate-200/70 px-3 py-3 last:border-r-0 ${
+            step.status === 'Now' ? 'bg-accent/10' : ''
+          }`}
+        >
+          <span className={`mx-auto mb-1 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
+            step.status === 'Done'
+              ? 'bg-success text-white'
+              : step.status === 'Now'
+                ? 'bg-accent text-white'
+                : 'bg-slate-100 text-text-muted'
+          }`}>
+            {index + 1}
+          </span>
+          <p className="text-xs font-semibold text-text-primary sm:text-sm">{step.label}</p>
+          <p className="text-[11px] text-text-muted">{step.status}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const { items, subtotal, itemCount, clearCart } = useCart();
@@ -120,7 +164,10 @@ export default function CheckoutPage() {
   if (authLoading) {
     return (
       <Container className="py-8">
-        <Skeleton className="h-10 w-48 mb-8" />
+        <div className="mb-8">
+          <Skeleton className="mb-3 h-10 w-48" />
+          <Skeleton className="h-4 w-72" />
+        </div>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-4">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -280,7 +327,7 @@ export default function CheckoutPage() {
             Your order has been placed successfully.
           </p>
           <p className="text-sm text-text-muted mb-2">
-            We will contact you to confirm the delivery details before dispatch.
+            We will contact you to confirm delivery details before dispatch. Payment is collected on delivery.
           </p>
           <p className="text-sm text-text-muted mb-8">
             Order ID: <span className="text-accent font-mono font-medium">{orderPlaced.id.slice(0, 8).toUpperCase()}</span>
@@ -334,7 +381,7 @@ export default function CheckoutPage() {
       <Container className="py-16 text-center">
         <ShoppingBag className="w-16 h-16 text-text-muted mx-auto mb-4" />
         <h1 className="text-2xl font-bold text-text-primary mb-2">Your cart is empty</h1>
-        <p className="text-text-muted mb-6">Add some items before checking out.</p>
+        <p className="text-text-muted mb-6">Add products to your cart before starting checkout.</p>
         <Link href="/store">
           <Button variant="primary">Browse Store</Button>
         </Link>
@@ -346,21 +393,48 @@ export default function CheckoutPage() {
     <div className="animate-fade-in">
       <Container className="py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-bold text-text-primary">Checkout</h1>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="mb-2 text-sm font-semibold uppercase tracking-[0.16em] text-accent">Checkout</p>
+            <h1 className="text-3xl font-bold text-text-primary">Delivery and review</h1>
+            <p className="mt-2 text-sm text-text-muted">
+              Complete your delivery details. Payment is Cash on Delivery, with no online payment required.
+            </p>
+          </div>
           <Link href="/cart" className="flex items-center gap-2 text-sm text-text-muted hover:text-accent transition-colors">
             <ArrowLeft className="w-4 h-4" />
             Back to Cart
           </Link>
         </div>
 
+        <div className="mb-8">
+          <CheckoutSteps />
+        </div>
+
         <form onSubmit={handleSubmit}>
+          {formError && (
+            <div className="mb-6 flex items-start gap-3 rounded-2xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+              <p>{formError}</p>
+            </div>
+          )}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Shipping Form */}
             <div className="lg:col-span-2">
-              <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-6 shadow-lg">
-                <h2 className="text-lg font-bold text-text-primary mb-6">Shipping Address</h2>
+              <div className="rounded-2xl border border-slate-200/60 bg-bg-surface p-4 shadow-lg sm:p-6">
+                <div className="mb-6 flex items-start gap-3">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-text-primary">Delivery details</h2>
+                    <p className="mt-1 text-sm text-text-muted">Fields marked with * are required.</p>
+                  </div>
+                </div>
                 <div className="space-y-5">
+                  <div>
+                    <h3 className="mb-3 text-sm font-semibold text-text-primary">Contact information</h3>
+                    <div className="grid gap-4">
                   {addresses.length > 0 && (
                     <div>
                       <label className="block text-sm font-medium text-text-primary mb-2">Saved Address</label>
@@ -453,6 +527,12 @@ export default function CheckoutPage() {
                       </div>
                     </div>
                   </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-5">
+                    <h3 className="mb-3 text-sm font-semibold text-text-primary">Delivery information</h3>
+                    <div className="grid gap-4">
                   <div>
                     <label className="block text-sm font-medium text-text-primary mb-2">Address Line 1 *</label>
                     <input 
@@ -523,6 +603,11 @@ export default function CheckoutPage() {
                       readOnly 
                     />
                   </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-5">
+                    <h3 className="mb-3 text-sm font-semibold text-text-primary">Order notes</h3>
                   <div>
                     <label className="block text-sm font-medium text-text-primary mb-2">Delivery Notes</label>
                     <textarea
@@ -533,11 +618,13 @@ export default function CheckoutPage() {
                       placeholder="Optional building, floor, landmark, or delivery instructions"
                     />
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-text-muted">
+                  </div>
+
+                  <label className="flex items-center gap-2 rounded-xl bg-slate-50 p-3 text-sm text-text-muted">
                     <input type="checkbox" disabled={!user} checked={saveAddress} onChange={(event) => setSaveAddress(event.target.checked)} />
                     Save this address to my account
                   </label>
-                  <label className="flex items-start gap-2 text-sm text-text-muted">
+                  <label className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-sm text-text-muted">
                     <input
                       type="checkbox"
                       checked={acceptTerms}
@@ -551,15 +638,22 @@ export default function CheckoutPage() {
                   </label>
                 </div>
 
-                <div className="mt-8">
-                  <h2 className="text-lg font-bold text-text-primary mb-4">Delivery Time</h2>
+                <div className="mt-8 rounded-2xl border border-slate-200/70 bg-white p-4">
+                  <h2 className="mb-2 text-lg font-bold text-text-primary">Delivery Time</h2>
+                  <p className="mb-4 text-sm text-text-muted">Choose the time window that is easiest for coordination.</p>
                   <select className="input-field" value={deliverySlot} onChange={(event) => setDeliverySlot(event.target.value)}>
                     {deliverySlots.map(slot => <option key={slot} value={slot}>{slot}</option>)}
                   </select>
                 </div>
 
-                <div className="mt-8">
-                  <h2 className="text-lg font-bold text-text-primary mb-4">Payment Method</h2>
+                <div className="mt-8 rounded-2xl border border-accent/20 bg-accent/10 p-4">
+                  <div className="mb-4 flex items-start gap-3">
+                    <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                    <div>
+                      <h2 className="text-lg font-bold text-text-primary">Payment Method</h2>
+                      <p className="mt-1 text-sm text-text-muted">Cash on Delivery only. Pay when your order arrives.</p>
+                    </div>
+                  </div>
                   <div className="space-y-3">
                     <label className="flex items-center gap-3 p-4 border border-slate-200 rounded-xl cursor-pointer hover:border-accent transition-colors bg-white">
                       <input 
@@ -582,15 +676,26 @@ export default function CheckoutPage() {
 
             {/* Order Summary */}
             <div>
-              <div className="bg-bg-surface border border-slate-200/60 rounded-2xl p-6 shadow-lg sticky top-24">
-                <h2 className="text-lg font-bold text-text-primary mb-4">Order Review</h2>
+              <div className="sticky top-24 rounded-2xl border border-slate-200/60 bg-bg-surface p-4 shadow-lg sm:p-6">
+                <h2 className="mb-2 text-lg font-bold text-text-primary">Order Review</h2>
+                <p className="mb-4 text-sm text-text-muted">Review items and COD payment before placing the order.</p>
+
+                <div className="mb-4 rounded-xl border border-accent/15 bg-accent/10 p-4">
+                  <div className="flex items-start gap-3">
+                    <WalletCards className="mt-0.5 h-5 w-5 shrink-0 text-accent" />
+                    <div>
+                      <p className="text-sm font-semibold text-text-primary">Cash on Delivery</p>
+                      <p className="mt-1 text-xs leading-5 text-text-muted">Pay when your order arrives. No online payment required.</p>
+                    </div>
+                  </div>
+                </div>
 
                 <div className="space-y-3 mb-6 max-h-64 overflow-y-auto">
                   {items.map(item => (
                     <div key={item.id} className="flex gap-3 p-3 bg-slate-50 rounded-xl">
                       <div className="relative w-14 h-14 rounded-lg bg-white overflow-hidden shrink-0 border border-slate-200/60">
                         {item.image_url ? (
-                          <Image src={item.image_url} alt={item.name} fill className="object-cover" />
+                          <Image src={item.image_url} alt={item.name} fill className="object-contain p-1.5" />
                         ) : (
                           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/10 to-accent-glow/10">
                             <span className="text-sm font-bold text-accent/40">{item.name.charAt(0)}</span>
@@ -615,6 +720,7 @@ export default function CheckoutPage() {
                       onChange={(event) => setCouponCode(event.target.value.toUpperCase())}
                       className="input-field"
                       placeholder="Coupon code"
+                      aria-label="Coupon code"
                     />
                     <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-accent/10 text-accent">
                       <TicketPercent className="h-5 w-5" />
@@ -635,7 +741,7 @@ export default function CheckoutPage() {
                     <span className="text-text-primary font-medium">${taxAmount.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between text-text-muted">
-                    <span>Shipping</span>
+                    <span>Delivery fee</span>
                     <span className="text-text-primary font-medium">${shippingCost.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-text-primary text-lg border-t border-slate-200 pt-4">
@@ -652,18 +758,12 @@ export default function CheckoutPage() {
                   loading={placing}
                   disabled={placing}
                 >
-                  <Lock className="w-4 h-4 mr-2" />
+                  <ClipboardCheck className="w-4 h-4 mr-2" />
                   Place Order
                 </Button>
 
-                {formError && (
-                  <p className="mt-4 rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm text-danger">
-                    {formError}
-                  </p>
-                )}
-
                 <p className="text-xs text-text-muted text-center mt-4">
-                  Your order details are secure.
+                  No online payment is collected on this website.
                 </p>
               </div>
             </div>

@@ -42,13 +42,20 @@ export default function AdminSearch() {
       </div>
 
       <form onSubmit={submitSearch} className="relative max-w-2xl">
+        <label htmlFor="admin-search" className="sr-only">Search admin records</label>
         <input
+          id="admin-search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search admin records..."
           className="w-full rounded-lg border border-slate-200 bg-white py-3 pl-4 pr-12 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15"
         />
-        <button className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 hover:text-accent" disabled={loading}>
+        <button
+          type="submit"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 transition-colors hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+          disabled={loading}
+          aria-label="Search admin records"
+        >
           <Search className="h-5 w-5" />
         </button>
       </form>

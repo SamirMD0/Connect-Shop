@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Plus, Edit2, Trash2, Grid } from 'lucide-react';
+import { Plus, Edit2, Trash2, Grid, Upload } from 'lucide-react';
 import { api, ApiError } from '../../../lib/api';
 import { Category } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
@@ -15,6 +15,7 @@ export default function AdminCategories() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -102,6 +103,34 @@ export default function AdminCategories() {
       setFormError(message);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  const handleImageUpload = async (file: File) => {
+    setFormError('');
+    setUploadingImage(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const res = await api.post<{ success: boolean; url: string }>('/api/admin/uploads/image', {
+        fileName: file.name,
+        dataUrl,
+      });
+
+      setFormData(current => ({ ...current, image_url: res.url }));
+    } catch (error: any) {
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to upload category image.';
+      setFormError(message);
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -222,6 +251,28 @@ export default function AdminCategories() {
               value={formData.image_url} 
               onChange={e => setFormData({...formData, image_url: e.target.value})} 
             />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <label
+                className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent ${
+                  uploadingImage ? 'pointer-events-none opacity-60' : ''
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                {uploadingImage ? 'Uploading...' : 'Upload image'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={event => {
+                    const file = event.target.files?.[0];
+                    event.currentTarget.value = '';
+                    if (file) void handleImageUpload(file);
+                  }}
+                />
+              </label>
+              <span className="text-xs text-slate-500">Uploads to ImageKit when configured.</span>
+            </div>
             {formData.image_url && (
               <div className="mt-3 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <div className="flex h-12 w-12 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">

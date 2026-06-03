@@ -41,15 +41,15 @@ export function CartItemCard({ item }: CartItemProps) {
   };
 
   return (
-    <div className="flex gap-4 py-5 border-b border-slate-100 last:border-b-0">
+    <div className="grid gap-4 border-b border-slate-100 py-5 last:border-b-0 sm:grid-cols-[96px_1fr_auto]">
       {/* Product Image */}
       <Link href={`/store/${item.slug}`} className="shrink-0">
-        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-xl bg-white overflow-hidden relative border border-slate-200/60">
+        <div className="relative h-24 w-24 overflow-hidden rounded-xl border border-slate-200/60 bg-white">
           <SafeImage
             src={item.image_url}
             alt={item.name}
             fill
-            className="object-cover"
+            className="object-contain p-2"
             sizes="96px"
             fallback={
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-accent/10 to-accent-glow/10">
@@ -63,33 +63,40 @@ export function CartItemCard({ item }: CartItemProps) {
       </Link>
 
       {/* Details */}
-      <div className="flex-1 min-w-0">
+      <div className="min-w-0">
         <Link href={`/store/${item.slug}`}>
-          <h3 className="text-sm font-semibold text-text-primary hover:text-accent transition-colors line-clamp-2">
+          <h3 className="line-clamp-2 text-base font-semibold leading-6 text-text-primary transition-colors hover:text-accent">
             {item.name}
           </h3>
         </Link>
         {item.variant_name && (
-          <p className="text-xs text-text-muted mt-0.5">{item.variant_name}</p>
+          <p className="mt-1 text-xs text-text-muted">{item.variant_name}</p>
         )}
-        <p className="text-sm text-accent font-bold mt-1">${price.toFixed(2)}</p>
+        <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+          <span className="font-bold text-accent">${price.toFixed(2)}</span>
+          <span className="text-xs text-text-muted">Stock: {item.stock}</span>
+        </div>
 
-        <div className="flex items-center gap-4 mt-3">
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           {/* Quantity controls */}
-          <div className="flex items-center bg-slate-100 rounded-xl border border-slate-200">
+          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-100">
             <button
+              type="button"
               onClick={() => handleQuantityChange(item.quantity - 1)}
-              className="w-9 h-9 flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+              disabled={item.quantity <= 1}
+              className="flex h-10 w-10 items-center justify-center text-text-muted transition-colors hover:text-text-primary disabled:pointer-events-none disabled:opacity-40"
               aria-label="Decrease quantity"
             >
               <Minus className="w-4 h-4" />
             </button>
-            <span className="w-8 text-center text-sm font-semibold text-text-primary">
+            <span className="w-10 text-center text-sm font-semibold text-text-primary">
               {item.quantity}
             </span>
             <button
+              type="button"
               onClick={() => handleQuantityChange(item.quantity + 1)}
-              className="w-9 h-9 flex items-center justify-center text-text-muted hover:text-text-primary transition-colors"
+              disabled={item.quantity >= item.stock}
+              className="flex h-10 w-10 items-center justify-center text-text-muted transition-colors hover:text-text-primary disabled:pointer-events-none disabled:opacity-40"
               aria-label="Increase quantity"
             >
               <Plus className="w-4 h-4" />
@@ -98,18 +105,20 @@ export function CartItemCard({ item }: CartItemProps) {
 
           {/* Remove */}
           <button
+            type="button"
             onClick={handleRemove}
-            className="flex items-center gap-1.5 text-xs text-text-muted hover:text-danger transition-colors"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-xl px-2 text-xs font-semibold text-text-muted transition-colors hover:bg-danger/10 hover:text-danger"
           >
             <Trash2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Remove</span>
+            <span>Remove</span>
           </button>
         </div>
       </div>
 
       {/* Line Total */}
-      <div className="shrink-0 text-right">
-        <p className="text-base font-bold text-text-primary">${lineTotal}</p>
+      <div className="flex items-center justify-between gap-3 sm:block sm:text-right">
+        <span className="text-xs font-semibold uppercase tracking-wide text-text-muted sm:block">Subtotal</span>
+        <p className="text-lg font-bold text-text-primary sm:mt-1">${lineTotal}</p>
       </div>
     </div>
   );

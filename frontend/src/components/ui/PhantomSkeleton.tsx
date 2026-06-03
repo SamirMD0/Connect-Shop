@@ -22,7 +22,9 @@ export function PhantomSkeleton({
   return (
     <phantom-ui
       loading={loading ? true : undefined}
+      aria-busy={loading ? true : undefined}
       animation={animation}
+      shimmer-direction={loading && animation === 'shimmer' ? 'ltr' : undefined}
       count={count}
       count-gap={countGap}
       className={className}

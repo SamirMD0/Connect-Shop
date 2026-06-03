@@ -85,6 +85,7 @@ export default function AccountPage() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const inputClasses = 'w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20';
 
   useEffect(() => {
     if (!loading && !user) router.replace('/auth/login');
@@ -191,14 +192,20 @@ export default function AccountPage() {
       </div>
 
       {(message || error) && (
-        <p className={`mb-5 text-sm ${error ? 'text-danger' : 'text-accent'}`}>{error || message}</p>
+        <p className={`mb-5 text-sm ${error ? 'text-danger' : 'text-accent'}`} role={error ? 'alert' : 'status'}>{error || message}</p>
       )}
 
       <div className="grid lg:grid-cols-2 gap-8">
         <form onSubmit={saveProfile} className="space-y-4">
           <h2 className="text-xl font-semibold text-text-primary">Profile</h2>
-          <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={name} onChange={(e) => setName(e.target.value)} placeholder="Name" />
-          <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone" />
+          <div>
+            <label htmlFor="profile-name" className="mb-2 block text-sm font-medium text-text-primary">Name</label>
+            <input id="profile-name" className={inputClasses} value={name} onChange={(e) => setName(e.target.value)} placeholder="Your name" />
+          </div>
+          <div>
+            <label htmlFor="profile-phone" className="mb-2 block text-sm font-medium text-text-primary">Phone</label>
+            <input id="profile-phone" className={inputClasses} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" />
+          </div>
           <Button type="submit" loading={saving}>Save profile</Button>
         </form>
 
@@ -213,17 +220,38 @@ export default function AccountPage() {
         <h2 className="text-xl font-semibold text-text-primary mb-4">Addresses</h2>
         <div className="grid lg:grid-cols-2 gap-8">
           <form onSubmit={saveAddress} className="space-y-3">
-            <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={addressForm.label} onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })} placeholder="Label" />
-            <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={addressForm.recipientName} onChange={(e) => setAddressForm({ ...addressForm, recipientName: e.target.value })} placeholder="Recipient name" required />
-            <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={addressForm.phone} onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })} placeholder="Phone" required />
-            <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={addressForm.addressLine1} onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })} placeholder="Address line 1" required />
-            <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={addressForm.addressLine2} onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })} placeholder="Address line 2" />
-            <div className="grid grid-cols-2 gap-3">
-              <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={addressForm.city} onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })} placeholder="City" required />
-              <input className="w-full px-4 py-3 rounded-xl border border-slate-200" value={addressForm.state} onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })} placeholder="Region" />
+            <div>
+              <label htmlFor="address-label" className="mb-2 block text-sm font-medium text-text-primary">Address label</label>
+              <input id="address-label" className={inputClasses} value={addressForm.label} onChange={(e) => setAddressForm({ ...addressForm, label: e.target.value })} placeholder="Home" />
             </div>
-            <label className="flex items-center gap-2 text-sm text-text-muted">
-              <input type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })} />
+            <div>
+              <label htmlFor="address-recipient" className="mb-2 block text-sm font-medium text-text-primary">Recipient name</label>
+              <input id="address-recipient" className={inputClasses} value={addressForm.recipientName} onChange={(e) => setAddressForm({ ...addressForm, recipientName: e.target.value })} placeholder="Recipient name" required />
+            </div>
+            <div>
+              <label htmlFor="address-phone" className="mb-2 block text-sm font-medium text-text-primary">Phone</label>
+              <input id="address-phone" className={inputClasses} value={addressForm.phone} onChange={(e) => setAddressForm({ ...addressForm, phone: e.target.value })} placeholder="Phone number" required />
+            </div>
+            <div>
+              <label htmlFor="address-line-1" className="mb-2 block text-sm font-medium text-text-primary">Address line 1</label>
+              <input id="address-line-1" className={inputClasses} value={addressForm.addressLine1} onChange={(e) => setAddressForm({ ...addressForm, addressLine1: e.target.value })} placeholder="Street and building" required />
+            </div>
+            <div>
+              <label htmlFor="address-line-2" className="mb-2 block text-sm font-medium text-text-primary">Address line 2</label>
+              <input id="address-line-2" className={inputClasses} value={addressForm.addressLine2} onChange={(e) => setAddressForm({ ...addressForm, addressLine2: e.target.value })} placeholder="Apartment, floor, or notes" />
+            </div>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <label htmlFor="address-city" className="mb-2 block text-sm font-medium text-text-primary">City</label>
+                <input id="address-city" className={inputClasses} value={addressForm.city} onChange={(e) => setAddressForm({ ...addressForm, city: e.target.value })} placeholder="City" required />
+              </div>
+              <div>
+                <label htmlFor="address-region" className="mb-2 block text-sm font-medium text-text-primary">Region</label>
+                <input id="address-region" className={inputClasses} value={addressForm.state} onChange={(e) => setAddressForm({ ...addressForm, state: e.target.value })} placeholder="Region" />
+              </div>
+            </div>
+            <label htmlFor="address-default" className="flex items-center gap-2 text-sm text-text-muted">
+              <input id="address-default" type="checkbox" checked={addressForm.isDefault} onChange={(e) => setAddressForm({ ...addressForm, isDefault: e.target.checked })} />
               Default address
             </label>
             <div className="flex gap-3">
@@ -235,13 +263,13 @@ export default function AccountPage() {
           <div className="space-y-3">
             {addresses.map((address) => (
               <div key={address.id} className="border border-slate-200 rounded-xl p-4">
-                <div className="flex justify-between gap-4">
-                  <div>
+                <div className="flex flex-col gap-4 sm:flex-row sm:justify-between">
+                  <div className="min-w-0">
                     <p className="font-semibold text-text-primary">{address.label} {address.is_default && <span className="text-xs text-accent">Default</span>}</p>
                     <p className="text-sm text-text-muted">{address.recipient_name}, {address.phone}</p>
                     <p className="text-sm text-text-muted">{address.address_line1}, {address.city}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2 sm:justify-end">
                     <Button type="button" size="sm" variant="outline" onClick={() => setAddressForm(mapAddress(address))}>Edit</Button>
                     <Button type="button" size="sm" variant="danger" onClick={() => removeAddress(address.id)}>Delete</Button>
                   </div>

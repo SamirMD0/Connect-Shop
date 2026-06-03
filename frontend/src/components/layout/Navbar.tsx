@@ -257,9 +257,9 @@ export function Navbar() {
               </span>
               <div>
                 <span className="block text-[10px] font-semibold uppercase leading-4 text-text-muted">
-                  Cash on Delivery
+                  For support
                 </span>
-                <p className="text-sm font-medium text-[#1C274C]">Pay on arrival</p>
+                <p className="text-sm font-medium text-[#1C274C]">Contact us</p>
               </div>
             </div>
 

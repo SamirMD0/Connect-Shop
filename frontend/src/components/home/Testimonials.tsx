@@ -77,7 +77,7 @@ export function Testimonials({ testimonials: cmsTestimonials }: TestimonialsProp
           </div>
 
           <div className="hidden items-center gap-3 sm:flex" aria-hidden="true">
-            <button className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-[#0B1B48] transition-colors hover:border-[#3C50E0] hover:text-[#3C50E0]">
+            <button type="button" tabIndex={-1} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-[#0B1B48] transition-colors hover:border-[#3C50E0] hover:text-[#3C50E0]">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M15 5L8 12L15 19"
@@ -88,7 +88,7 @@ export function Testimonials({ testimonials: cmsTestimonials }: TestimonialsProp
                 />
               </svg>
             </button>
-            <button className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-[#0B1B48] transition-colors hover:border-[#3C50E0] hover:text-[#3C50E0]">
+            <button type="button" tabIndex={-1} className="flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 text-[#0B1B48] transition-colors hover:border-[#3C50E0] hover:text-[#3C50E0]">
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                 <path
                   d="M9 5L16 12L9 19"

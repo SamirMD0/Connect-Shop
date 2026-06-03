@@ -31,8 +31,23 @@ function ResetPasswordContent() {
     <Container className="py-12 min-h-[70vh] flex justify-center">
       <form onSubmit={submit} className="w-full max-w-md space-y-5">
         <h1 className="text-3xl font-bold text-text-primary">Choose new password</h1>
-        <input className="w-full px-4 py-3 rounded-xl border border-slate-200" type="password" minLength={8} placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-        {error && <p className="text-sm text-danger">{error}</p>}
+        <div>
+          <label htmlFor="new-password" className="mb-2 block text-sm font-medium text-text-primary">
+            New password
+          </label>
+          <input
+            id="new-password"
+            className="w-full rounded-xl border border-slate-200 px-4 py-3 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/20"
+            type="password"
+            minLength={8}
+            placeholder="At least 8 characters"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            aria-describedby={error ? 'reset-password-error' : undefined}
+          />
+        </div>
+        {error && <p id="reset-password-error" className="text-sm text-danger" role="alert">{error}</p>}
         <Button type="submit" className="w-full" loading={loading}>Reset password</Button>
       </form>
     </Container>

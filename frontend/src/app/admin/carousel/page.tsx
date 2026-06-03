@@ -2,11 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
-import { useRouter } from 'next/navigation';
+import { Upload } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Modal } from '@/components/admin/Modal';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { Brand, CarouselSlide, Category, Product } from '@/lib/types';
 import { useToast } from '@/hooks/useToast';
 
@@ -40,13 +40,13 @@ function parseCarouselLink(link: string | null | undefined): { type: LinkTargetT
 }
 
 export default function CarouselManagementPage() {
-  const router = useRouter();
   const { addToast } = useToast();
   const [slides, setSlides] = useState<CarouselSlide[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [loading, setLoading] = useState(true);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSlide, setEditingSlide] = useState<CarouselSlide | null>(null);
   const [linkTargetType, setLinkTargetType] = useState<LinkTargetType>('product');
@@ -155,6 +155,34 @@ export default function CarouselManagementPage() {
     }
   };
 
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  const handleImageUpload = async (file: File) => {
+    setUploadingImage(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const res = await api.post<{ success: boolean; url: string }>('/api/admin/uploads/image', {
+        fileName: file.name,
+        dataUrl,
+      });
+
+      setFormData(current => ({ ...current, image_url: res.url }));
+      addToast('Image uploaded', 'success');
+    } catch (error) {
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to upload image.';
+      addToast(message, 'error');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
   const filteredProducts = products
     .filter(product => {
@@ -248,6 +276,35 @@ export default function CarouselManagementPage() {
           <div>
             <label className="block text-sm font-medium text-muted mb-1">Image URL *</label>
             <input required type="text" placeholder="/images/carousel/example.jpg" className={inputClasses} value={formData.image_url} onChange={e => setFormData({...formData, image_url: e.target.value})} />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <label
+                className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent ${
+                  uploadingImage ? 'pointer-events-none opacity-60' : ''
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                {uploadingImage ? 'Uploading...' : 'Upload image'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={event => {
+                    const file = event.target.files?.[0];
+                    event.currentTarget.value = '';
+                    if (file) void handleImageUpload(file);
+                  }}
+                />
+              </label>
+              <span className="text-xs text-slate-500">Uploads to ImageKit when configured.</span>
+            </div>
+            {formData.image_url && (
+              <div className="mt-3 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                <div className="relative h-32 w-full bg-white">
+                  <Image src={formData.image_url} alt="Carousel image preview" fill className="object-cover" />
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">

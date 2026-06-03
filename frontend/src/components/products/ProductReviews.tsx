@@ -94,7 +94,9 @@ export function ProductReviews({ productId }: { productId: string }) {
                   key={star}
                   type="button"
                   onClick={() => setRating(star)}
-                  className="p-1 focus:outline-none"
+                  className="rounded-md p-1 focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  aria-label={`Rate ${star} out of 5 stars`}
+                  aria-pressed={star === rating}
                 >
                   <Star className={`w-6 h-6 ${star <= rating ? 'fill-accent text-accent' : 'text-slate-300'}`} />
                 </button>
@@ -102,8 +104,9 @@ export function ProductReviews({ productId }: { productId: string }) {
             </div>
           </div>
           <div className="mb-4">
-            <label className="block text-sm font-medium text-text-primary mb-2">Title</label>
+            <label htmlFor="review-title" className="block text-sm font-medium text-text-primary mb-2">Title</label>
             <input
+              id="review-title"
               type="text"
               required
               value={title}
@@ -113,8 +116,9 @@ export function ProductReviews({ productId }: { productId: string }) {
             />
           </div>
           <div className="mb-6">
-            <label className="block text-sm font-medium text-text-primary mb-2">Review</label>
+            <label htmlFor="review-body" className="block text-sm font-medium text-text-primary mb-2">Review</label>
             <textarea
+              id="review-body"
               required
               rows={4}
               value={body}

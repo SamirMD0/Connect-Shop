@@ -1,4 +1,5 @@
 import React from 'react';
+import { Inbox } from 'lucide-react';
 import { PhantomSkeleton } from '../ui/PhantomSkeleton';
 
 interface Column<T> {
@@ -29,13 +30,13 @@ export function DataTable<T>({
 
     return (
       <PhantomSkeleton loading={loading} className="block">
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-200/80">
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/80">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table className="w-full whitespace-nowrap text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
                 <tr>
                   {columns.map((col, i) => (
-                    <th key={i} className="px-6 py-4 text-xs font-bold uppercase tracking-[0.16em]">
+                    <th key={i} className="px-5 py-4 text-xs font-bold uppercase tracking-[0.14em]">
                       {col.header}
                     </th>
                   ))}
@@ -45,7 +46,7 @@ export function DataTable<T>({
                 {rows.map((_, rowIndex) => (
                   <tr key={`loading-row-${rowIndex}`} className="text-[#0B1B48]">
                     {columns.map((col, colIndex) => (
-                      <td key={`${col.header}-${colIndex}`} className="px-6 py-4 align-middle">
+                      <td key={`${col.header}-${colIndex}`} className="px-5 py-4 align-middle">
                         <span className="inline-block text-slate-500">
                           {colIndex === 0 ? 'Loading item' : 'Loading'}
                         </span>
@@ -63,20 +64,24 @@ export function DataTable<T>({
 
   if (!data || data.length === 0) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-10 text-center shadow-sm shadow-slate-200/80">
-        <p className="text-sm font-medium text-slate-500">{emptyMessage}</p>
+      <div className="rounded-xl border border-slate-200 bg-white p-10 text-center shadow-sm shadow-slate-200/80">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
+          <Inbox className="h-6 w-6" />
+        </div>
+        <p className="text-sm font-semibold text-[#0B1B48]">{emptyMessage}</p>
+        <p className="mt-1 text-xs text-slate-500">Data will appear here when available.</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-200/80">
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/80">
       <div className="overflow-x-auto">
-      <table className="w-full text-left text-sm whitespace-nowrap">
+      <table className="w-full whitespace-nowrap text-left text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
           <tr>
             {columns.map((col, i) => (
-              <th key={i} className="px-6 py-4 text-xs font-bold uppercase tracking-[0.16em]">
+              <th key={i} className="px-5 py-4 text-xs font-bold uppercase tracking-[0.14em]">
                 {col.header}
               </th>
             ))}
@@ -86,7 +91,7 @@ export function DataTable<T>({
           {data.map((item) => (
             <tr key={keyExtractor(item)} className="text-[#0B1B48] transition-colors hover:bg-blue-50/50">
               {columns.map((col, i) => (
-                <td key={i} className="px-6 py-4 align-middle">
+                <td key={i} className="px-5 py-4 align-middle">
                   {col.cell ? col.cell(item) : String(item[col.accessorKey as keyof T])}
                 </td>
               ))}

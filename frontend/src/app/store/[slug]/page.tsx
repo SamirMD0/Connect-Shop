@@ -130,9 +130,13 @@ export default async function ProductDetailPage({ params }: Props) {
         <nav className="flex items-center gap-2 text-sm text-text-muted mb-8">
           <Link href="/store" className="hover:text-accent transition-colors">Store</Link>
           <ChevronRight className="w-4 h-4" />
-          <Link href={`/store?category=${product.category_slug}`} className="hover:text-accent transition-colors">
-            {product.category_name}
-          </Link>
+          {product.category_slug ? (
+            <Link href={`/store?category=${product.category_slug}`} className="hover:text-accent transition-colors">
+              {product.category_name}
+            </Link>
+          ) : (
+            <span>{product.category_name || 'Product'}</span>
+          )}
           <ChevronRight className="w-4 h-4" />
           <span className="text-text-primary truncate">{product.name}</span>
         </nav>

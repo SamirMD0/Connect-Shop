@@ -71,7 +71,7 @@ export default function RegisterPage() {
                 <input className="input-field !pl-12" type="password" placeholder="At least 8 characters" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
               </div>
             </label>
-            {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>}
+            {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
             <Button type="submit" className="w-full" loading={loading}>Create account</Button>
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-slate-200" />

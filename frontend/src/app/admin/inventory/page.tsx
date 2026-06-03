@@ -39,13 +39,13 @@ export default function AdminInventory() {
   const columns = [
     { header: 'Item', cell: (item: InventoryAlert) => (
       <div>
-        <p className="font-medium text-white">{item.name}</p>
+        <p className="font-semibold text-[#0B1B48]">{item.name}</p>
         <p className="text-xs text-slate-500 uppercase">{item.item_type}</p>
       </div>
     ) },
-    { header: 'SKU', cell: (item: InventoryAlert) => item.sku || '-' },
+    { header: 'SKU', cell: (item: InventoryAlert) => <span className="font-mono text-xs text-slate-500">{item.sku || '-'}</span> },
     { header: 'Stock', cell: (item: InventoryAlert) => (
-      <span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-medium ${item.stock === 0 ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'}`}>
+      <span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold ${item.stock === 0 ? 'bg-danger/10 text-danger' : 'bg-warning/15 text-warning'}`}>
         {item.stock}
       </span>
     ) },
@@ -55,20 +55,21 @@ export default function AdminInventory() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Inventory Alerts</h1>
-          <p className="mt-1 text-sm text-slate-400">Products and variants at or below the selected threshold.</p>
+          <h1 className="text-2xl font-bold text-[#0B1B48]">Inventory Alerts</h1>
+          <p className="mt-1 text-sm text-slate-500">Products and variants at or below the selected threshold.</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
           <input
             type="number"
             min={0}
+            aria-label="Low stock threshold"
             value={threshold}
             onChange={(event) => setThreshold(parseInt(event.target.value || '0', 10))}
-            className="w-24 rounded-xl border border-[#1e293b] bg-[#0a0a14] px-3 py-2 text-white outline-none focus:border-accent"
+            className="w-24 rounded-xl border border-slate-200 bg-white px-3 py-2 text-[#0B1B48] outline-none transition-colors focus:border-accent"
           />
           <button
             onClick={() => void fetchAlerts()}
-            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-medium text-white"
+            className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-accent-glow"
           >
             <RefreshCw className="h-4 w-4" />
             Refresh
@@ -77,12 +78,12 @@ export default function AdminInventory() {
       </div>
 
       {!loading && alerts.length === 0 ? (
-        <div className="rounded-xl border border-[#1e293b] bg-[#12121a] p-8 text-center text-slate-400">
-          <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-slate-500" />
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-500 shadow-sm">
+          <AlertTriangle className="mx-auto mb-3 h-8 w-8 text-slate-400" />
           No low stock items found.
         </div>
       ) : (
-        <DataTable data={alerts} columns={columns} keyExtractor={(item) => `${item.item_type}-${item.id}`} />
+        <DataTable data={alerts} columns={columns} keyExtractor={(item) => `${item.item_type}-${item.id}`} loading={loading} emptyMessage="No inventory alerts found" />
       )}
     </div>
   );

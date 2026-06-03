@@ -34,7 +34,8 @@ export function UserMenu() {
     <div className="relative" ref={menuRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full ring-2 ring-transparent hover:ring-accent-glow focus:outline-none transition-all"
+        className="flex items-center gap-2 rounded-full ring-2 ring-transparent transition-all hover:ring-accent-glow focus:outline-none focus:ring-accent"
+        aria-label={`Open account menu for ${user.name}`}
         aria-expanded={isOpen}
         aria-haspopup="true"
       >

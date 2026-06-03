@@ -87,7 +87,7 @@ export default function LoginPage() {
                 <input className="input-field !pl-12" type="password" placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
               </div>
             </label>
-            {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger">{error}</p>}
+            {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
             <Button type="submit" className="w-full" loading={loading}>Sign in</Button>
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-slate-200" />

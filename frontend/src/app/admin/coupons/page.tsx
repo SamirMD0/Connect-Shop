@@ -5,6 +5,8 @@ import { Edit2, Plus, Trash2 } from 'lucide-react';
 import { api } from '../../../lib/api';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
+import { ConfirmDialog } from '../../../components/admin/ConfirmDialog';
+import { useToast } from '@/hooks/useToast';
 
 interface Coupon {
   id: number;
@@ -42,10 +44,13 @@ const emptyForm: CouponForm = {
 };
 
 export default function AdminCoupons() {
+  const { addToast } = useToast();
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [editing, setEditing] = useState<Coupon | null>(null);
   const [form, setForm] = useState(emptyForm);
   const [open, setOpen] = useState(false);
+  const [couponToDelete, setCouponToDelete] = useState<Coupon | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function fetchCoupons() {
     const res = await api.get<{ success: boolean; coupons: Coupon[] }>('/api/admin/coupons');
@@ -90,33 +95,42 @@ export default function AdminCoupons() {
     await fetchCoupons();
   }
 
-  async function deleteCoupon(id: number) {
-    if (!confirm('Delete this coupon?')) return;
-    await api.delete(`/api/admin/coupons/${id}`);
-    await fetchCoupons();
+  async function deleteCoupon() {
+    if (!couponToDelete) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/admin/coupons/${couponToDelete.id}`);
+      setCouponToDelete(null);
+      addToast('Coupon deleted.', 'success');
+      await fetchCoupons();
+    } catch (error: any) {
+      addToast(error.message || 'Failed to delete coupon.', 'error');
+    } finally {
+      setDeleting(false);
+    }
   }
 
-  const inputClasses = 'w-full rounded-xl border border-[#1e293b] bg-[#0a0a14] px-4 py-3 text-white outline-none focus:border-accent';
+  const inputClasses = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
   const columns = [
     { header: 'Code', cell: (coupon: Coupon) => (
       <div>
-        <p className="font-mono font-semibold text-white">{coupon.code}</p>
+        <p className="font-mono font-semibold text-[#0B1B48]">{coupon.code}</p>
         <p className="text-xs text-slate-500">{coupon.description || 'No description'}</p>
       </div>
     ) },
     { header: 'Discount', cell: (coupon: Coupon) => coupon.type === 'percent' ? `${coupon.value}%` : `$${coupon.value}` },
     { header: 'Usage', cell: (coupon: Coupon) => `${coupon.used_count}${coupon.usage_limit ? ` / ${coupon.usage_limit}` : ''}` },
     { header: 'Status', cell: (coupon: Coupon) => (
-      <span className={`rounded-lg px-2.5 py-1 text-xs font-medium ${coupon.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-400'}`}>
+      <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${coupon.is_active ? 'bg-success/10 text-success' : 'bg-slate-100 text-slate-500'}`}>
         {coupon.is_active ? 'Active' : 'Inactive'}
       </span>
     ) },
     { header: 'Actions', cell: (coupon: Coupon) => (
       <div className="flex gap-1">
-        <button onClick={() => openModal(coupon)} className="rounded-lg p-2 text-slate-400 hover:bg-accent/10 hover:text-accent">
+        <button onClick={() => openModal(coupon)} className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${coupon.code}`}>
           <Edit2 className="h-4 w-4" />
         </button>
-        <button onClick={() => void deleteCoupon(coupon.id)} className="rounded-lg p-2 text-slate-400 hover:bg-red-400/10 hover:text-red-400">
+        <button onClick={() => setCouponToDelete(coupon)} className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger" aria-label={`Delete ${coupon.code}`}>
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -127,40 +141,70 @@ export default function AdminCoupons() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Coupons</h1>
-          <p className="mt-1 text-sm text-slate-400">Create and manage discount codes.</p>
+          <h1 className="text-2xl font-bold text-[#0B1B48]">Coupons</h1>
+          <p className="mt-1 text-sm text-slate-500">Create and manage discount codes.</p>
         </div>
-        <button onClick={() => openModal()} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-medium text-white">
+        <button onClick={() => openModal()} className="inline-flex items-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white transition-colors hover:bg-accent-glow">
           <Plus className="h-4 w-4" />
           Add
         </button>
       </div>
 
-      <DataTable data={coupons} columns={columns} keyExtractor={(coupon) => coupon.id} />
+      <DataTable data={coupons} columns={columns} keyExtractor={(coupon) => coupon.id} emptyMessage="No coupons found" />
 
       <Modal isOpen={open} onClose={() => setOpen(false)} title={editing ? 'Edit Coupon' : 'Add Coupon'}>
         <form onSubmit={saveCoupon} className="space-y-4">
-          <input required className={inputClasses} placeholder="Code" value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} />
-          <textarea className={inputClasses} rows={3} placeholder="Description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Code *</span>
+            <input required className={inputClasses} placeholder="WELCOME10" value={form.code} onChange={e => setForm({ ...form, code: e.target.value.toUpperCase() })} />
+          </label>
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Description</span>
+            <textarea className={inputClasses} rows={3} placeholder="Optional internal description" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
+          </label>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <select className={inputClasses} value={form.type} onChange={e => setForm({ ...form, type: e.target.value as 'percent' | 'fixed' })}>
-              <option value="percent">Percent</option>
-              <option value="fixed">Fixed amount</option>
-            </select>
-            <input required type="number" min="0" step="0.01" className={inputClasses} placeholder="Value" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Type</span>
+              <select className={inputClasses} value={form.type} onChange={e => setForm({ ...form, type: e.target.value as 'percent' | 'fixed' })}>
+                <option value="percent">Percent</option>
+                <option value="fixed">Fixed amount</option>
+              </select>
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Value *</span>
+              <input required type="number" min="0" step="0.01" className={inputClasses} placeholder="10" value={form.value} onChange={e => setForm({ ...form, value: e.target.value })} />
+            </label>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <input type="datetime-local" className={inputClasses} value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} />
-            <input type="datetime-local" className={inputClasses} value={form.expires_at} onChange={e => setForm({ ...form, expires_at: e.target.value })} />
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Starts at</span>
+              <input type="datetime-local" className={inputClasses} value={form.starts_at} onChange={e => setForm({ ...form, starts_at: e.target.value })} />
+            </label>
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Expires at</span>
+              <input type="datetime-local" className={inputClasses} value={form.expires_at} onChange={e => setForm({ ...form, expires_at: e.target.value })} />
+            </label>
           </div>
-          <input type="number" min="1" className={inputClasses} placeholder="Usage limit" value={form.usage_limit} onChange={e => setForm({ ...form, usage_limit: e.target.value })} />
-          <label className="flex items-center gap-3 text-sm text-slate-300">
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Usage limit</span>
+            <input type="number" min="1" className={inputClasses} placeholder="Optional" value={form.usage_limit} onChange={e => setForm({ ...form, usage_limit: e.target.value })} />
+          </label>
+          <label className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600">
             <input type="checkbox" checked={form.is_active} onChange={e => setForm({ ...form, is_active: e.target.checked })} />
             Active
           </label>
-          <button type="submit" className="w-full rounded-xl bg-accent px-4 py-3 font-medium text-white">Save</button>
+          <button type="submit" className="w-full rounded-xl bg-accent px-4 py-3 font-semibold text-white transition-colors hover:bg-accent-glow">Save</button>
         </form>
       </Modal>
+      <ConfirmDialog
+        isOpen={Boolean(couponToDelete)}
+        title="Delete coupon"
+        description={`Delete coupon ${couponToDelete?.code || ''}? Existing historical orders will not be changed.`}
+        confirmLabel="Delete coupon"
+        loading={deleting}
+        onCancel={() => setCouponToDelete(null)}
+        onConfirm={() => void deleteCoupon()}
+      />
     </div>
   );
 }

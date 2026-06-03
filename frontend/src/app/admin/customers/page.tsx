@@ -50,50 +50,60 @@ export default function AdminCustomers() {
   }
 
   const columns = [
-    { header: 'ID', cell: (u: User) => <span className="text-xs text-muted font-mono">{u.id}</span> },
-    { header: 'Name', accessorKey: 'name' as keyof User },
-    { header: 'Email', accessorKey: 'email' as keyof User },
+    { header: 'ID', cell: (u: User) => <span className="font-mono text-xs text-slate-500">{u.id.slice(0, 8)}</span> },
+    { header: 'Name', cell: (u: User) => <span className="font-semibold text-[#0B1B48]">{u.name}</span> },
+    { header: 'Email', cell: (u: User) => <span className="text-slate-600">{u.email}</span> },
     { header: 'Role', cell: (u: User) => (
       <select
         value={u.role}
         onChange={(event) => void updateRole(u.id, event.target.value)}
-        className={`rounded-lg border border-[#1e293b] px-2 py-1 text-xs font-medium outline-none ${['admin', 'super_admin'].includes(u.role) ? 'bg-accent/20 text-accent' : 'bg-slate-800 text-slate-300'}`}
+        className={`rounded-lg border px-2.5 py-1.5 text-xs font-semibold outline-none transition-colors focus:border-accent ${
+          ['admin', 'super_admin'].includes(u.role)
+            ? 'border-accent/20 bg-accent/10 text-accent'
+            : 'border-slate-200 bg-slate-50 text-slate-600'
+        }`}
       >
-        {roles.map(role => <option key={role} value={role} className="bg-slate-900 text-white">{role}</option>)}
+        {roles.map(role => <option key={role} value={role}>{role}</option>)}
       </select>
     )},
     { header: 'Actions', cell: (u: User) => (
-      <button onClick={() => void openDetail(u)} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-300 hover:bg-accent/10 hover:text-accent">
+      <button onClick={() => void openDetail(u)} className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-accent/10 hover:text-accent">
         <Eye className="h-4 w-4" />
         View
       </button>
     )},
   ];
 
-  if (loading) return <div className="text-white">Loading customers...</div>;
+  if (loading) return <DataTable data={[]} columns={columns} keyExtractor={(u) => u.id} loading />;
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-primary">Customers</h1>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-[#0B1B48]">Customers</h1>
+          <p className="mt-1 text-sm text-slate-500">Review customer profiles, roles, addresses, and recent orders.</p>
+        </div>
       </div>
-      <DataTable data={users} columns={columns} keyExtractor={(u) => u.id} />
+      <DataTable data={users} columns={columns} keyExtractor={(u) => u.id} emptyMessage="No customers found" />
 
       <Modal isOpen={detailOpen} onClose={() => setDetailOpen(false)} title="Customer Detail">
         {selectedDetail && (
           <div className="space-y-5 text-sm">
-            <div className="rounded-xl border border-[#1e293b] bg-[#0a0a14] p-4">
-              <p className="font-semibold text-white">{selectedDetail.user.name}</p>
-              <p className="text-slate-400">{selectedDetail.user.email}</p>
-              <p className="mt-2 text-slate-500">Role: {selectedDetail.user.role}</p>
-              <p className="text-slate-500">Orders: {selectedDetail.totals.order_count} · Total spent: ${selectedDetail.totals.total_spent}</p>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="font-semibold text-[#0B1B48]">{selectedDetail.user.name}</p>
+              <p className="text-slate-600">{selectedDetail.user.email}</p>
+              <div className="mt-3 grid gap-2 rounded-lg bg-white p-3 text-xs text-slate-500 sm:grid-cols-2">
+                <span>Role: <strong className="text-[#0B1B48]">{selectedDetail.user.role}</strong></span>
+                <span>Orders: <strong className="text-[#0B1B48]">{selectedDetail.totals.order_count}</strong></span>
+                <span className="sm:col-span-2">Total spent: <strong className="text-[#0B1B48]">${selectedDetail.totals.total_spent}</strong></span>
+              </div>
             </div>
 
             <section>
-              <h2 className="mb-2 font-semibold text-white">Addresses</h2>
+              <h2 className="mb-2 font-semibold text-[#0B1B48]">Addresses</h2>
               <div className="space-y-2">
                 {selectedDetail.addresses.map((address: any) => (
-                  <div key={address.id} className="rounded-lg border border-[#1e293b] p-3 text-slate-300">
+                  <div key={address.id} className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">
                     {address.recipient_name}, {address.address_line1}, {address.city}, {address.country}
                   </div>
                 ))}
@@ -102,13 +112,13 @@ export default function AdminCustomers() {
             </section>
 
             <section>
-              <h2 className="mb-2 font-semibold text-white">Recent Orders</h2>
+              <h2 className="mb-2 font-semibold text-[#0B1B48]">Recent Orders</h2>
               <div className="space-y-2">
                 {selectedDetail.orders.map((order: any) => (
-                  <div key={order.id} className="flex items-center justify-between rounded-lg border border-[#1e293b] p-3 text-slate-300">
+                  <div key={order.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 text-slate-600">
                     <span className="font-mono">{String(order.id).slice(0, 8)}</span>
-                    <span>{order.status}</span>
-                    <span>${order.total}</span>
+                    <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold capitalize text-slate-600">{order.status}</span>
+                    <span className="font-semibold text-[#0B1B48]">${order.total}</span>
                   </div>
                 ))}
                 {selectedDetail.orders.length === 0 && <p className="text-slate-500">No orders yet.</p>}
