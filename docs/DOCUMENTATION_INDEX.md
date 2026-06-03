@@ -68,6 +68,7 @@ This index keeps the existing documentation in place and links to it by purpose.
 
 | File | Purpose | Who Should Read It | Status |
 |---|---|---|---|
+| [`../FINAL_PRODUCTION_READINESS_VERDICT.md`](../FINAL_PRODUCTION_READINESS_VERDICT.md) | Official final QA launch verdict, smoke test checklist, and risk register. | Gemini/reviewer, developer, business owner. | final decision |
 | [`FINAL_GEMINI_REVIEW_PACKAGE.md`](FINAL_GEMINI_REVIEW_PACKAGE.md) | Ready-to-use final independent review package for Gemini. | Gemini/reviewer, developer. | ready |
 | [`PHASES_COMPLETION_SUMMARY.md`](PHASES_COMPLETION_SUMMARY.md) | Summary of major planning, hardening, deployment, and documentation phases. | Developer, reviewer. | ready |
 

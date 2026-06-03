@@ -293,21 +293,34 @@ export async function validateSession(token: string): Promise<User | null> {
 }
 
 /**
- * Destroy a session by its token (logout).
+ * Revoke a session by its token (logout).
+ * The hashed token remains in the sessions table with revoked_at set, so a
+ * stolen cookie cannot be reused after logout and the revocation is auditable
+ * until normal expired-session cleanup removes it.
  */
 export async function destroySession(token: string): Promise<void> {
   if (!isValidRawSessionToken(token)) {
     return;
   }
 
-  await query('DELETE FROM sessions WHERE token = $1', [hashToken(token)]);
+  await query(
+    `UPDATE sessions
+     SET revoked_at = COALESCE(revoked_at, NOW())
+     WHERE token = $1`,
+    [hashToken(token)]
+  );
 }
 
 /**
- * Destroy all sessions for a user (force logout everywhere).
+ * Revoke all sessions for a user (force logout everywhere).
  */
 export async function destroyAllUserSessions(userId: string): Promise<void> {
-  await query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+  await query(
+    `UPDATE sessions
+     SET revoked_at = COALESCE(revoked_at, NOW())
+     WHERE user_id = $1`,
+    [userId]
+  );
 }
 
 export async function getUserSessions(userId: string, currentSessionId?: string): Promise<Session[]> {
