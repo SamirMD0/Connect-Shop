@@ -8,9 +8,15 @@ interface SearchBarProps {
   value: string;
   onChange: (value: string) => void;
   placeholder?: string;
+  ariaLabel?: string;
 }
 
-export function SearchBar({ value, onChange, placeholder = 'Search products...' }: SearchBarProps) {
+export function SearchBar({
+  value,
+  onChange,
+  placeholder = 'Search products...',
+  ariaLabel = 'Search products',
+}: SearchBarProps) {
   const [localValue, setLocalValue] = useState(value);
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
@@ -41,10 +47,12 @@ export function SearchBar({ value, onChange, placeholder = 'Search products...' 
         value={localValue}
         onChange={(e) => handleChange(e.target.value)}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         className="w-full pl-12 pr-10 py-3 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all"
       />
       {localValue && (
         <button
+          type="button"
           onClick={handleClear}
           className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
           aria-label="Clear search"

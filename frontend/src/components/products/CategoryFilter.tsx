@@ -14,7 +14,9 @@ export function CategoryFilter({ categories, selected, onSelect }: CategoryFilte
     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
       {/* All */}
       <button
+        type="button"
         onClick={() => onSelect(null)}
+        aria-pressed={selected === null}
         className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all duration-200 ${
           selected === null
             ? 'bg-accent text-white border-accent shadow-lg shadow-accent/25'
@@ -26,8 +28,10 @@ export function CategoryFilter({ categories, selected, onSelect }: CategoryFilte
 
       {categories.map(cat => (
         <button
+          type="button"
           key={cat.id}
           onClick={() => onSelect(cat.slug === selected ? null : cat.slug)}
+          aria-pressed={selected === cat.slug}
           className={`shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium border transition-all duration-200 ${
             selected === cat.slug
               ? 'bg-accent text-white border-accent shadow-lg shadow-accent/25'

@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { Container } from './Container';
 import { CartIcon } from '@/components/cart/CartIcon';
 import { UserMenu } from '@/components/auth/UserMenu';
@@ -12,12 +13,25 @@ import { ChevronDown, Menu, Search } from 'lucide-react';
 import { WishlistIcon } from '@/components/wishlist/WishlistIcon';
 import { hasAdminAccess } from '@/lib/adminPermissions';
 import { api } from '@/lib/api';
-import { Category } from '@/lib/types';
+import { Category, Product } from '@/lib/types';
+import { SafeImage } from '@/components/ui/SafeImage';
+
+function formatSuggestionPrice(value: string) {
+  const price = parseFloat(value);
+  if (!Number.isFinite(price)) return value;
+  return `$${Number.isInteger(price) ? price.toFixed(0) : price.toFixed(2)}`;
+}
 
 export function Navbar() {
   const { user, loading } = useAuth();
+  const router = useRouter();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const searchAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     api.get<{ success: boolean; categories: Category[] }>('/api/categories')
@@ -25,7 +39,55 @@ export function Navbar() {
       .catch(() => setCategories([]));
   }, []);
 
+  useEffect(() => {
+    const query = searchQuery.trim();
+
+    searchAbortRef.current?.abort();
+
+    if (query.length < 2) {
+      setSuggestions([]);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setSuggestionsLoading(true);
+
+    const timer = window.setTimeout(() => {
+      api.get<{ success: boolean; products: Product[] }>('/api/products', {
+        params: { search: query, limit: 5 },
+        signal: controller.signal,
+      })
+        .then((res) => {
+          setSuggestions(res.products || []);
+          setSuggestionsOpen(true);
+        })
+        .catch((error) => {
+          if (error instanceof DOMException && error.name === 'AbortError') return;
+          setSuggestions([]);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setSuggestionsLoading(false);
+          }
+        });
+    }, 250);
+
+    return () => {
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [searchQuery]);
+
   const parentCategories = categories.filter(category => !category.parent_id);
+
+  const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = searchQuery.trim();
+    setSuggestionsOpen(false);
+    router.push(query ? `/store?search=${encodeURIComponent(query)}` : '/store');
+  };
 
   return (
     <header className="sticky left-0 top-0 z-50 w-full bg-white shadow-sm shadow-slate-200/60 transition-all duration-300">
@@ -38,7 +100,7 @@ export function Navbar() {
               </span>
             </Link>
 
-            <form action="/store" method="GET" className="hidden w-full max-w-[475px] lg:block">
+            <form action="/store" method="GET" onSubmit={handleSearchSubmit} className="hidden w-full max-w-[475px] lg:block">
               <div className="flex items-center">
                 <div className="group relative">
                   <Link
@@ -76,7 +138,24 @@ export function Navbar() {
                     name="search"
                     id="search"
                     placeholder="I am shopping for..."
+                    value={searchQuery}
+                    onChange={(event) => {
+                      setSearchQuery(event.target.value);
+                      setSuggestionsOpen(true);
+                    }}
+                    onFocus={() => {
+                      if (searchQuery.trim().length >= 2) setSuggestionsOpen(true);
+                    }}
+                    onBlur={() => {
+                      window.setTimeout(() => setSuggestionsOpen(false), 120);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') setSuggestionsOpen(false);
+                    }}
                     autoComplete="off"
+                    aria-autocomplete="list"
+                    aria-expanded={suggestionsOpen}
+                    aria-controls="navbar-search-suggestions"
                     className="h-[46px] w-full rounded-r-[5px] border border-slate-200 bg-slate-50 py-2.5 pl-4 pr-10 text-sm text-text-primary outline-none transition-all placeholder:text-text-muted focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
                   />
                   <button
@@ -87,6 +166,83 @@ export function Navbar() {
                   >
                     <Search className="h-[18px] w-[18px]" />
                   </button>
+
+                  {suggestionsOpen && searchQuery.trim().length >= 2 && (
+                    <div
+                      id="navbar-search-suggestions"
+                      role="listbox"
+                      className="absolute right-0 top-full z-50 mt-2 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl shadow-slate-200/80"
+                    >
+                      <div className="border-b border-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                        Search suggestions
+                      </div>
+                      {suggestionsLoading ? (
+                        <div className="space-y-2 px-4 py-3">
+                          {[1, 2, 3].map((item) => (
+                            <div key={item} className="flex items-center gap-3">
+                              <div className="h-10 w-10 rounded bg-slate-100 skeleton-shimmer" />
+                              <div className="flex-1 space-y-2">
+                                <div className="h-3 rounded bg-slate-100 skeleton-shimmer" />
+                                <div className="h-3 w-20 rounded bg-slate-100 skeleton-shimmer" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : suggestions.length > 0 ? (
+                        <div className="max-h-[330px] overflow-y-auto py-1">
+                          {suggestions.map((product) => (
+                            <Link
+                              key={product.id}
+                              href={`/store/${product.slug}`}
+                              role="option"
+                              onClick={() => {
+                                setSearchQuery('');
+                                setSuggestionsOpen(false);
+                              }}
+                              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-slate-50"
+                            >
+                              <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded border border-slate-200 bg-white">
+                                <SafeImage
+                                  src={product.image_url}
+                                  alt={product.name}
+                                  fill
+                                  className="object-contain p-1.5"
+                                  sizes="48px"
+                                  fallback={
+                                    <div className="flex h-full w-full items-center justify-center text-sm font-bold text-accent/40">
+                                      {product.name.charAt(0)}
+                                    </div>
+                                  }
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="line-clamp-1 text-sm font-semibold text-[#1C274C]">
+                                  {product.name}
+                                </p>
+                                <p className="mt-0.5 line-clamp-1 text-xs text-text-muted">
+                                  {product.brand || product.category_name || 'Product'}
+                                </p>
+                              </div>
+                              <span className="shrink-0 text-sm font-semibold text-accent">
+                                {formatSuggestionPrice(product.price)}
+                              </span>
+                            </Link>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="px-4 py-4 text-sm text-text-muted">
+                          No matching products found.
+                        </div>
+                      )}
+                      <Link
+                        href={`/store?search=${encodeURIComponent(searchQuery.trim())}`}
+                        onClick={() => setSuggestionsOpen(false)}
+                        className="block border-t border-slate-100 px-4 py-3 text-sm font-semibold text-accent transition-colors hover:bg-slate-50 hover:text-[#0B1B48]"
+                      >
+                        View all results for &quot;{searchQuery.trim()}&quot;
+                      </Link>
+                    </div>
+                  )}
                 </div>
               </div>
             </form>
@@ -101,9 +257,9 @@ export function Navbar() {
               </span>
               <div>
                 <span className="block text-[10px] font-semibold uppercase leading-4 text-text-muted">
-                  24/7 Support
+                  Cash on Delivery
                 </span>
-                <p className="text-sm font-medium text-[#1C274C]">Online Help</p>
+                <p className="text-sm font-medium text-[#1C274C]">Pay on arrival</p>
               </div>
             </div>
 
@@ -163,7 +319,7 @@ export function Navbar() {
               <ul className="flex items-center gap-6 text-sm">
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
                   <Link href="/" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
-                    Popular
+                    Home
                   </Link>
                 </li>
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
@@ -172,10 +328,48 @@ export function Navbar() {
                   </Link>
                 </li>
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
+                  <button className="flex items-center gap-1.5 py-6 text-sm font-medium text-[#1C274C] transition-colors hover:text-accent">
+                    Categories
+                    <ChevronDown className="h-4 w-4" />
+                  </button>
+                  <ul className="invisible absolute left-0 top-full z-50 min-w-[230px] translate-y-10 rounded-md border border-slate-200 bg-white py-2.5 opacity-0 shadow-xl shadow-slate-200/70 transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                    <li>
+                      <Link href="/store" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">
+                        All Products
+                      </Link>
+                    </li>
+                    {parentCategories.slice(0, 8).map((category) => (
+                      <li key={category.id}>
+                        <Link
+                          href={`/store?category=${category.slug}`}
+                          className="block px-4 py-2 text-sm capitalize text-text-muted transition-colors hover:bg-slate-50 hover:text-accent"
+                        >
+                          {category.name}
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+                <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
+                  <Link href="/store?sort=rating" className="flex items-center gap-2 py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                    Best Sellers
+                    <span className="rounded bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase leading-4 text-white">
+                      Sale
+                    </span>
+                  </Link>
+                </li>
+                <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
                   <Link href="/contact" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
                     Contact
                   </Link>
                 </li>
+                {user && (
+                  <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
+                    <Link href="/account" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                      Account
+                    </Link>
+                  </li>
+                )}
                 {user && hasAdminAccess(user.role) && (
                   <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
                     <Link href="/admin" className="flex py-6 font-semibold text-accent transition-colors hover:text-[#1C274C]">
@@ -183,54 +377,19 @@ export function Navbar() {
                     </Link>
                   </li>
                 )}
-                <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <button className="flex items-center gap-1.5 py-6 text-sm font-medium capitalize text-[#1C274C] transition-colors hover:text-accent">
-                    pages
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                  <ul className="invisible absolute left-0 top-full z-50 min-w-[210px] translate-y-10 rounded-md border border-slate-200 bg-white py-2.5 opacity-0 shadow-xl shadow-slate-200/70 transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                    <li><Link href="/store" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Shop</Link></li>
-                    <li><Link href="/checkout" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Checkout</Link></li>
-                    <li><Link href="/cart" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Cart</Link></li>
-                    <li><Link href="/wishlist" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Wishlist</Link></li>
-                    <li><Link href="/about" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">About</Link></li>
-                    <li><Link href="/contact" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Contact</Link></li>
-                    <li><Link href="/faq" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">FAQ</Link></li>
-                    <li><Link href="/privacy-policy" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Privacy Policy</Link></li>
-                    <li><Link href="/return-policy" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Return Policy</Link></li>
-                    <li><Link href="/terms" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Terms</Link></li>
-                    <li><Link href="/auth/login" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Sign in</Link></li>
-                    <li><Link href="/auth/register" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Sign up</Link></li>
-                    <li><Link href="/account" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">My Account</Link></li>
-                    {user && (
-                      <li><Link href="/orders" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">My Orders</Link></li>
-                    )}
-                    {user && hasAdminAccess(user.role) && (
-                      <li><Link href="/admin" className="block px-4 py-2 text-sm font-semibold text-accent transition-colors hover:bg-blue-50">Dashboard</Link></li>
-                    )}
-                  </ul>
-                </li>
-                <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <button className="flex items-center gap-1.5 py-6 text-sm font-medium capitalize text-[#1C274C] transition-colors hover:text-accent">
-                    blogs
-                    <ChevronDown className="h-4 w-4" />
-                  </button>
-                  <ul className="invisible absolute left-0 top-full z-50 min-w-[230px] translate-y-10 rounded-md border border-slate-200 bg-white py-2.5 opacity-0 shadow-xl shadow-slate-200/70 transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
-                    <li><Link href="/" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Blog Grid with sidebar</Link></li>
-                    <li><Link href="/" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Blog Grid</Link></li>
-                    <li><Link href="/" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Blog details with sidebar</Link></li>
-                    <li><Link href="/" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">Blog details</Link></li>
-                  </ul>
-                </li>
               </ul>
             </nav>
 
-            <Link href="/store?sort=rating" className="flex items-center gap-2 text-sm font-medium text-[#1C274C] transition-colors hover:text-accent">
-              Best Selling
-              <span className="rounded bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase leading-4 text-white">
-                Sale
+            <div className="flex items-center gap-4 text-xs font-semibold text-text-muted">
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-success" />
+                Cash on Delivery
               </span>
-            </Link>
+              <span className="inline-flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-accent" />
+                Fast Local Delivery
+              </span>
+            </div>
           </div>
         </Container>
       </div>

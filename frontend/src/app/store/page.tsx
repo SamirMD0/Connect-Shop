@@ -9,7 +9,7 @@ import { SectionTitle } from '@/components/ui/SectionTitle';
 import { api } from '@/lib/api';
 import { APP_NAME } from '@/lib/constants';
 import { Product, Category, PaginatedProducts } from '@/lib/types';
-import { Search, SlidersHorizontal, Sparkles } from 'lucide-react';
+import { Search, Sparkles } from 'lucide-react';
 
 interface Props {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
@@ -131,11 +131,7 @@ export default async function StorePage({ searchParams }: Props) {
         />
 
         {/* Filters */}
-        <div className="mb-8 rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm">
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-primary">
-            <SlidersHorizontal className="h-4 w-4 text-accent" />
-            Refine products
-          </div>
+        <div className="mb-8">
           <StoreFilters 
             categories={categories}
             currentCategory={currentCategory}

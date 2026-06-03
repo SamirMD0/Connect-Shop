@@ -75,11 +75,11 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
 
         <nav className="flex-1 space-y-1 overflow-y-auto p-5">
           <Link
-            href="/contact"
+            href="/"
             onClick={onClose}
             className="block rounded-md px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
           >
-            Popular
+            Home
           </Link>
           <Link
             href="/store"
@@ -89,46 +89,95 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
             Shop
           </Link>
           <Link
-            href="/"
+            href="/store?sort=rating"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
+          >
+            Best Sellers
+            <span className="rounded bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase leading-4 text-white">
+              Sale
+            </span>
+          </Link>
+          <Link
+            href="/contact"
             onClick={onClose}
             className="block rounded-md px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
           >
             Contact
           </Link>
-          <Link
-            href="/cart"
-            onClick={onClose}
-            className="block rounded-md px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
-          >
-            Cart
-          </Link>
-          <Link
-            href="/wishlist"
-            onClick={onClose}
-            className="block rounded-md px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
-          >
-            Wishlist
-          </Link>
-          <Link
-            href="/checkout"
-            onClick={onClose}
-            className="block rounded-md px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
-          >
-            Checkout
-          </Link>
-          <Link
-            href="/store?sort=rating"
-            onClick={onClose}
-            className="flex items-center gap-2 rounded-md px-3 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
-          >
-            Best Selling
-            <span className="rounded bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase leading-4 text-white">
-              Sale
-            </span>
-          </Link>
+          {categories.length > 0 && (
+            <div className="mt-5 border-t border-slate-100 pt-5">
+              <p className="px-3 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
+                Categories
+              </p>
+              {categories.slice(0, 8).map((category) => (
+                <Link
+                  key={category.id}
+                  href={`/store?category=${category.slug}`}
+                  onClick={onClose}
+                  className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+                >
+                  {category.name}
+                </Link>
+              ))}
+            </div>
+          )}
           <div className="mt-5 border-t border-slate-100 pt-5">
             <p className="px-3 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
-              Pages
+              Shopping
+            </p>
+            <Link
+              href="/cart"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              Cart
+            </Link>
+            <Link
+              href="/wishlist"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              Wishlist
+            </Link>
+            <Link
+              href="/checkout"
+              onClick={onClose}
+              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+            >
+              Checkout
+            </Link>
+            {user && (
+              <>
+                <Link
+                  href="/account"
+                  onClick={onClose}
+                  className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+                >
+                  My Account
+                </Link>
+                <Link
+                  href="/orders"
+                  onClick={onClose}
+                  className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
+                >
+                  My Orders
+                </Link>
+              </>
+            )}
+            {user && hasAdminAccess(user.role) && (
+              <Link
+                href="/admin"
+                onClick={onClose}
+                className="block rounded-md px-3 py-2 text-sm font-semibold text-accent transition-colors hover:bg-blue-50"
+              >
+                Dashboard
+              </Link>
+            )}
+          </div>
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <p className="px-3 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
+              Help
             </p>
             <Link
               href="/about"
@@ -165,83 +214,18 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
             >
               Terms
             </Link>
-            <Link
-              href="/auth/login"
-              onClick={onClose}
-              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/auth/register"
-              onClick={onClose}
-              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
-            >
-              Sign up
-            </Link>
-            <Link
-              href="/account"
-              onClick={onClose}
-              className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
-            >
-              My Account
-            </Link>
           </div>
-          <div className="mt-5 border-t border-slate-100 pt-5">
-            <p className="px-3 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
-              Blogs
-            </p>
-            {['Blog Grid with sidebar', 'Blog Grid', 'Blog details with sidebar', 'Blog details'].map((item) => (
-              <Link
-                key={item}
-                href="/"
-                onClick={onClose}
-                className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
-              >
-                {item}
-              </Link>
-            ))}
-          </div>
-          {user && (
-            <>
-              <Link
-                href="/orders"
-                onClick={onClose}
-                className="block rounded-md px-3 py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-blue-50 hover:text-accent"
-              >
-                My Orders
-              </Link>
-              {hasAdminAccess(user.role) && (
-                <Link 
-                  href="/admin" 
-                  onClick={onClose}
-                  className="block rounded-md px-3 py-2.5 text-sm font-semibold text-accent transition-colors hover:bg-blue-50"
-                >
-                  Dashboard
-                </Link>
-              )}
-            </>
-          )}
-          {categories.length > 0 && (
-            <div className="mt-5 border-t border-slate-100 pt-5">
-              <p className="px-3 pb-2 text-xs font-bold uppercase tracking-[0.16em] text-text-muted">
-                Categories
-              </p>
-              {categories.slice(0, 8).map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/store?category=${category.slug}`}
-                  onClick={onClose}
-                  className="block rounded-md px-3 py-2 text-sm text-text-muted transition-colors hover:bg-blue-50 hover:text-accent"
-                >
-                  {category.name}
-                </Link>
-              ))}
-            </div>
-          )}
         </nav>
 
         <div className="border-t border-slate-100 bg-slate-50 p-5">
+          <div className="mb-4 grid grid-cols-2 gap-2 text-xs font-semibold text-text-muted">
+            <span className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">
+              Cash on Delivery
+            </span>
+            <span className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">
+              Local Delivery
+            </span>
+          </div>
           {user ? (
             <div className="space-y-3">
               <div className="px-3">
@@ -253,11 +237,18 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
               </Button>
             </div>
           ) : (
-            <Link href="/auth/register" onClick={onClose}>
-              <Button variant="primary" className="w-full">
-                Sign up
-              </Button>
-            </Link>
+            <div className="grid grid-cols-2 gap-2">
+              <Link href="/auth/login" onClick={onClose}>
+                <Button variant="secondary" className="w-full">
+                  Sign in
+                </Button>
+              </Link>
+              <Link href="/auth/register" onClick={onClose}>
+                <Button variant="primary" className="w-full">
+                  Sign up
+                </Button>
+              </Link>
+            </div>
           )}
         </div>
       </div>
