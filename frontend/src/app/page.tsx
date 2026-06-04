@@ -2,12 +2,14 @@ import { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
-import { ProductGrid } from '@/components/products/ProductGrid';
 import { HeroCarousel } from '@/components/home/HeroCarousel';
 import { ServiceFeatures } from '@/components/home/ServiceFeatures';
 import { BrowseCategories } from '@/components/home/BrowseCategories';
 import { AllCategoriesSection } from '@/components/home/AllCategoriesSection';
 import { BrandShowcase } from '@/components/home/BrandShowcase';
+import { HomepageBrandProductSections } from '@/components/home/HomepageBrandProductSections';
+import { HomepageCategoryProductSections } from '@/components/home/HomepageCategoryProductSections';
+import { HomepageProductRail } from '@/components/home/HomepageProductRail';
 import { NextmercePromoBanners } from '@/components/home/NextmercePromoBanners';
 import { BestSellers } from '@/components/home/BestSellers';
 import { CountdownPromo } from '@/components/home/CountdownPromo';
@@ -48,6 +50,8 @@ const emptyHomepageContent: HomepageContent = {
   countdown_promo: null,
   testimonials: [],
   newsletter: null,
+  brand_product_sections: [],
+  category_product_sections: [],
 };
 
 function getMetadataString(metadata: Record<string, unknown> | undefined, key: string): string {
@@ -108,7 +112,12 @@ export default async function HomePage() {
     categories = catRes.categories || [];
     brands = brandsRes.brands || [];
     slides = slidesRes.slides || [];
-    homepage = homepageRes.homepage || emptyHomepageContent;
+    homepage = {
+      ...emptyHomepageContent,
+      ...(homepageRes.homepage || {}),
+      brand_product_sections: homepageRes.homepage?.brand_product_sections || [],
+      category_product_sections: homepageRes.homepage?.category_product_sections || [],
+    };
   } catch (error) {
     console.error('Error fetching homepage data:', error);
   }
@@ -237,7 +246,7 @@ export default async function HomePage() {
           </div>
 
           {featured.length > 0 ? (
-            <ProductGrid products={featured} />
+            <HomepageProductRail products={featured} label="New Arrivals" />
           ) : (
             <div className="rounded-lg border border-slate-200 bg-[#F6F7FB] px-6 py-12 text-center">
               <h3 className="text-lg font-semibold text-[#0B1B48]">No new arrivals yet</h3>
@@ -258,6 +267,10 @@ export default async function HomePage() {
           </div>
         </Container>
       </section>
+
+      <HomepageBrandProductSections sections={homepage.brand_product_sections || []} />
+
+      <HomepageCategoryProductSections sections={homepage.category_product_sections || []} />
 
       <NextmercePromoBanners banners={homepage.promo_banners} />
 

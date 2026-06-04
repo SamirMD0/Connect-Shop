@@ -271,6 +271,51 @@ export interface HomepageSection {
   updated_at?: string;
 }
 
+export type HomepageBrandProductLimit = 4 | 8 | 12;
+export type HomepageBrandProductSortKey = 'newest' | 'rating' | 'price_asc' | 'price_desc';
+export type HomepageBrandProductLayout = 'grid' | 'rail';
+export type HomepageCategoryProductLimit = HomepageBrandProductLimit;
+export type HomepageCategoryProductSortKey = HomepageBrandProductSortKey;
+export type HomepageCategoryProductLayout = HomepageBrandProductLayout;
+
+export interface HomepageBrandProductSectionBase {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  brand_id: number;
+  product_limit: HomepageBrandProductLimit;
+  sort_key: HomepageBrandProductSortKey;
+  layout: HomepageBrandProductLayout;
+  display_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HomepageBrandProductSection extends HomepageBrandProductSectionBase {
+  brand: Brand | null;
+  products?: Product[];
+}
+
+export interface HomepageCategoryProductSectionBase {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  category_id: number;
+  product_limit: HomepageCategoryProductLimit;
+  sort_key: HomepageCategoryProductSortKey;
+  layout: HomepageCategoryProductLayout;
+  display_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface HomepageCategoryProductSection extends HomepageCategoryProductSectionBase {
+  category: Category | null;
+  products?: Product[];
+}
+
 export interface HomepageContent {
   hero_carousel: HomepageSectionItem[];
   hero_side_promo: HomepageSectionItem[];
@@ -280,6 +325,8 @@ export interface HomepageContent {
   countdown_promo: HomepageSection | HomepageSectionItem | null;
   testimonials: HomepageSectionItem[];
   newsletter: HomepageSection | HomepageSectionItem | null;
+  brand_product_sections?: HomepageBrandProductSection[];
+  category_product_sections?: HomepageCategoryProductSection[];
 }
 
 export interface HomepageContentResponse {

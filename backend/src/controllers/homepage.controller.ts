@@ -2,13 +2,23 @@ import { Request, Response, NextFunction } from 'express';
 import {
   createHomepageSection,
   createHomepageSectionItem,
+  createHomepageBrandProductSection,
+  createHomepageCategoryProductSection,
   deleteHomepageSection,
   deleteHomepageSectionItem,
+  deleteHomepageBrandProductSection,
+  deleteHomepageCategoryProductSection,
   getActiveHomepageContent,
   getAdminHomepageSections,
+  getAdminHomepageBrandProductSections,
+  getAdminHomepageCategoryProductSections,
   HomepageContent,
+  moveHomepageBrandProductSection,
+  moveHomepageCategoryProductSection,
   updateHomepageSection,
   updateHomepageSectionItem,
+  updateHomepageBrandProductSection,
+  updateHomepageCategoryProductSection,
 } from '../services/homepage.service';
 import { getJsonCache, setJsonCache } from '../config/redis';
 import { CACHE_KEYS, CACHE_TTL_SECONDS } from '../utils/cachePolicy';
@@ -42,6 +52,170 @@ export async function getAdminHomepage(
   try {
     const sections = await getAdminHomepageSections();
     res.json({ success: true, sections });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAdminBrandProductSections(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const sections = await getAdminHomepageBrandProductSections();
+    res.json({ success: true, sections });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createBrandProductSection(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await createHomepageBrandProductSection(req.body);
+    res.status(201).json({ success: true, section });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateBrandProductSection(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await updateHomepageBrandProductSection(req.params.id, req.body);
+    if (!section) throw new NotFoundError('Homepage brand product section');
+    res.json({ success: true, section });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteBrandProductSection(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const deleted = await deleteHomepageBrandProductSection(req.params.id);
+    if (!deleted) throw new NotFoundError('Homepage brand product section');
+    res.json({ success: true, message: 'Homepage brand product section deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function moveBrandProductSectionUp(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await moveHomepageBrandProductSection(req.params.id, 'up');
+    if (!section) throw new NotFoundError('Homepage brand product section');
+    res.json({ success: true, section });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function moveBrandProductSectionDown(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await moveHomepageBrandProductSection(req.params.id, 'down');
+    if (!section) throw new NotFoundError('Homepage brand product section');
+    res.json({ success: true, section });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAdminCategoryProductSections(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const sections = await getAdminHomepageCategoryProductSections();
+    res.json({ success: true, sections });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createCategoryProductSection(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await createHomepageCategoryProductSection(req.body);
+    res.status(201).json({ success: true, section });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateCategoryProductSection(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await updateHomepageCategoryProductSection(req.params.id, req.body);
+    if (!section) throw new NotFoundError('Homepage category product section');
+    res.json({ success: true, section });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteCategoryProductSection(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const deleted = await deleteHomepageCategoryProductSection(req.params.id);
+    if (!deleted) throw new NotFoundError('Homepage category product section');
+    res.json({ success: true, message: 'Homepage category product section deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function moveCategoryProductSectionUp(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await moveHomepageCategoryProductSection(req.params.id, 'up');
+    if (!section) throw new NotFoundError('Homepage category product section');
+    res.json({ success: true, section });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function moveCategoryProductSectionDown(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const section = await moveHomepageCategoryProductSection(req.params.id, 'down');
+    if (!section) throw new NotFoundError('Homepage category product section');
+    res.json({ success: true, section });
   } catch (err) {
     next(err);
   }

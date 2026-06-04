@@ -133,10 +133,13 @@ export function Navbar() {
 
                 <div className="relative w-full min-w-[260px] max-w-[333px]">
                   <span className="absolute left-0 top-1/2 inline-block h-5 w-px -translate-y-1/2 bg-slate-300" />
+                  <label htmlFor="navbar-search" className="sr-only">
+                    Search products
+                  </label>
                   <input
                     type="search"
                     name="search"
-                    id="search"
+                    id="navbar-search"
                     placeholder="I am shopping for..."
                     value={searchQuery}
                     onChange={(event) => {
@@ -153,9 +156,6 @@ export function Navbar() {
                       if (event.key === 'Escape') setSuggestionsOpen(false);
                     }}
                     autoComplete="off"
-                    aria-autocomplete="list"
-                    aria-expanded={suggestionsOpen}
-                    aria-controls="navbar-search-suggestions"
                     className="h-[46px] w-full rounded-r-[5px] border border-slate-200 bg-slate-50 py-2.5 pl-4 pr-10 text-sm text-text-primary outline-none transition-all placeholder:text-text-muted focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
                   />
                   <button
@@ -170,7 +170,8 @@ export function Navbar() {
                   {suggestionsOpen && searchQuery.trim().length >= 2 && (
                     <div
                       id="navbar-search-suggestions"
-                      role="listbox"
+                      role="region"
+                      aria-label="Search suggestions"
                       className="absolute right-0 top-full z-50 mt-2 w-full overflow-hidden rounded-md border border-slate-200 bg-white shadow-xl shadow-slate-200/80"
                     >
                       <div className="border-b border-slate-100 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -194,7 +195,6 @@ export function Navbar() {
                             <Link
                               key={product.id}
                               href={`/store/${product.slug}`}
-                              role="option"
                               onClick={() => {
                                 setSearchQuery('');
                                 setSuggestionsOpen(false);

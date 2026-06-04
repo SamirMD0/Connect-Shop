@@ -22,14 +22,32 @@ import {
   homepageItemUpdateRules,
   homepageSectionIdRules,
   homepageItemIdRules,
+  homepageBrandProductSectionCreateRules,
+  homepageBrandProductSectionUpdateRules,
+  homepageBrandProductSectionIdRules,
+  homepageCategoryProductSectionCreateRules,
+  homepageCategoryProductSectionUpdateRules,
+  homepageCategoryProductSectionIdRules,
 } from '../middleware/validate';
 import * as adminController from '../controllers/admin.controller';
 import {
+  createBrandProductSection,
+  createCategoryProductSection,
   createSection,
   createSectionItem,
+  deleteBrandProductSection,
+  deleteCategoryProductSection,
   deleteSection,
   deleteSectionItem,
+  getAdminBrandProductSections,
+  getAdminCategoryProductSections,
   getAdminHomepage,
+  moveBrandProductSectionDown,
+  moveBrandProductSectionUp,
+  moveCategoryProductSectionDown,
+  moveCategoryProductSectionUp,
+  updateBrandProductSection,
+  updateCategoryProductSection,
   updateSection,
   updateSectionItem,
 } from '../controllers/homepage.controller';
@@ -95,6 +113,18 @@ router.delete('/reviews/:id', requireAdminPermission('reviews'), ...reviewIdRule
 
 // Homepage CMS
 router.get('/homepage', requireAdminPermission('content'), getAdminHomepage);
+router.get('/homepage/brand-product-sections', requireAdminPermission('content'), getAdminBrandProductSections);
+router.post('/homepage/brand-product-sections', requireAdminPermission('content'), ...homepageBrandProductSectionCreateRules, validate, createBrandProductSection);
+router.put('/homepage/brand-product-sections/:id', requireAdminPermission('content'), ...homepageBrandProductSectionUpdateRules, validate, updateBrandProductSection);
+router.delete('/homepage/brand-product-sections/:id', requireAdminPermission('content'), ...homepageBrandProductSectionIdRules, validate, deleteBrandProductSection);
+router.post('/homepage/brand-product-sections/:id/move-up', requireAdminPermission('content'), ...homepageBrandProductSectionIdRules, validate, moveBrandProductSectionUp);
+router.post('/homepage/brand-product-sections/:id/move-down', requireAdminPermission('content'), ...homepageBrandProductSectionIdRules, validate, moveBrandProductSectionDown);
+router.get('/homepage/category-product-sections', requireAdminPermission('content'), getAdminCategoryProductSections);
+router.post('/homepage/category-product-sections', requireAdminPermission('content'), ...homepageCategoryProductSectionCreateRules, validate, createCategoryProductSection);
+router.put('/homepage/category-product-sections/:id', requireAdminPermission('content'), ...homepageCategoryProductSectionUpdateRules, validate, updateCategoryProductSection);
+router.delete('/homepage/category-product-sections/:id', requireAdminPermission('content'), ...homepageCategoryProductSectionIdRules, validate, deleteCategoryProductSection);
+router.post('/homepage/category-product-sections/:id/move-up', requireAdminPermission('content'), ...homepageCategoryProductSectionIdRules, validate, moveCategoryProductSectionUp);
+router.post('/homepage/category-product-sections/:id/move-down', requireAdminPermission('content'), ...homepageCategoryProductSectionIdRules, validate, moveCategoryProductSectionDown);
 router.post('/homepage/sections', requireAdminPermission('content'), ...homepageSectionCreateRules, validate, createSection);
 router.put('/homepage/sections/:id', requireAdminPermission('content'), ...homepageSectionUpdateRules, validate, updateSection);
 router.delete('/homepage/sections/:id', requireAdminPermission('content'), ...homepageSectionIdRules, validate, deleteSection);

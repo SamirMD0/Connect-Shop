@@ -2,7 +2,7 @@ import { Redis } from 'ioredis';
 import { env } from './env';
 import { logger } from '../utils/logger';
 
-export const redisEnabled = Boolean(env.REDIS_URL);
+export const redisEnabled = env.NODE_ENV !== 'test' && Boolean(env.REDIS_URL);
 
 export const redisClient = redisEnabled
   ? new Redis(env.REDIS_URL as string, {

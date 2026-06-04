@@ -2,7 +2,16 @@
 import { body, param, query, ValidationChain, validationResult } from 'express-validator';
 import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../utils/errors';
-import { HOMEPAGE_SECTION_KEYS, HOMEPAGE_SECTION_TYPES } from '../services/homepage.service';
+import {
+  HOMEPAGE_BRAND_PRODUCT_LAYOUTS,
+  HOMEPAGE_BRAND_PRODUCT_LIMITS,
+  HOMEPAGE_BRAND_PRODUCT_SORT_KEYS,
+  HOMEPAGE_CATEGORY_PRODUCT_LAYOUTS,
+  HOMEPAGE_CATEGORY_PRODUCT_LIMITS,
+  HOMEPAGE_CATEGORY_PRODUCT_SORT_KEYS,
+  HOMEPAGE_SECTION_KEYS,
+  HOMEPAGE_SECTION_TYPES,
+} from '../services/homepage.service';
 
 function isImageReference(value: string): boolean {
   if (value.startsWith('/')) return !value.startsWith('//') && !/[\u0000-\u001F\u007F]/.test(value);
@@ -529,6 +538,144 @@ export const homepageItemCreateRules: ValidationChain[] = [
 export const homepageItemUpdateRules: ValidationChain[] = [
   ...homepageItemIdRules,
   ...homepageItemFields,
+];
+
+export const homepageBrandProductSectionIdRules: ValidationChain[] = [
+  param('id').isUUID().withMessage('Homepage brand product section ID must be a valid UUID'),
+];
+
+const forbiddenHomepageBrandProductFields: ValidationChain[] = [
+  body('display_order').not().exists().withMessage('display_order is controlled by move up/down actions'),
+  body('sort_order').not().exists().withMessage('sort_order is not supported for brand product sections'),
+  body('metadata').not().exists().withMessage('metadata is not supported for brand product sections'),
+  body('image_url').not().exists().withMessage('image_url is not supported for brand product sections'),
+  body('background_image_url').not().exists().withMessage('background_image_url is not supported for brand product sections'),
+  body('button_link').not().exists().withMessage('button_link is not supported for brand product sections'),
+  body('link_url').not().exists().withMessage('link_url is not supported for brand product sections'),
+];
+
+const homepageBrandProductSectionFields: ValidationChain[] = [
+  body('title')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('title is required')
+    .isLength({ max: 255 })
+    .withMessage('title must be under 255 characters'),
+  body('subtitle')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('subtitle must be under 1000 characters'),
+  body('brand_id')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('brand_id must be a positive integer')
+    .toInt(),
+  body('product_limit')
+    .optional()
+    .isInt()
+    .withMessage('product_limit must be one of: 4, 8, 12')
+    .bail()
+    .custom((value) => HOMEPAGE_BRAND_PRODUCT_LIMITS.includes(Number(value) as any))
+    .withMessage('product_limit must be one of: 4, 8, 12')
+    .toInt(),
+  body('sort_key')
+    .optional()
+    .trim()
+    .isIn(HOMEPAGE_BRAND_PRODUCT_SORT_KEYS)
+    .withMessage('sort_key must be one of: newest, rating, price_asc, price_desc'),
+  body('layout')
+    .optional()
+    .trim()
+    .isIn(HOMEPAGE_BRAND_PRODUCT_LAYOUTS)
+    .withMessage('layout must be one of: grid, rail'),
+  body('is_active')
+    .optional()
+    .isBoolean()
+    .withMessage('is_active must be a boolean')
+    .toBoolean(),
+  ...forbiddenHomepageBrandProductFields,
+];
+
+export const homepageBrandProductSectionCreateRules: ValidationChain[] = [
+  body('title').exists().withMessage('title is required'),
+  body('brand_id').exists().withMessage('brand_id is required'),
+  ...homepageBrandProductSectionFields,
+];
+
+export const homepageBrandProductSectionUpdateRules: ValidationChain[] = [
+  ...homepageBrandProductSectionIdRules,
+  ...homepageBrandProductSectionFields,
+];
+
+export const homepageCategoryProductSectionIdRules: ValidationChain[] = [
+  param('id').isUUID().withMessage('Homepage category product section ID must be a valid UUID'),
+];
+
+const forbiddenHomepageCategoryProductFields: ValidationChain[] = [
+  body('display_order').not().exists().withMessage('display_order is controlled by move up/down actions'),
+  body('sort_order').not().exists().withMessage('sort_order is not supported for category product sections'),
+  body('metadata').not().exists().withMessage('metadata is not supported for category product sections'),
+  body('image_url').not().exists().withMessage('image_url is not supported for category product sections'),
+  body('background_image_url').not().exists().withMessage('background_image_url is not supported for category product sections'),
+  body('button_link').not().exists().withMessage('button_link is not supported for category product sections'),
+  body('link_url').not().exists().withMessage('link_url is not supported for category product sections'),
+];
+
+const homepageCategoryProductSectionFields: ValidationChain[] = [
+  body('title')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('title is required')
+    .isLength({ max: 255 })
+    .withMessage('title must be under 255 characters'),
+  body('subtitle')
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage('subtitle must be under 1000 characters'),
+  body('category_id')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('category_id must be a positive integer')
+    .toInt(),
+  body('product_limit')
+    .optional()
+    .isInt()
+    .withMessage('product_limit must be one of: 4, 8, 12')
+    .bail()
+    .custom((value) => HOMEPAGE_CATEGORY_PRODUCT_LIMITS.includes(Number(value) as any))
+    .withMessage('product_limit must be one of: 4, 8, 12')
+    .toInt(),
+  body('sort_key')
+    .optional()
+    .trim()
+    .isIn(HOMEPAGE_CATEGORY_PRODUCT_SORT_KEYS)
+    .withMessage('sort_key must be one of: newest, rating, price_asc, price_desc'),
+  body('layout')
+    .optional()
+    .trim()
+    .isIn(HOMEPAGE_CATEGORY_PRODUCT_LAYOUTS)
+    .withMessage('layout must be one of: grid, rail'),
+  body('is_active')
+    .optional()
+    .isBoolean()
+    .withMessage('is_active must be a boolean')
+    .toBoolean(),
+  ...forbiddenHomepageCategoryProductFields,
+];
+
+export const homepageCategoryProductSectionCreateRules: ValidationChain[] = [
+  body('title').exists().withMessage('title is required'),
+  body('category_id').exists().withMessage('category_id is required'),
+  ...homepageCategoryProductSectionFields,
+];
+
+export const homepageCategoryProductSectionUpdateRules: ValidationChain[] = [
+  ...homepageCategoryProductSectionIdRules,
+  ...homepageCategoryProductSectionFields,
 ];
 
 /** Validate Review create */
