@@ -7,7 +7,7 @@ import { env } from '../config/env';
 import { logRateLimitHit } from '../services/securityEvent.service';
 
 const isDev = env.NODE_ENV !== 'production';
-const GENERAL_LIMIT = isDev ? 1000 : 100;
+const GENERAL_LIMIT = isDev ? 2000 : 600;
 const AUTH_LIMIT = isDev ? 200 : 20;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -77,7 +77,10 @@ function createIdentityLimiter({
 
 /**
  * General rate limiter — applies to all routes.
- * Production: 100 requests per 15-minute window per IP.
+ * Production: 600 requests per 15-minute window per identity/IP.
+ * Storefront pages fan out to several API reads, so this stays broad while
+ * stricter auth, checkout, cart, wishlist, review, upload, and admin mutation
+ * limiters protect sensitive write paths.
  * Development/test: relaxed to avoid local HMR/session-check noise.
  */
 export const generalLimiter = rateLimit({

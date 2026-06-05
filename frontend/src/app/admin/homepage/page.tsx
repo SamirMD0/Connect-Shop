@@ -83,6 +83,13 @@ const fixedBlockTypes: HomepageBlockType[] = [
   'brand_showcase',
 ];
 
+const lockedHomepageBlockTypes: HomepageBlockType[] = [
+  'hero_carousel',
+  'brand_showcase',
+  'category_showcase',
+  'promotion_banner',
+];
+
 const referencedBlockTypes: HomepageBlockType[] = [
   'brand_product_section',
   'category_product_section',
@@ -158,6 +165,10 @@ function isFixedBlockType(value: HomepageBlockType | ''): value is HomepageBlock
 
 function isReferencedBlockType(value: HomepageBlockType | ''): value is HomepageBlockType {
   return Boolean(value && referencedBlockTypes.includes(value));
+}
+
+function isLockedHomepageBlockType(value: HomepageBlockType | ''): value is HomepageBlockType {
+  return Boolean(value && lockedHomepageBlockTypes.includes(value));
 }
 
 function getBlockReferenceLabel(
@@ -254,6 +265,33 @@ function buildBlockPayload(form: BlockForm): BlockPayload | null {
   return payload;
 }
 
+function reorderById<T extends { id: string; display_order: number }>(
+  items: T[],
+  id: string,
+  direction: 'up' | 'down'
+): T[] {
+  const index = items.findIndex(item => item.id === id);
+  if (index < 0) return items;
+
+  const targetIndex = direction === 'up' ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) return items;
+
+  const nextItems = [...items];
+  [nextItems[index], nextItems[targetIndex]] = [nextItems[targetIndex], nextItems[index]];
+
+  return nextItems.map((item, nextIndex) => ({
+    ...item,
+    display_order: nextIndex,
+  }));
+}
+
+function normalizeDisplayOrder<T extends { display_order: number }>(items: T[]): T[] {
+  return items.map((item, index) => ({
+    ...item,
+    display_order: index,
+  }));
+}
+
 function getSortLabel(value: HomepageBrandProductSortKey): string {
   return sortOptions.find(option => option.value === value)?.label || value;
 }
@@ -339,6 +377,7 @@ interface SectionManagerProps<T extends ManagedHomepageSection> {
   targetPayloadKey: 'brand_id' | 'category_id';
   targetOptions: EntityOption[];
   sections: T[];
+  setSections: React.Dispatch<React.SetStateAction<T[]>>;
   loading: boolean;
   pageError: string;
   onReload: () => Promise<void>;
@@ -355,6 +394,7 @@ function SectionManager<T extends ManagedHomepageSection>({
   targetPayloadKey,
   targetOptions,
   sections,
+  setSections,
   loading,
   pageError,
   onReload,
@@ -431,8 +471,8 @@ function SectionManager<T extends ManagedHomepageSection>({
     try {
       await api.delete(`${endpoint}/${sectionToDelete.id}`);
       addToast(`${targetLabel} section deleted.`, 'success');
+      setSections(current => normalizeDisplayOrder(current.filter(section => section.id !== sectionToDelete.id)));
       setSectionToDelete(null);
-      await onReload();
     } catch (error) {
       addToast(getErrorMessage(error, `Failed to delete ${targetLabel.toLowerCase()} section.`), 'error');
     } finally {
@@ -445,7 +485,7 @@ function SectionManager<T extends ManagedHomepageSection>({
 
     try {
       await api.post(`${endpoint}/${section.id}/move-${direction}`);
-      await onReload();
+      setSections(current => reorderById(current, section.id, direction));
     } catch (error) {
       addToast(getErrorMessage(error, `Failed to reorder ${targetLabel.toLowerCase()} sections.`), 'error');
     } finally {
@@ -757,6 +797,7 @@ interface HomepageBlocksManagerProps {
   brandSections: HomepageBrandProductSection[];
   categorySections: HomepageCategoryProductSection[];
   promotions: PromotionOption[];
+  setBlocks: React.Dispatch<React.SetStateAction<HomepageBlock[]>>;
   loading: boolean;
   pageError: string;
   onReload: () => Promise<void>;
@@ -767,6 +808,7 @@ function HomepageBlocksManager({
   brandSections,
   categorySections,
   promotions,
+  setBlocks,
   loading,
   pageError,
   onReload,
@@ -790,7 +832,12 @@ function HomepageBlocksManager({
   const selectedBlockOption = blockTypeOptions.find(option => option.value === selectedType);
   const availableTypeOptions = blockTypeOptions.map(option => ({
     ...option,
-    disabled: fixedBlockTypes.includes(option.value) && existingFixedTypes.has(option.value),
+    disabled: isLockedHomepageBlockType(option.value) || (fixedBlockTypes.includes(option.value) && existingFixedTypes.has(option.value)),
+    disabledReason: isLockedHomepageBlockType(option.value)
+      ? 'fixed'
+      : fixedBlockTypes.includes(option.value) && existingFixedTypes.has(option.value)
+        ? 'already added'
+        : '',
   }));
 
   const inputClasses = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
@@ -826,13 +873,17 @@ function HomepageBlocksManager({
   }
 
   async function toggleBlock(block: HomepageBlock) {
+    if (isLockedHomepageBlockType(block.block_type)) return;
+
     setUpdatingId(block.id);
     try {
       await api.put(`/api/admin/homepage/blocks/${block.id}`, {
         is_active: !block.is_active,
       });
       addToast(block.is_active ? 'Homepage block hidden.' : 'Homepage block activated.', 'success');
-      await onReload();
+      setBlocks(current => current.map(item => (
+        item.id === block.id ? { ...item, is_active: !block.is_active } : item
+      )));
     } catch (error) {
       addToast(getErrorMessage(error, 'Failed to update homepage block.'), 'error');
     } finally {
@@ -841,10 +892,12 @@ function HomepageBlocksManager({
   }
 
   async function moveBlock(block: HomepageBlock, direction: 'up' | 'down') {
+    if (isLockedHomepageBlockType(block.block_type)) return;
+
     setMovingId(block.id);
     try {
       await api.post(`/api/admin/homepage/blocks/${block.id}/move-${direction}`);
-      await onReload();
+      setBlocks(current => reorderById(current, block.id, direction));
     } catch (error) {
       addToast(getErrorMessage(error, 'Failed to reorder homepage blocks.'), 'error');
     } finally {
@@ -854,13 +907,17 @@ function HomepageBlocksManager({
 
   async function deleteBlock() {
     if (!blockToDelete) return;
+    if (isLockedHomepageBlockType(blockToDelete.block_type)) {
+      setBlockToDelete(null);
+      return;
+    }
 
     setConfirming(true);
     try {
       await api.delete(`/api/admin/homepage/blocks/${blockToDelete.id}`);
       addToast('Homepage block removed.', 'success');
+      setBlocks(current => normalizeDisplayOrder(current.filter(block => block.id !== blockToDelete.id)));
       setBlockToDelete(null);
-      await onReload();
     } catch (error) {
       addToast(getErrorMessage(error, 'Failed to remove homepage block.'), 'error');
     } finally {
@@ -897,8 +954,14 @@ function HomepageBlocksManager({
     {
       header: 'Type',
       cell: (block: HomepageBlock) => (
-        <span className="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-accent">
-          {isReferencedBlockType(block.block_type) ? 'Referenced' : 'Fixed'}
+        <span className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold ${
+          isLockedHomepageBlockType(block.block_type)
+            ? 'bg-slate-100 text-slate-600'
+            : 'bg-blue-50 text-accent'
+        }`}>
+          {isLockedHomepageBlockType(block.block_type)
+            ? 'Locked'
+            : isReferencedBlockType(block.block_type) ? 'Referenced' : 'Fixed'}
         </span>
       ),
     },
@@ -915,23 +978,41 @@ function HomepageBlocksManager({
     },
     {
       header: 'Status',
-      cell: (block: HomepageBlock) => (
-        <button
-          type="button"
-          onClick={() => void toggleBlock(block)}
-          disabled={updatingId === block.id}
-          className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors disabled:pointer-events-none disabled:opacity-60 ${
-            block.is_active ? 'bg-success/10 text-success hover:bg-success/15' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-          }`}
-          aria-label={`${block.is_active ? 'Deactivate' : 'Activate'} ${getBlockLabel(block.block_type)}`}
-        >
-          {block.is_active ? 'Active' : 'Inactive'}
-        </button>
-      ),
+      cell: (block: HomepageBlock) => {
+        if (isLockedHomepageBlockType(block.block_type)) {
+          return (
+            <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">
+              Fixed
+            </span>
+          );
+        }
+
+        return (
+          <button
+            type="button"
+            onClick={() => void toggleBlock(block)}
+            disabled={updatingId === block.id}
+            className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors disabled:pointer-events-none disabled:opacity-60 ${
+              block.is_active ? 'bg-success/10 text-success hover:bg-success/15' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+            }`}
+            aria-label={`${block.is_active ? 'Deactivate' : 'Activate'} ${getBlockLabel(block.block_type)}`}
+          >
+            {block.is_active ? 'Active' : 'Inactive'}
+          </button>
+        );
+      },
     },
     {
       header: 'Actions',
       cell: (block: HomepageBlock) => {
+        if (isLockedHomepageBlockType(block.block_type)) {
+          return (
+            <span className="rounded-lg bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+              Fixed position
+            </span>
+          );
+        }
+
         const index = blocks.findIndex(item => item.id === block.id);
         const isFirst = index <= 0;
         const isLast = index === blocks.length - 1;
@@ -1036,7 +1117,7 @@ function HomepageBlocksManager({
               <option value="">Choose block type</option>
               {availableTypeOptions.map(option => (
                 <option key={option.value} value={option.value} disabled={option.disabled}>
-                  {option.label}{option.disabled ? ' (already added)' : ''}
+                  {option.label}{option.disabledReason ? ` (${option.disabledReason})` : ''}
                 </option>
               ))}
             </select>
@@ -1264,6 +1345,7 @@ export default function AdminHomepagePage() {
         brandSections={brandSections}
         categorySections={categorySections}
         promotions={promotions}
+        setBlocks={setHomepageBlocks}
         loading={loading}
         pageError={pageError}
         onReload={fetchData}
@@ -1280,6 +1362,7 @@ export default function AdminHomepagePage() {
         targetPayloadKey="brand_id"
         targetOptions={brandOptions}
         sections={brandSections}
+        setSections={setBrandSections}
         loading={loading}
         pageError={pageError}
         onReload={fetchData}
@@ -1296,6 +1379,7 @@ export default function AdminHomepagePage() {
         targetPayloadKey="category_id"
         targetOptions={categoryOptions}
         sections={categorySections}
+        setSections={setCategorySections}
         loading={loading}
         pageError={pageError}
         onReload={fetchData}

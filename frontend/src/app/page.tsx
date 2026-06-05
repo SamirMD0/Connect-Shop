@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import type { ReactNode } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
@@ -427,6 +428,19 @@ function renderHomepageBlock(
   }
 }
 
+const lockedTopBlockTypes = new Set<HomepageBlock['block_type']>([
+  'hero_carousel',
+  'brand_showcase',
+  'category_showcase',
+]);
+
+const lowerHomepageBlockTypes = new Set<HomepageBlock['block_type']>([
+  'best_sellers',
+  'featured_products',
+  'testimonials',
+  'newsletter',
+]);
+
 export default async function HomePage() {
   let featured: Product[] = [];
   let trending: Product[] = [];
@@ -437,11 +451,13 @@ export default async function HomePage() {
 
   try {
     const [featuredRes, trendingRes, catRes, brandsRes, slidesRes, homepageRes] = await Promise.all([
-      api.get<{ success: boolean; products: Product[] }>('/api/products/featured'),
+      api.get<{ success: boolean; products: Product[] }>('/api/products/featured')
+        .catch(() => ({ success: false, products: [] })),
       api.get<{ success: boolean; products: Product[] }>('/api/products', {
         params: { sort: 'rating', limit: 8 },
-      }),
-      api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
+      }).catch(() => ({ success: false, products: [] })),
+      api.get<{ success: boolean; categories: Category[] }>('/api/categories')
+        .catch(() => ({ success: false, categories: [] })),
       api.get<{ success: boolean; brands: Brand[] }>('/api/brands').catch(() => ({ success: false, brands: [] })),
       api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel').catch(() => ({ success: false, slides: [] })),
       api.get<HomepageContentResponse>('/api/homepage', { cache: 'no-store' }).catch(() => ({ success: false, homepage: emptyHomepageContent })),
@@ -515,20 +531,47 @@ export default async function HomePage() {
     });
 
   if (homepageBlocks.length > 0) {
+    const blockContext = {
+      homepage,
+      slides,
+      hasHeroSidePromos,
+      heroSidePromos,
+      featured,
+      bestSellerProducts,
+      categories,
+      brands,
+      displayCategories,
+      categoryImages,
+    };
+    const movableHomepageSections: ReactNode[] = [];
+    const movableHomepageBlocks = homepageBlocks.filter((block) => (
+      !lockedTopBlockTypes.has(block.block_type) && block.block_type !== 'promotion_banner'
+    ));
+    let promoBannersInserted = false;
+
+    for (const block of movableHomepageBlocks) {
+      if (!promoBannersInserted && lowerHomepageBlockTypes.has(block.block_type)) {
+        movableHomepageSections.push(
+          <NextmercePromoBanners key="fixed-middle-promo-banners" banners={homepage.promo_banners} />
+        );
+        promoBannersInserted = true;
+      }
+
+      movableHomepageSections.push(renderHomepageBlock(block, blockContext));
+    }
+
+    if (!promoBannersInserted) {
+      movableHomepageSections.push(
+        <NextmercePromoBanners key="fixed-middle-promo-banners" banners={homepage.promo_banners} />
+      );
+    }
+
     return (
       <div className="animate-fade-in bg-white">
-        {homepageBlocks.map((block) => renderHomepageBlock(block, {
-          homepage,
-          slides,
-          hasHeroSidePromos,
-          heroSidePromos,
-          featured,
-          bestSellerProducts,
-          categories,
-          brands,
-          displayCategories,
-          categoryImages,
-        }))}
+        {renderHeroBlock(slides, homepage, hasHeroSidePromos, heroSidePromos)}
+        <BrandShowcase brands={brands} />
+        <BrowseCategories categories={displayCategories} fallbackImages={categoryImages} />
+        {movableHomepageSections}
       </div>
     );
   }
