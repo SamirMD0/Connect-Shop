@@ -20,6 +20,9 @@ import {
   homepageSectionUpdateRules,
   homepageItemCreateRules,
   homepageItemUpdateRules,
+  homepageBlockCreateRules,
+  homepageBlockUpdateRules,
+  homepageBlockIdRules,
   homepageSectionIdRules,
   homepageItemIdRules,
   homepageBrandProductSectionCreateRules,
@@ -31,21 +34,28 @@ import {
 } from '../middleware/validate';
 import * as adminController from '../controllers/admin.controller';
 import {
+  createBlock,
   createBrandProductSection,
   createCategoryProductSection,
   createSection,
   createSectionItem,
+  deleteBlock,
   deleteBrandProductSection,
   deleteCategoryProductSection,
   deleteSection,
   deleteSectionItem,
+  getAdminBlocks,
   getAdminBrandProductSections,
   getAdminCategoryProductSections,
   getAdminHomepage,
+  moveBlockDown,
+  moveBlockUp,
   moveBrandProductSectionDown,
   moveBrandProductSectionUp,
   moveCategoryProductSectionDown,
   moveCategoryProductSectionUp,
+  resetBlocksToDefaults,
+  updateBlock,
   updateBrandProductSection,
   updateCategoryProductSection,
   updateSection,
@@ -113,6 +123,13 @@ router.delete('/reviews/:id', requireAdminPermission('reviews'), ...reviewIdRule
 
 // Homepage CMS
 router.get('/homepage', requireAdminPermission('content'), getAdminHomepage);
+router.get('/homepage/blocks', requireAdminPermission('content'), getAdminBlocks);
+router.post('/homepage/blocks', requireAdminPermission('content'), ...homepageBlockCreateRules, validate, createBlock);
+router.post('/homepage/blocks/reset-defaults', requireAdminPermission('content'), resetBlocksToDefaults);
+router.put('/homepage/blocks/:id', requireAdminPermission('content'), ...homepageBlockUpdateRules, validate, updateBlock);
+router.delete('/homepage/blocks/:id', requireAdminPermission('content'), ...homepageBlockIdRules, validate, deleteBlock);
+router.post('/homepage/blocks/:id/move-up', requireAdminPermission('content'), ...homepageBlockIdRules, validate, moveBlockUp);
+router.post('/homepage/blocks/:id/move-down', requireAdminPermission('content'), ...homepageBlockIdRules, validate, moveBlockDown);
 router.get('/homepage/brand-product-sections', requireAdminPermission('content'), getAdminBrandProductSections);
 router.post('/homepage/brand-product-sections', requireAdminPermission('content'), ...homepageBrandProductSectionCreateRules, validate, createBrandProductSection);
 router.put('/homepage/brand-product-sections/:id', requireAdminPermission('content'), ...homepageBrandProductSectionUpdateRules, validate, updateBrandProductSection);

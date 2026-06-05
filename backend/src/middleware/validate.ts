@@ -3,6 +3,7 @@ import { body, param, query, ValidationChain, validationResult } from 'express-v
 import { Request, Response, NextFunction } from 'express';
 import { ValidationError } from '../utils/errors';
 import {
+  HOMEPAGE_BLOCK_TYPES,
   HOMEPAGE_BRAND_PRODUCT_LAYOUTS,
   HOMEPAGE_BRAND_PRODUCT_LIMITS,
   HOMEPAGE_BRAND_PRODUCT_SORT_KEYS,
@@ -519,6 +520,10 @@ export const homepageItemIdRules: ValidationChain[] = [
   param('id').isUUID().withMessage('Homepage section item ID must be a valid UUID'),
 ];
 
+export const homepageBlockIdRules: ValidationChain[] = [
+  param('id').isUUID().withMessage('Homepage block ID must be a valid UUID'),
+];
+
 export const homepageSectionCreateRules: ValidationChain[] = [
   body('section_key').exists().withMessage('section_key is required'),
   body('section_type').exists().withMessage('section_type is required'),
@@ -538,6 +543,55 @@ export const homepageItemCreateRules: ValidationChain[] = [
 export const homepageItemUpdateRules: ValidationChain[] = [
   ...homepageItemIdRules,
   ...homepageItemFields,
+];
+
+const forbiddenHomepageBlockFields: ValidationChain[] = [
+  body('display_order').not().exists().withMessage('display_order is controlled by move up/down actions'),
+  body('sort_order').not().exists().withMessage('sort_order is not supported for homepage blocks'),
+  body('metadata').not().exists().withMessage('metadata is not supported for homepage blocks'),
+  body('image_url').not().exists().withMessage('image_url is not supported for homepage blocks'),
+  body('background_image_url').not().exists().withMessage('background_image_url is not supported for homepage blocks'),
+  body('button_link').not().exists().withMessage('button_link is not supported for homepage blocks'),
+  body('link_url').not().exists().withMessage('link_url is not supported for homepage blocks'),
+  body('url').not().exists().withMessage('url is not supported for homepage blocks'),
+  body('raw_url').not().exists().withMessage('raw_url is not supported for homepage blocks'),
+];
+
+const homepageBlockFields: ValidationChain[] = [
+  body('block_type')
+    .optional()
+    .trim()
+    .isIn(HOMEPAGE_BLOCK_TYPES)
+    .withMessage('block_type is invalid'),
+  body('brand_product_section_id')
+    .optional({ nullable: true })
+    .isUUID()
+    .withMessage('brand_product_section_id must be a valid UUID'),
+  body('category_product_section_id')
+    .optional({ nullable: true })
+    .isUUID()
+    .withMessage('category_product_section_id must be a valid UUID'),
+  body('promotion_id')
+    .optional({ nullable: true })
+    .isInt({ min: 1 })
+    .withMessage('promotion_id must be a positive integer')
+    .toInt(),
+  body('is_active')
+    .optional()
+    .isBoolean()
+    .withMessage('is_active must be a boolean')
+    .toBoolean(),
+  ...forbiddenHomepageBlockFields,
+];
+
+export const homepageBlockCreateRules: ValidationChain[] = [
+  body('block_type').exists().withMessage('block_type is required'),
+  ...homepageBlockFields,
+];
+
+export const homepageBlockUpdateRules: ValidationChain[] = [
+  ...homepageBlockIdRules,
+  ...homepageBlockFields,
 ];
 
 export const homepageBrandProductSectionIdRules: ValidationChain[] = [

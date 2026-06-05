@@ -2,19 +2,25 @@ import { Request, Response, NextFunction } from 'express';
 import {
   createHomepageSection,
   createHomepageSectionItem,
+  createHomepageBlock,
   createHomepageBrandProductSection,
   createHomepageCategoryProductSection,
+  deleteHomepageBlock,
   deleteHomepageSection,
   deleteHomepageSectionItem,
   deleteHomepageBrandProductSection,
   deleteHomepageCategoryProductSection,
   getActiveHomepageContent,
+  getAdminHomepageBlocks,
   getAdminHomepageSections,
   getAdminHomepageBrandProductSections,
   getAdminHomepageCategoryProductSections,
   HomepageContent,
+  moveHomepageBlock,
   moveHomepageBrandProductSection,
   moveHomepageCategoryProductSection,
+  resetHomepageBlocksToDefaults,
+  updateHomepageBlock,
   updateHomepageSection,
   updateHomepageSectionItem,
   updateHomepageBrandProductSection,
@@ -52,6 +58,101 @@ export async function getAdminHomepage(
   try {
     const sections = await getAdminHomepageSections();
     res.json({ success: true, sections });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getAdminBlocks(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const blocks = await getAdminHomepageBlocks();
+    res.json({ success: true, blocks });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function createBlock(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const block = await createHomepageBlock(req.body);
+    res.status(201).json({ success: true, block });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function updateBlock(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const block = await updateHomepageBlock(req.params.id, req.body);
+    if (!block) throw new NotFoundError('Homepage block');
+    res.json({ success: true, block });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function deleteBlock(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const deleted = await deleteHomepageBlock(req.params.id);
+    if (!deleted) throw new NotFoundError('Homepage block');
+    res.json({ success: true, message: 'Homepage block deleted' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function moveBlockUp(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const block = await moveHomepageBlock(req.params.id, 'up');
+    if (!block) throw new NotFoundError('Homepage block');
+    res.json({ success: true, block });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function moveBlockDown(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const block = await moveHomepageBlock(req.params.id, 'down');
+    if (!block) throw new NotFoundError('Homepage block');
+    res.json({ success: true, block });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function resetBlocksToDefaults(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const blocks = await resetHomepageBlocksToDefaults();
+    res.json({ success: true, blocks });
   } catch (err) {
     next(err);
   }

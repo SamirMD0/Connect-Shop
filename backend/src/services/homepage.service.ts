@@ -5,6 +5,7 @@ import { CACHE_KEYS } from '../utils/cachePolicy';
 import { BrandRepository } from '../repositories/brand.repository';
 import { CategoryRepository } from '../repositories/category.repository';
 import { AppError } from '../utils/errors';
+import { getBrands, getCategories, getFeaturedProducts, listProducts } from './products.service';
 import type { Brand, Category, Product } from './products.service';
 
 export const HOMEPAGE_SECTION_KEYS = [
@@ -34,8 +35,41 @@ export const HOMEPAGE_BRAND_PRODUCT_LAYOUTS = ['grid', 'rail'] as const;
 export const HOMEPAGE_CATEGORY_PRODUCT_LIMITS = HOMEPAGE_BRAND_PRODUCT_LIMITS;
 export const HOMEPAGE_CATEGORY_PRODUCT_SORT_KEYS = HOMEPAGE_BRAND_PRODUCT_SORT_KEYS;
 export const HOMEPAGE_CATEGORY_PRODUCT_LAYOUTS = HOMEPAGE_BRAND_PRODUCT_LAYOUTS;
+export const HOMEPAGE_BLOCK_TYPES = [
+  'hero_carousel',
+  'new_arrivals',
+  'brand_product_section',
+  'category_product_section',
+  'promotion_banner',
+  'best_sellers',
+  'featured_products',
+  'testimonials',
+  'newsletter',
+  'category_showcase',
+  'brand_showcase',
+] as const;
+export const HOMEPAGE_FIXED_BLOCK_TYPES = [
+  'hero_carousel',
+  'new_arrivals',
+  'best_sellers',
+  'featured_products',
+  'testimonials',
+  'newsletter',
+  'category_showcase',
+  'brand_showcase',
+] as const;
 
 const SINGLE_SECTION_KEYS = new Set(['countdown_promo', 'newsletter']);
+const FIXED_HOMEPAGE_BLOCK_TYPE_SET = new Set<string>(HOMEPAGE_FIXED_BLOCK_TYPES);
+const DEFAULT_HOMEPAGE_BLOCKS: Array<{ block_type: HomepageBlockType; display_order: number }> = [
+  { block_type: 'hero_carousel', display_order: 0 },
+  { block_type: 'brand_showcase', display_order: 10 },
+  { block_type: 'category_showcase', display_order: 20 },
+  { block_type: 'new_arrivals', display_order: 30 },
+  { block_type: 'best_sellers', display_order: 40 },
+  { block_type: 'testimonials', display_order: 50 },
+  { block_type: 'newsletter', display_order: 60 },
+];
 
 export interface HomepageSectionItem {
   id: string;
@@ -110,6 +144,7 @@ export type HomepageBrandProductLayout = typeof HOMEPAGE_BRAND_PRODUCT_LAYOUTS[n
 export type HomepageCategoryProductLimit = typeof HOMEPAGE_CATEGORY_PRODUCT_LIMITS[number];
 export type HomepageCategoryProductSortKey = typeof HOMEPAGE_CATEGORY_PRODUCT_SORT_KEYS[number];
 export type HomepageCategoryProductLayout = typeof HOMEPAGE_CATEGORY_PRODUCT_LAYOUTS[number];
+export type HomepageBlockType = typeof HOMEPAGE_BLOCK_TYPES[number];
 
 export interface HomepageBrandProductSection {
   id: string;
@@ -175,6 +210,30 @@ export interface PublicHomepageCategoryProductSection extends HomepageCategoryPr
   products: Product[];
 }
 
+export interface HomepageBlock {
+  id: string;
+  block_type: HomepageBlockType;
+  brand_product_section_id: string | null;
+  category_product_section_id: string | null;
+  promotion_id: number | null;
+  display_order: number;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface HomepageBlockInput {
+  block_type: HomepageBlockType;
+  brand_product_section_id?: string | null;
+  category_product_section_id?: string | null;
+  promotion_id?: number | null;
+  is_active?: boolean;
+}
+
+export interface PublicHomepageBlock extends HomepageBlock {
+  data: Record<string, unknown>;
+}
+
 interface LegacyPromotion {
   id: number;
   title: string;
@@ -198,7 +257,8 @@ export type HomepageContent = {
   newsletter: HomepageSectionWithItems | null;
   brand_product_sections: PublicHomepageBrandProductSection[];
   category_product_sections: PublicHomepageCategoryProductSection[];
-  [key: string]: HomepageSectionItem[] | HomepageSectionWithItems | PublicHomepageBrandProductSection[] | PublicHomepageCategoryProductSection[] | null;
+  homepage_blocks?: PublicHomepageBlock[];
+  [key: string]: HomepageSectionItem[] | HomepageSectionWithItems | PublicHomepageBrandProductSection[] | PublicHomepageCategoryProductSection[] | PublicHomepageBlock[] | null | undefined;
 };
 
 export function createEmptyHomepageContent(): HomepageContent {
@@ -218,6 +278,14 @@ export function createEmptyHomepageContent(): HomepageContent {
 
 async function invalidateHomepageCache(): Promise<void> {
   await delCache(CACHE_KEYS.homepageActive);
+}
+
+function isHomepageBlockType(value: unknown): value is HomepageBlockType {
+  return typeof value === 'string' && HOMEPAGE_BLOCK_TYPES.includes(value as HomepageBlockType);
+}
+
+function isFixedHomepageBlockType(value: HomepageBlockType): boolean {
+  return FIXED_HOMEPAGE_BLOCK_TYPE_SET.has(value);
 }
 
 function clampBrandProductLimit(limit: number): HomepageBrandProductLimit {
@@ -455,6 +523,434 @@ async function applyLegacyPromotionContent(homepage: HomepageContent): Promise<H
   };
 }
 
+async function normalizeHomepageBlockOrder(client: PoolClient): Promise<void> {
+  await client.query(
+    `WITH ordered AS (
+       SELECT id, ROW_NUMBER() OVER (ORDER BY display_order ASC, created_at ASC, id ASC) - 1 AS next_order
+       FROM homepage_blocks
+     )
+     UPDATE homepage_blocks hb
+     SET display_order = ordered.next_order
+     FROM ordered
+     WHERE hb.id = ordered.id
+       AND hb.display_order <> ordered.next_order`
+  );
+}
+
+async function getNextHomepageBlockOrder(client: PoolClient): Promise<number> {
+  const rows = await client.query<{ next_order: number }>(
+    `SELECT COALESCE(MAX(display_order), -1) + 1 AS next_order
+     FROM homepage_blocks`
+  );
+
+  return rows.rows[0]?.next_order ?? 0;
+}
+
+async function assertBrandProductSectionExists(id: string): Promise<void> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM homepage_brand_product_sections WHERE id = $1`,
+    [id]
+  );
+  if (!rows[0]) {
+    throw new AppError('Homepage brand product section not found.', 400);
+  }
+}
+
+async function assertCategoryProductSectionExists(id: string): Promise<void> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM homepage_category_product_sections WHERE id = $1`,
+    [id]
+  );
+  if (!rows[0]) {
+    throw new AppError('Homepage category product section not found.', 400);
+  }
+}
+
+async function assertPromotionExists(id: number): Promise<void> {
+  const rows = await query<{ id: number }>(
+    `SELECT id FROM promotions WHERE id = $1`,
+    [id]
+  );
+  if (!rows[0]) {
+    throw new AppError('Promotion not found.', 400);
+  }
+}
+
+function rejectForbiddenHomepageBlockFields(data: Record<string, unknown>): void {
+  const forbiddenFields = [
+    'display_order',
+    'sort_order',
+    'metadata',
+    'image_url',
+    'background_image_url',
+    'button_link',
+    'link_url',
+    'url',
+    'raw_url',
+  ];
+
+  for (const field of forbiddenFields) {
+    if (Object.prototype.hasOwnProperty.call(data, field)) {
+      throw new AppError(`${field} is not supported for homepage blocks.`, 400);
+    }
+  }
+}
+
+async function validateHomepageBlockShape(data: HomepageBlockInput): Promise<HomepageBlockInput> {
+  if (!isHomepageBlockType(data.block_type)) {
+    throw new AppError('block_type is invalid.', 400);
+  }
+
+  const normalized: HomepageBlockInput = {
+    block_type: data.block_type,
+    brand_product_section_id: data.brand_product_section_id ?? null,
+    category_product_section_id: data.category_product_section_id ?? null,
+    promotion_id: data.promotion_id ?? null,
+    is_active: data.is_active,
+  };
+
+  if (normalized.block_type === 'brand_product_section') {
+    if (!normalized.brand_product_section_id) {
+      throw new AppError('brand_product_section_id is required for brand product section blocks.', 400);
+    }
+    if (normalized.category_product_section_id || normalized.promotion_id) {
+      throw new AppError('Brand product section blocks cannot include category or promotion references.', 400);
+    }
+    await assertBrandProductSectionExists(normalized.brand_product_section_id);
+    return normalized;
+  }
+
+  if (normalized.block_type === 'category_product_section') {
+    if (!normalized.category_product_section_id) {
+      throw new AppError('category_product_section_id is required for category product section blocks.', 400);
+    }
+    if (normalized.brand_product_section_id || normalized.promotion_id) {
+      throw new AppError('Category product section blocks cannot include brand or promotion references.', 400);
+    }
+    await assertCategoryProductSectionExists(normalized.category_product_section_id);
+    return normalized;
+  }
+
+  if (normalized.block_type === 'promotion_banner') {
+    if (!normalized.promotion_id) {
+      throw new AppError('promotion_id is required for promotion banner blocks.', 400);
+    }
+    if (normalized.brand_product_section_id || normalized.category_product_section_id) {
+      throw new AppError('Promotion banner blocks cannot include brand or category section references.', 400);
+    }
+    await assertPromotionExists(normalized.promotion_id);
+    return normalized;
+  }
+
+  if (!isFixedHomepageBlockType(normalized.block_type)) {
+    throw new AppError('block_type is invalid.', 400);
+  }
+
+  if (normalized.brand_product_section_id || normalized.category_product_section_id || normalized.promotion_id) {
+    throw new AppError('Fixed homepage blocks cannot include reference IDs.', 400);
+  }
+
+  return normalized;
+}
+
+async function getHomepageBlockById(id: string): Promise<HomepageBlock | null> {
+  const rows = await query<HomepageBlock>(
+    `SELECT * FROM homepage_blocks WHERE id = $1`,
+    [id]
+  );
+
+  return rows[0] ?? null;
+}
+
+export async function getAdminHomepageBlocks(): Promise<HomepageBlock[]> {
+  return query<HomepageBlock>(
+    `SELECT * FROM homepage_blocks
+     ORDER BY display_order ASC, created_at ASC, id ASC`
+  );
+}
+
+export async function createHomepageBlock(rawData: HomepageBlockInput & Record<string, unknown>): Promise<HomepageBlock> {
+  rejectForbiddenHomepageBlockFields(rawData);
+  const data = await validateHomepageBlockShape(rawData);
+
+  const block = await withTransaction(async (client) => {
+    await client.query('LOCK TABLE homepage_blocks IN EXCLUSIVE MODE');
+    await normalizeHomepageBlockOrder(client);
+    if (isFixedHomepageBlockType(data.block_type)) {
+      const existingRows = await client.query<{ id: string }>(
+        `SELECT id FROM homepage_blocks WHERE block_type = $1 LIMIT 1`,
+        [data.block_type]
+      );
+      if (existingRows.rows[0]) {
+        throw new AppError('A fixed homepage block of this type already exists.', 409);
+      }
+    }
+    const displayOrder = await getNextHomepageBlockOrder(client);
+    const rows = await client.query<HomepageBlock>(
+      `INSERT INTO homepage_blocks
+         (block_type, brand_product_section_id, category_product_section_id, promotion_id, display_order, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+      [
+        data.block_type,
+        data.brand_product_section_id ?? null,
+        data.category_product_section_id ?? null,
+        data.promotion_id ?? null,
+        displayOrder,
+        data.is_active ?? true,
+      ]
+    );
+
+    return rows.rows[0];
+  });
+
+  await invalidateHomepageCache();
+  return block;
+}
+
+export async function updateHomepageBlock(
+  id: string,
+  rawData: Partial<HomepageBlockInput> & Record<string, unknown>
+): Promise<HomepageBlock | null> {
+  rejectForbiddenHomepageBlockFields(rawData);
+
+  const existing = await getHomepageBlockById(id);
+  if (!existing) {
+    return null;
+  }
+
+  const nextData = await validateHomepageBlockShape({
+    block_type: rawData.block_type ?? existing.block_type,
+    brand_product_section_id:
+      rawData.brand_product_section_id !== undefined
+        ? rawData.brand_product_section_id
+        : existing.brand_product_section_id,
+    category_product_section_id:
+      rawData.category_product_section_id !== undefined
+        ? rawData.category_product_section_id
+        : existing.category_product_section_id,
+    promotion_id:
+      rawData.promotion_id !== undefined
+        ? rawData.promotion_id
+        : existing.promotion_id,
+    is_active:
+      rawData.is_active !== undefined
+        ? rawData.is_active
+        : existing.is_active,
+  });
+
+  const rows = await withTransaction(async (client) => {
+    await client.query('LOCK TABLE homepage_blocks IN EXCLUSIVE MODE');
+    if (isFixedHomepageBlockType(nextData.block_type)) {
+      const existingRows = await client.query<{ id: string }>(
+        `SELECT id FROM homepage_blocks WHERE block_type = $1 AND id <> $2 LIMIT 1`,
+        [nextData.block_type, id]
+      );
+      if (existingRows.rows[0]) {
+        throw new AppError('A fixed homepage block of this type already exists.', 409);
+      }
+    }
+
+    return client.query<HomepageBlock>(
+      `UPDATE homepage_blocks
+       SET block_type = $1,
+           brand_product_section_id = $2,
+           category_product_section_id = $3,
+           promotion_id = $4,
+           is_active = $5
+       WHERE id = $6
+       RETURNING *`,
+      [
+        nextData.block_type,
+        nextData.brand_product_section_id ?? null,
+        nextData.category_product_section_id ?? null,
+        nextData.promotion_id ?? null,
+        nextData.is_active ?? existing.is_active,
+        id,
+      ]
+    );
+  });
+
+  await invalidateHomepageCache();
+  return rows.rows[0] ?? null;
+}
+
+export async function deleteHomepageBlock(id: string): Promise<boolean> {
+  const deleted = await withTransaction(async (client) => {
+    await client.query('LOCK TABLE homepage_blocks IN EXCLUSIVE MODE');
+    const rows = await client.query<{ id: string }>(
+      `DELETE FROM homepage_blocks WHERE id = $1 RETURNING id`,
+      [id]
+    );
+    await normalizeHomepageBlockOrder(client);
+    return (rows.rowCount ?? 0) > 0;
+  });
+
+  if (deleted) {
+    await invalidateHomepageCache();
+  }
+
+  return deleted;
+}
+
+export async function moveHomepageBlock(
+  id: string,
+  direction: 'up' | 'down'
+): Promise<HomepageBlock | null> {
+  const movedBlockId = await withTransaction(async (client) => {
+    await client.query('LOCK TABLE homepage_blocks IN EXCLUSIVE MODE');
+    await normalizeHomepageBlockOrder(client);
+
+    const currentRows = await client.query<HomepageBlock>(
+      `SELECT * FROM homepage_blocks WHERE id = $1 FOR UPDATE`,
+      [id]
+    );
+    const current = currentRows.rows[0];
+    if (!current) {
+      return null;
+    }
+
+    const orderDirection = direction === 'up' ? 'DESC' : 'ASC';
+    const comparison = direction === 'up' ? '<' : '>';
+    const targetRows = await client.query<HomepageBlock>(
+      `SELECT * FROM homepage_blocks
+       WHERE display_order ${comparison} $1
+       ORDER BY display_order ${orderDirection}, created_at ${orderDirection}, id ${orderDirection}
+       LIMIT 1
+       FOR UPDATE`,
+      [current.display_order]
+    );
+    const target = targetRows.rows[0];
+    if (!target) {
+      return current.id;
+    }
+
+    await client.query(
+      `UPDATE homepage_blocks SET display_order = $1 WHERE id = $2`,
+      [target.display_order, current.id]
+    );
+    await client.query(
+      `UPDATE homepage_blocks SET display_order = $1 WHERE id = $2`,
+      [current.display_order, target.id]
+    );
+
+    return current.id;
+  });
+
+  if (!movedBlockId) {
+    return null;
+  }
+
+  await invalidateHomepageCache();
+  return getHomepageBlockById(movedBlockId);
+}
+
+export async function resetHomepageBlocksToDefaults(): Promise<HomepageBlock[]> {
+  const blocks = await withTransaction(async (client) => {
+    await client.query('LOCK TABLE homepage_blocks IN EXCLUSIVE MODE');
+    await client.query('DELETE FROM homepage_blocks');
+
+    const inserted: HomepageBlock[] = [];
+    for (const block of DEFAULT_HOMEPAGE_BLOCKS) {
+      const rows = await client.query<HomepageBlock>(
+        `INSERT INTO homepage_blocks (block_type, display_order, is_active)
+         VALUES ($1, $2, true)
+         RETURNING *`,
+        [block.block_type, block.display_order]
+      );
+      inserted.push(rows.rows[0]);
+    }
+
+    return inserted;
+  });
+
+  await invalidateHomepageCache();
+  return blocks;
+}
+
+async function resolvePromotionBlockData(promotionId: number): Promise<Record<string, unknown>> {
+  const rows = await query<LegacyPromotion>(
+    `SELECT id, title, description, image_url, link_url, display_order, is_active, created_at, updated_at
+     FROM promotions
+     WHERE id = $1
+       AND is_active = true
+       AND (starts_at IS NULL OR starts_at <= NOW())
+       AND (ends_at IS NULL OR ends_at >= NOW())`,
+    [promotionId]
+  );
+
+  return { promotion: rows[0] ?? null };
+}
+
+async function resolveHomepageBlockData(
+  block: HomepageBlock,
+  homepage: HomepageContent
+): Promise<Record<string, unknown> | null> {
+  switch (block.block_type) {
+    case 'hero_carousel':
+      return {
+        items: homepage.hero_carousel,
+        side_promos: homepage.hero_side_promo,
+        service_features: homepage.service_features,
+      };
+    case 'new_arrivals': {
+      const result = await listProducts({ sort: 'newest', limit: 8 });
+      return { products: result.products };
+    }
+    case 'brand_product_section': {
+      const section = homepage.brand_product_sections.find(
+        (item) => item.id === block.brand_product_section_id
+      );
+      return section ? { section } : null;
+    }
+    case 'category_product_section': {
+      const section = homepage.category_product_sections.find(
+        (item) => item.id === block.category_product_section_id
+      );
+      return section ? { section } : null;
+    }
+    case 'promotion_banner':
+      return block.promotion_id ? resolvePromotionBlockData(block.promotion_id) : null;
+    case 'best_sellers': {
+      const result = await listProducts({ sort: 'rating', limit: 8 });
+      return { products: result.products };
+    }
+    case 'featured_products':
+      return { products: await getFeaturedProducts(8) };
+    case 'testimonials':
+      return { items: homepage.testimonials };
+    case 'newsletter':
+      return { section: homepage.newsletter };
+    case 'category_showcase':
+      return { categories: await getCategories() };
+    case 'brand_showcase':
+      return { brands: await getBrands() };
+    default:
+      return {};
+  }
+}
+
+export async function getActiveHomepageBlocks(homepage: HomepageContent): Promise<PublicHomepageBlock[]> {
+  const blocks = await query<HomepageBlock>(
+    `SELECT * FROM homepage_blocks
+     WHERE is_active = true
+     ORDER BY display_order ASC, created_at ASC, id ASC`
+  );
+
+  const resolved = await Promise.all(
+    blocks.map(async (block) => {
+      const data = await resolveHomepageBlockData(block, homepage);
+      if (!data) {
+        return null;
+      }
+
+      return { ...block, data };
+    })
+  );
+
+  return resolved.filter((block): block is PublicHomepageBlock => block !== null);
+}
+
 export async function getActiveHomepageContent(): Promise<HomepageContent> {
   const sections = await query<HomepageSection>(
     `SELECT * FROM homepage_sections
@@ -470,6 +966,10 @@ export async function getActiveHomepageContent(): Promise<HomepageContent> {
     ]);
     homepage.brand_product_sections = brandSections;
     homepage.category_product_sections = categorySections;
+    const homepageBlocks = await getActiveHomepageBlocks(homepage);
+    if (homepageBlocks.length > 0) {
+      homepage.homepage_blocks = homepageBlocks;
+    }
     return homepage;
   }
 
@@ -489,6 +989,10 @@ export async function getActiveHomepageContent(): Promise<HomepageContent> {
   ]);
   homepage.brand_product_sections = brandSections;
   homepage.category_product_sections = categorySections;
+  const homepageBlocks = await getActiveHomepageBlocks(homepage);
+  if (homepageBlocks.length > 0) {
+    homepage.homepage_blocks = homepageBlocks;
+  }
   return homepage;
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowDown, ArrowUp, Edit2, Home, Plus, Trash2 } from 'lucide-react';
+import { ArrowDown, ArrowUp, Edit2, Home, Plus, RotateCcw, Trash2 } from 'lucide-react';
 import { api, ApiError } from '@/lib/api';
 import {
   Brand,
@@ -10,7 +10,10 @@ import {
   HomepageBrandProductLimit,
   HomepageBrandProductSection,
   HomepageBrandProductSortKey,
+  HomepageBlock,
+  HomepageBlockType,
   HomepageCategoryProductSection,
+  HomepagePromotion,
 } from '@/lib/types';
 import { Modal } from '@/components/admin/Modal';
 import { DataTable } from '@/components/admin/DataTable';
@@ -19,6 +22,17 @@ import { useToast } from '@/hooks/useToast';
 
 type ManagedHomepageSection = HomepageBrandProductSection | HomepageCategoryProductSection;
 type SectionKind = 'brand' | 'category';
+type PromotionOption = Pick<HomepagePromotion, 'id' | 'title' | 'is_active'>;
+
+type BlockForm = {
+  block_type: HomepageBlockType | '';
+  brand_product_section_id: string;
+  category_product_section_id: string;
+  promotion_id: string;
+  is_active: boolean;
+};
+
+type BlockFormErrors = Partial<Record<keyof BlockForm | 'api', string>>;
 
 type SectionForm = {
   title: string;
@@ -48,6 +62,53 @@ type SectionPayload = {
   is_active: boolean;
   brand_id?: number;
   category_id?: number;
+};
+
+type BlockPayload = {
+  block_type: HomepageBlockType;
+  brand_product_section_id?: string;
+  category_product_section_id?: string;
+  promotion_id?: number;
+  is_active: boolean;
+};
+
+const fixedBlockTypes: HomepageBlockType[] = [
+  'hero_carousel',
+  'new_arrivals',
+  'best_sellers',
+  'featured_products',
+  'testimonials',
+  'newsletter',
+  'category_showcase',
+  'brand_showcase',
+];
+
+const referencedBlockTypes: HomepageBlockType[] = [
+  'brand_product_section',
+  'category_product_section',
+  'promotion_banner',
+];
+
+const blockTypeOptions: Array<{ value: HomepageBlockType; label: string; description: string }> = [
+  { value: 'hero_carousel', label: 'Hero carousel', description: 'Homepage hero slides and supporting hero content.' },
+  { value: 'brand_showcase', label: 'Brand showcase', description: 'Existing brand showcase section.' },
+  { value: 'category_showcase', label: 'Category showcase', description: 'Existing category showcase section.' },
+  { value: 'new_arrivals', label: 'New arrivals', description: 'Newest products from the catalog.' },
+  { value: 'brand_product_section', label: 'Brand product section', description: 'A controlled product section linked to a brand section.' },
+  { value: 'category_product_section', label: 'Category product section', description: 'A controlled product section linked to a category section.' },
+  { value: 'promotion_banner', label: 'Promotion banner', description: 'A banner from existing promotions.' },
+  { value: 'best_sellers', label: 'Best sellers', description: 'Top rated products from the catalog.' },
+  { value: 'featured_products', label: 'Featured products', description: 'Products marked as featured.' },
+  { value: 'testimonials', label: 'Testimonials', description: 'Existing testimonial homepage content.' },
+  { value: 'newsletter', label: 'Newsletter', description: 'Existing newsletter signup section.' },
+];
+
+const emptyBlockForm: BlockForm = {
+  block_type: '',
+  brand_product_section_id: '',
+  category_product_section_id: '',
+  promotion_id: '',
+  is_active: true,
 };
 
 const productLimitOptions = [
@@ -84,6 +145,113 @@ function getErrorMessage(error: unknown, fallback: string): string {
   }
 
   return fallback;
+}
+
+function getBlockLabel(value: HomepageBlockType | ''): string {
+  if (!value) return 'Select block type';
+  return blockTypeOptions.find(option => option.value === value)?.label || value;
+}
+
+function isFixedBlockType(value: HomepageBlockType | ''): value is HomepageBlockType {
+  return Boolean(value && fixedBlockTypes.includes(value));
+}
+
+function isReferencedBlockType(value: HomepageBlockType | ''): value is HomepageBlockType {
+  return Boolean(value && referencedBlockTypes.includes(value));
+}
+
+function getBlockReferenceLabel(
+  block: HomepageBlock,
+  brandSections: HomepageBrandProductSection[],
+  categorySections: HomepageCategoryProductSection[],
+  promotions: PromotionOption[]
+): string {
+  if (block.block_type === 'brand_product_section') {
+    const section = brandSections.find(item => item.id === block.brand_product_section_id);
+    return section?.title || 'Missing brand section';
+  }
+
+  if (block.block_type === 'category_product_section') {
+    const section = categorySections.find(item => item.id === block.category_product_section_id);
+    return section?.title || 'Missing category section';
+  }
+
+  if (block.block_type === 'promotion_banner') {
+    const promotion = promotions.find(item => item.id === block.promotion_id);
+    return promotion?.title || 'Missing promotion';
+  }
+
+  return 'Fixed homepage block';
+}
+
+function getBlockReferenceDetail(
+  block: HomepageBlock,
+  brandSections: HomepageBrandProductSection[],
+  categorySections: HomepageCategoryProductSection[],
+  promotions: PromotionOption[]
+): string {
+  if (block.block_type === 'brand_product_section') {
+    const section = brandSections.find(item => item.id === block.brand_product_section_id);
+    return section?.brand?.name || 'Brand section reference';
+  }
+
+  if (block.block_type === 'category_product_section') {
+    const section = categorySections.find(item => item.id === block.category_product_section_id);
+    return section?.category?.name || 'Category section reference';
+  }
+
+  if (block.block_type === 'promotion_banner') {
+    const promotion = promotions.find(item => item.id === block.promotion_id);
+    return promotion?.is_active === false ? 'Inactive promotion' : 'Promotion banner';
+  }
+
+  return blockTypeOptions.find(option => option.value === block.block_type)?.description || 'Homepage block';
+}
+
+function validateBlockForm(form: BlockForm): BlockFormErrors {
+  const errors: BlockFormErrors = {};
+
+  if (!form.block_type) {
+    errors.block_type = 'Choose a block type.';
+    return errors;
+  }
+
+  if (form.block_type === 'brand_product_section' && !form.brand_product_section_id) {
+    errors.brand_product_section_id = 'Choose a brand product section.';
+  }
+
+  if (form.block_type === 'category_product_section' && !form.category_product_section_id) {
+    errors.category_product_section_id = 'Choose a category product section.';
+  }
+
+  if (form.block_type === 'promotion_banner' && !form.promotion_id) {
+    errors.promotion_id = 'Choose a promotion banner.';
+  }
+
+  return errors;
+}
+
+function buildBlockPayload(form: BlockForm): BlockPayload | null {
+  if (!form.block_type) return null;
+
+  const payload: BlockPayload = {
+    block_type: form.block_type,
+    is_active: form.is_active,
+  };
+
+  if (form.block_type === 'brand_product_section') {
+    payload.brand_product_section_id = form.brand_product_section_id;
+  }
+
+  if (form.block_type === 'category_product_section') {
+    payload.category_product_section_id = form.category_product_section_id;
+  }
+
+  if (form.block_type === 'promotion_banner') {
+    payload.promotion_id = Number(form.promotion_id);
+  }
+
+  return payload;
 }
 
 function getSortLabel(value: HomepageBrandProductSortKey): string {
@@ -584,11 +752,429 @@ function SectionManager<T extends ManagedHomepageSection>({
   );
 }
 
+interface HomepageBlocksManagerProps {
+  blocks: HomepageBlock[];
+  brandSections: HomepageBrandProductSection[];
+  categorySections: HomepageCategoryProductSection[];
+  promotions: PromotionOption[];
+  loading: boolean;
+  pageError: string;
+  onReload: () => Promise<void>;
+}
+
+function HomepageBlocksManager({
+  blocks,
+  brandSections,
+  categorySections,
+  promotions,
+  loading,
+  pageError,
+  onReload,
+}: HomepageBlocksManagerProps) {
+  const { addToast } = useToast();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [form, setForm] = useState<BlockForm>(emptyBlockForm);
+  const [formErrors, setFormErrors] = useState<BlockFormErrors>({});
+  const [saving, setSaving] = useState(false);
+  const [movingId, setMovingId] = useState<string | null>(null);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [blockToDelete, setBlockToDelete] = useState<HomepageBlock | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  const existingFixedTypes = useMemo(() => (
+    new Set(blocks.filter(block => isFixedBlockType(block.block_type)).map(block => block.block_type))
+  ), [blocks]);
+
+  const selectedType = form.block_type;
+  const selectedBlockOption = blockTypeOptions.find(option => option.value === selectedType);
+  const availableTypeOptions = blockTypeOptions.map(option => ({
+    ...option,
+    disabled: fixedBlockTypes.includes(option.value) && existingFixedTypes.has(option.value),
+  }));
+
+  const inputClasses = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
+  const errorClasses = 'mt-1 text-xs font-medium text-danger';
+
+  function openAddModal() {
+    setForm(emptyBlockForm);
+    setFormErrors({});
+    setModalOpen(true);
+  }
+
+  async function saveBlock(event: React.FormEvent) {
+    event.preventDefault();
+    const errors = validateBlockForm(form);
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) return;
+
+    const payload = buildBlockPayload(form);
+    if (!payload) return;
+
+    setSaving(true);
+    try {
+      await api.post('/api/admin/homepage/blocks', payload);
+      addToast('Homepage block added.', 'success');
+      setModalOpen(false);
+      await onReload();
+    } catch (error) {
+      setFormErrors({ api: getErrorMessage(error, 'Failed to add homepage block.') });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleBlock(block: HomepageBlock) {
+    setUpdatingId(block.id);
+    try {
+      await api.put(`/api/admin/homepage/blocks/${block.id}`, {
+        is_active: !block.is_active,
+      });
+      addToast(block.is_active ? 'Homepage block hidden.' : 'Homepage block activated.', 'success');
+      await onReload();
+    } catch (error) {
+      addToast(getErrorMessage(error, 'Failed to update homepage block.'), 'error');
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
+  async function moveBlock(block: HomepageBlock, direction: 'up' | 'down') {
+    setMovingId(block.id);
+    try {
+      await api.post(`/api/admin/homepage/blocks/${block.id}/move-${direction}`);
+      await onReload();
+    } catch (error) {
+      addToast(getErrorMessage(error, 'Failed to reorder homepage blocks.'), 'error');
+    } finally {
+      setMovingId(null);
+    }
+  }
+
+  async function deleteBlock() {
+    if (!blockToDelete) return;
+
+    setConfirming(true);
+    try {
+      await api.delete(`/api/admin/homepage/blocks/${blockToDelete.id}`);
+      addToast('Homepage block removed.', 'success');
+      setBlockToDelete(null);
+      await onReload();
+    } catch (error) {
+      addToast(getErrorMessage(error, 'Failed to remove homepage block.'), 'error');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  async function resetDefaults() {
+    setConfirming(true);
+    try {
+      await api.post('/api/admin/homepage/blocks/reset-defaults');
+      addToast('Default homepage block order restored.', 'success');
+      setResetOpen(false);
+      await onReload();
+    } catch (error) {
+      addToast(getErrorMessage(error, 'Failed to reset homepage blocks.'), 'error');
+    } finally {
+      setConfirming(false);
+    }
+  }
+
+  const columns = [
+    {
+      header: 'Block',
+      cell: (block: HomepageBlock) => (
+        <div className="min-w-64">
+          <p className="font-semibold text-[#0B1B48]">{getBlockLabel(block.block_type)}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            {getBlockReferenceDetail(block, brandSections, categorySections, promotions)}
+          </p>
+        </div>
+      ),
+    },
+    {
+      header: 'Type',
+      cell: (block: HomepageBlock) => (
+        <span className="inline-flex rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-accent">
+          {isReferencedBlockType(block.block_type) ? 'Referenced' : 'Fixed'}
+        </span>
+      ),
+    },
+    {
+      header: 'Reference',
+      cell: (block: HomepageBlock) => (
+        <div>
+          <p className="font-medium text-[#0B1B48]">
+            {getBlockReferenceLabel(block, brandSections, categorySections, promotions)}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">Order #{block.display_order + 1}</p>
+        </div>
+      ),
+    },
+    {
+      header: 'Status',
+      cell: (block: HomepageBlock) => (
+        <button
+          type="button"
+          onClick={() => void toggleBlock(block)}
+          disabled={updatingId === block.id}
+          className={`inline-flex rounded-lg px-2.5 py-1 text-xs font-semibold transition-colors disabled:pointer-events-none disabled:opacity-60 ${
+            block.is_active ? 'bg-success/10 text-success hover:bg-success/15' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+          }`}
+          aria-label={`${block.is_active ? 'Deactivate' : 'Activate'} ${getBlockLabel(block.block_type)}`}
+        >
+          {block.is_active ? 'Active' : 'Inactive'}
+        </button>
+      ),
+    },
+    {
+      header: 'Actions',
+      cell: (block: HomepageBlock) => {
+        const index = blocks.findIndex(item => item.id === block.id);
+        const isFirst = index <= 0;
+        const isLast = index === blocks.length - 1;
+        const isMoving = movingId === block.id;
+
+        return (
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => void moveBlock(block, 'up')}
+              disabled={isFirst || isMoving}
+              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#0B1B48] disabled:pointer-events-none disabled:opacity-35"
+              aria-label={`Move ${getBlockLabel(block.block_type)} up`}
+            >
+              <ArrowUp className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => void moveBlock(block, 'down')}
+              disabled={isLast || isMoving}
+              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-[#0B1B48] disabled:pointer-events-none disabled:opacity-35"
+              aria-label={`Move ${getBlockLabel(block.block_type)} down`}
+            >
+              <ArrowDown className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setBlockToDelete(block)}
+              className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger"
+              aria-label={`Remove ${getBlockLabel(block.block_type)}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        );
+      },
+    },
+  ];
+
+  return (
+    <section className="space-y-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/80">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-[#0B1B48]">Homepage Blocks</h2>
+          <p className="mt-1 max-w-3xl text-sm text-slate-500">
+            Control the order of major homepage sections with safe block types and move buttons. Display order is not manually editable.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            onClick={openAddModal}
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-4 py-2.5 font-semibold text-white transition-colors hover:bg-accent-glow"
+          >
+            <Plus className="h-4 w-4" />
+            Add Block
+          </button>
+          <button
+            type="button"
+            onClick={() => setResetOpen(true)}
+            className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 font-semibold text-slate-600 transition-colors hover:border-accent/30 hover:bg-accent/10 hover:text-accent"
+          >
+            <RotateCcw className="h-4 w-4" />
+            Reset default order
+          </button>
+        </div>
+      </div>
+
+      {pageError && (
+        <div className="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+          {pageError}
+        </div>
+      )}
+
+      <DataTable
+        data={blocks}
+        columns={columns}
+        keyExtractor={(block) => block.id}
+        emptyMessage="No homepage blocks yet."
+        loading={loading}
+      />
+
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title="Add Homepage Block">
+        <form onSubmit={saveBlock} className="space-y-5">
+          {formErrors.api && (
+            <div className="rounded-xl border border-danger/20 bg-danger/10 px-4 py-3 text-sm font-medium text-danger">
+              {formErrors.api}
+            </div>
+          )}
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Block type *</span>
+            <select
+              required
+              className={inputClasses}
+              value={form.block_type}
+              onChange={event => setForm({
+                ...emptyBlockForm,
+                block_type: event.target.value as HomepageBlockType | '',
+              })}
+            >
+              <option value="">Choose block type</option>
+              {availableTypeOptions.map(option => (
+                <option key={option.value} value={option.value} disabled={option.disabled}>
+                  {option.label}{option.disabled ? ' (already added)' : ''}
+                </option>
+              ))}
+            </select>
+            {formErrors.block_type && <p className={errorClasses}>{formErrors.block_type}</p>}
+            {selectedBlockOption && (
+              <p className="mt-1 text-xs text-slate-500">{selectedBlockOption.description}</p>
+            )}
+          </label>
+
+          {selectedType === 'brand_product_section' && (
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Brand product section *</span>
+              <select
+                required
+                className={inputClasses}
+                value={form.brand_product_section_id}
+                onChange={event => setForm({ ...form, brand_product_section_id: event.target.value })}
+              >
+                <option value="">Choose brand product section</option>
+                {brandSections.map(section => (
+                  <option key={section.id} value={section.id}>
+                    {section.title}{section.brand?.name ? ` · ${section.brand.name}` : ''}
+                  </option>
+                ))}
+              </select>
+              {formErrors.brand_product_section_id && <p className={errorClasses}>{formErrors.brand_product_section_id}</p>}
+            </label>
+          )}
+
+          {selectedType === 'category_product_section' && (
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Category product section *</span>
+              <select
+                required
+                className={inputClasses}
+                value={form.category_product_section_id}
+                onChange={event => setForm({ ...form, category_product_section_id: event.target.value })}
+              >
+                <option value="">Choose category product section</option>
+                {categorySections.map(section => (
+                  <option key={section.id} value={section.id}>
+                    {section.title}{section.category?.name ? ` · ${section.category.name}` : ''}
+                  </option>
+                ))}
+              </select>
+              {formErrors.category_product_section_id && <p className={errorClasses}>{formErrors.category_product_section_id}</p>}
+            </label>
+          )}
+
+          {selectedType === 'promotion_banner' && (
+            <label className="block">
+              <span className="mb-2 block text-sm font-semibold text-[#0B1B48]">Promotion banner *</span>
+              <select
+                required
+                className={inputClasses}
+                value={form.promotion_id}
+                onChange={event => setForm({ ...form, promotion_id: event.target.value })}
+              >
+                <option value="">Choose promotion</option>
+                {promotions.map(promotion => (
+                  <option key={promotion.id} value={promotion.id}>
+                    {promotion.title}{promotion.is_active ? '' : ' (inactive)'}
+                  </option>
+                ))}
+              </select>
+              {formErrors.promotion_id && <p className={errorClasses}>{formErrors.promotion_id}</p>}
+            </label>
+          )}
+
+          <label className="flex items-center gap-3 rounded-xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
+            <input
+              type="checkbox"
+              checked={form.is_active}
+              onChange={event => setForm({ ...form, is_active: event.target.checked })}
+              className="h-4 w-4 accent-accent"
+            />
+            Active on homepage
+          </label>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">Summary</p>
+            <p className="mt-2 text-sm font-semibold text-[#0B1B48]">
+              {getBlockLabel(form.block_type)}
+              {isFixedBlockType(form.block_type) ? ' · fixed block' : ''}
+              {form.is_active ? ' · active' : ' · inactive'}
+            </p>
+          </div>
+
+          <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-4 sm:flex-row sm:justify-end">
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              disabled={saving}
+              className="rounded-xl px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:bg-slate-100 hover:text-[#0B1B48] disabled:pointer-events-none disabled:opacity-60"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !form.block_type}
+              className="rounded-xl bg-accent px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-accent-glow disabled:pointer-events-none disabled:opacity-60"
+            >
+              {saving ? 'Saving...' : 'Add Block'}
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      <ConfirmDialog
+        isOpen={Boolean(blockToDelete)}
+        title="Remove homepage block"
+        description={`Remove "${blockToDelete ? getBlockLabel(blockToDelete.block_type) : 'this block'}" from homepage ordering? Referenced sections, products, and promotions are not deleted.`}
+        confirmLabel="Remove block"
+        loading={confirming}
+        onCancel={() => setBlockToDelete(null)}
+        onConfirm={() => void deleteBlock()}
+      />
+
+      <ConfirmDialog
+        isOpen={resetOpen}
+        title="Reset homepage block order"
+        description="This restores the safe fixed homepage blocks and removes custom block ordering. Brand, category, and promotion sections are not deleted."
+        confirmLabel="Reset defaults"
+        loading={confirming}
+        onCancel={() => setResetOpen(false)}
+        onConfirm={() => void resetDefaults()}
+      />
+    </section>
+  );
+}
+
 export default function AdminHomepagePage() {
+  const [homepageBlocks, setHomepageBlocks] = useState<HomepageBlock[]>([]);
   const [brandSections, setBrandSections] = useState<HomepageBrandProductSection[]>([]);
   const [categorySections, setCategorySections] = useState<HomepageCategoryProductSection[]>([]);
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [promotions, setPromotions] = useState<PromotionOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [pageError, setPageError] = useState('');
 
@@ -617,12 +1203,18 @@ export default function AdminHomepagePage() {
     setPageError('');
 
     try {
-      const [brandSectionResponse, categorySectionResponse, brandResponse, categoryResponse] = await Promise.all([
+      const [blockResponse, brandSectionResponse, categorySectionResponse, promotionResponse, brandResponse, categoryResponse] = await Promise.all([
+        api.get<{ success: boolean; blocks: HomepageBlock[] }>('/api/admin/homepage/blocks'),
         api.get<{ success: boolean; sections: HomepageBrandProductSection[] }>('/api/admin/homepage/brand-product-sections'),
         api.get<{ success: boolean; sections: HomepageCategoryProductSection[] }>('/api/admin/homepage/category-product-sections'),
+        api.get<{ success: boolean; promotions: PromotionOption[] }>('/api/admin/promotions'),
         api.get<{ success: boolean; brands: Brand[] }>('/api/admin/brands'),
         api.get<{ success: boolean; categories: Category[] }>('/api/admin/categories'),
       ]);
+
+      if (blockResponse.success) {
+        setHomepageBlocks(blockResponse.blocks || []);
+      }
 
       if (brandSectionResponse.success) {
         setBrandSections(brandSectionResponse.sections || []);
@@ -630,6 +1222,10 @@ export default function AdminHomepagePage() {
 
       if (categorySectionResponse.success) {
         setCategorySections(categorySectionResponse.sections || []);
+      }
+
+      if (promotionResponse.success) {
+        setPromotions(promotionResponse.promotions || []);
       }
 
       if (brandResponse.success) {
@@ -659,9 +1255,19 @@ export default function AdminHomepagePage() {
         </div>
         <h1 className="text-2xl font-bold text-[#0B1B48]">Controlled Product Sections</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-500">
-          Manage homepage product blocks with controlled brand and category selectors. Ordering is managed with move buttons only.
+          Manage homepage ordering and controlled product sections. Ordering is managed with move buttons only.
         </p>
       </div>
+
+      <HomepageBlocksManager
+        blocks={homepageBlocks}
+        brandSections={brandSections}
+        categorySections={categorySections}
+        promotions={promotions}
+        loading={loading}
+        pageError={pageError}
+        onReload={fetchData}
+      />
 
       <SectionManager
         kind="brand"

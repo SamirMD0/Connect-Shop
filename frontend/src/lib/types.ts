@@ -316,6 +316,150 @@ export interface HomepageCategoryProductSection extends HomepageCategoryProductS
   products?: Product[];
 }
 
+export interface HomepagePromotion {
+  id: number;
+  title: string;
+  description: string | null;
+  image_url: string | null;
+  link_url: string | null;
+  display_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export type HomepageBlockType =
+  | 'hero_carousel'
+  | 'new_arrivals'
+  | 'brand_product_section'
+  | 'category_product_section'
+  | 'promotion_banner'
+  | 'best_sellers'
+  | 'featured_products'
+  | 'testimonials'
+  | 'newsletter'
+  | 'category_showcase'
+  | 'brand_showcase';
+
+export interface HomepageBlockBase<
+  TType extends HomepageBlockType = HomepageBlockType,
+  TData = unknown
+> {
+  id: string;
+  block_type: TType;
+  brand_product_section_id?: string | null;
+  category_product_section_id?: string | null;
+  promotion_id?: number | null;
+  display_order: number;
+  is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
+  data: TData;
+}
+
+export interface HeroCarouselBlock extends HomepageBlockBase<'hero_carousel', {
+  items: HomepageSectionItem[];
+  side_promos: HomepageSectionItem[];
+  service_features: HomepageSectionItem[];
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface NewArrivalsBlock extends HomepageBlockBase<'new_arrivals', {
+  products: Product[];
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface BrandProductSectionBlock extends HomepageBlockBase<'brand_product_section', {
+  section: HomepageBrandProductSection;
+}> {
+  brand_product_section_id: string;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface CategoryProductSectionBlock extends HomepageBlockBase<'category_product_section', {
+  section: HomepageCategoryProductSection;
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id: string;
+  promotion_id?: null;
+}
+
+export interface PromotionBannerBlock extends HomepageBlockBase<'promotion_banner', {
+  promotion: HomepagePromotion | null;
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id: number;
+}
+
+export interface BestSellersBlock extends HomepageBlockBase<'best_sellers', {
+  products: Product[];
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface FeaturedProductsBlock extends HomepageBlockBase<'featured_products', {
+  products: Product[];
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface TestimonialsBlock extends HomepageBlockBase<'testimonials', {
+  items: HomepageSectionItem[];
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface NewsletterBlock extends HomepageBlockBase<'newsletter', {
+  section: HomepageSection | HomepageSectionItem | null;
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface CategoryShowcaseBlock extends HomepageBlockBase<'category_showcase', {
+  categories: Category[];
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export interface BrandShowcaseBlock extends HomepageBlockBase<'brand_showcase', {
+  brands: Brand[];
+}> {
+  brand_product_section_id?: null;
+  category_product_section_id?: null;
+  promotion_id?: null;
+}
+
+export type HomepageBlock =
+  | HeroCarouselBlock
+  | NewArrivalsBlock
+  | BrandProductSectionBlock
+  | CategoryProductSectionBlock
+  | PromotionBannerBlock
+  | BestSellersBlock
+  | FeaturedProductsBlock
+  | TestimonialsBlock
+  | NewsletterBlock
+  | CategoryShowcaseBlock
+  | BrandShowcaseBlock;
+
 export interface HomepageContent {
   hero_carousel: HomepageSectionItem[];
   hero_side_promo: HomepageSectionItem[];
@@ -327,6 +471,7 @@ export interface HomepageContent {
   newsletter: HomepageSection | HomepageSectionItem | null;
   brand_product_sections?: HomepageBrandProductSection[];
   category_product_sections?: HomepageCategoryProductSection[];
+  homepage_blocks?: HomepageBlock[];
 }
 
 export interface HomepageContentResponse {
