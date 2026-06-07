@@ -1,11 +1,12 @@
 // backend/src/services/admin.service.ts
-import { query } from '../config/db';
+import { query, withTransaction } from '../config/db';
 import { User } from './auth.service';
 import { Order } from './orders.service';
-import { AppError, NotFoundError } from '../utils/errors';
+import { AppError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { AdminRepository } from '../repositories/admin.repository';
 import { delCache } from '../config/redis';
 import { CACHE_KEYS } from '../utils/cachePolicy';
+import { logSecurityEvent, maskEmail, SecurityEventInput, SecurityEventSeverity } from './securityEvent.service';
 
 export interface MonthlyRevenue {
   month: string;
@@ -40,6 +41,49 @@ export type AdminOrderStatus = typeof ORDER_STATUS_VALUES[number];
 
 export const ADMIN_ROLES = ['customer', 'support', 'manager', 'admin', 'super_admin'] as const;
 export type AdminRole = typeof ADMIN_ROLES[number];
+
+type RoleMutationUser = Pick<User, 'id' | 'email' | 'name' | 'role'>;
+
+type RoleMutationEventInput = {
+  eventType: string;
+  severity: SecurityEventSeverity;
+  actorId: string;
+  actor?: RoleMutationUser | null;
+  targetId: string;
+  target?: RoleMutationUser | null;
+  requestedRole: string;
+  oldRole?: string;
+  reason?: string;
+  sessionRevokedCount?: number;
+  requestContext?: Pick<SecurityEventInput, 'sessionId' | 'ipAddress' | 'userAgent' | 'route' | 'method' | 'requestId'>;
+};
+
+function getRoleMutationUserFromRows(rows: RoleMutationUser[], id: string): RoleMutationUser | null {
+  return rows.find((row) => row.id === id) || null;
+}
+
+async function logRoleMutationEvent(input: RoleMutationEventInput): Promise<void> {
+  await logSecurityEvent({
+    ...input.requestContext,
+    eventType: input.eventType,
+    severity: input.severity,
+    userId: input.actorId,
+    metadata: {
+      actorId: input.actorId,
+      actorRole: input.actor?.role,
+      targetUserId: input.targetId,
+      targetEmailMasked: maskEmail(input.target?.email),
+      targetCurrentRole: input.target?.role,
+      oldRole: input.oldRole,
+      newRole: input.requestedRole,
+      reason: input.reason,
+      requestId: input.requestContext?.requestId,
+      ipAddress: input.requestContext?.ipAddress,
+      userAgent: input.requestContext?.userAgent,
+      sessionRevokedCount: input.sessionRevokedCount,
+    },
+  });
+}
 
 export async function getAllOrders(
   page = 1,
@@ -235,25 +279,186 @@ export async function getUserDetail(id: string): Promise<Record<string, any> | n
   };
 }
 
-export async function updateUserRole(id: string, role: string, actorId: string): Promise<User> {
+export async function updateUserRole(
+  id: string,
+  role: string,
+  actorId: string,
+  requestContext?: Pick<SecurityEventInput, 'sessionId' | 'ipAddress' | 'userAgent' | 'route' | 'method' | 'requestId'>
+): Promise<User> {
   if (!ADMIN_ROLES.includes(role as AdminRole)) {
+    await logRoleMutationEvent({
+      eventType: 'admin.role_change_denied',
+      severity: 'high',
+      actorId,
+      targetId: id,
+      requestedRole: role,
+      reason: 'invalid_role',
+      requestContext,
+    });
     throw new AppError('Invalid role', 400);
   }
 
-  if (id === actorId && !['admin', 'super_admin'].includes(role)) {
-    throw new AppError('You cannot remove your own admin access.', 400);
+  let deferredRequestedEvent: RoleMutationEventInput | null = null;
+  let deferredDeniedEvent: RoleMutationEventInput | null = null;
+  let result: {
+    user: User;
+    actor: RoleMutationUser;
+    target: RoleMutationUser;
+    revokedSessionCount: number;
+  };
+
+  try {
+    result = await withTransaction(async (client) => {
+      await client.query('LOCK TABLE users IN EXCLUSIVE MODE');
+
+      const userIds = Array.from(new Set([actorId, id]));
+      const lockedUsers = await client.query<RoleMutationUser>(
+        `SELECT id, email, name, role
+         FROM users
+         WHERE id = ANY($1::uuid[]) AND deleted_at IS NULL
+         ORDER BY id
+         FOR UPDATE`,
+        [userIds]
+      );
+
+      const actor = getRoleMutationUserFromRows(lockedUsers.rows, actorId);
+      const target = getRoleMutationUserFromRows(lockedUsers.rows, id);
+      deferredRequestedEvent = {
+        eventType: 'admin.role_change_requested',
+        severity: 'info',
+        actorId,
+        actor,
+        targetId: id,
+        target,
+        requestedRole: role,
+        reason: 'role_change_requested',
+        requestContext,
+      };
+
+      if (!actor || actor.role !== 'super_admin') {
+        deferredDeniedEvent = {
+          eventType: 'admin.role_change_denied',
+          severity: 'high',
+          actorId,
+          actor,
+          targetId: id,
+          target,
+          requestedRole: role,
+          reason: 'actor_not_super_admin',
+          requestContext,
+        };
+        throw new ForbiddenError('Only super admins can change user roles.');
+      }
+
+      if (!target) {
+        throw new NotFoundError('User');
+      }
+
+      if (target.role === 'super_admin' && role !== 'super_admin') {
+        const activeSuperAdmins = await client.query<{ count: string }>(
+          `SELECT COUNT(*)::text AS count
+           FROM users
+           WHERE role = 'super_admin' AND deleted_at IS NULL`
+        );
+        const activeSuperAdminCount = parseInt(activeSuperAdmins.rows[0]?.count || '0', 10);
+
+        if (activeSuperAdminCount <= 1) {
+          deferredDeniedEvent = {
+            eventType: 'admin.last_super_admin_change_denied',
+            severity: 'critical',
+            actorId,
+            actor,
+            targetId: id,
+            target,
+            requestedRole: role,
+            reason: 'last_active_super_admin',
+            requestContext,
+          };
+          throw new ForbiddenError('Cannot change the last active super admin.');
+        }
+      }
+
+      if (target.id === actor.id) {
+        deferredDeniedEvent = {
+          eventType: 'admin.role_change_self_denied',
+          severity: 'high',
+          actorId,
+          actor,
+          targetId: id,
+          target,
+          requestedRole: role,
+          reason: 'self_role_change',
+          requestContext,
+        };
+        throw new ForbiddenError('You cannot change your own role.');
+      }
+
+      const rows = await client.query<User>(
+        `UPDATE users
+         SET role = $1
+         WHERE id = $2
+         RETURNING id, google_id, email, name, avatar_url, role, created_at, updated_at`,
+        [role, id]
+      );
+
+      if (!rows.rows[0]) throw new NotFoundError('User');
+
+      const revokedSessions = await client.query<{ id: string }>(
+        `UPDATE sessions
+         SET revoked_at = COALESCE(revoked_at, NOW())
+         WHERE user_id = $1 AND revoked_at IS NULL
+         RETURNING id`,
+        [id]
+      );
+
+      return {
+        user: rows.rows[0],
+        actor,
+        target,
+        revokedSessionCount: revokedSessions.rows.length,
+      };
+    });
+  } catch (err) {
+    if (deferredDeniedEvent) {
+      if (deferredRequestedEvent) {
+        await logRoleMutationEvent(deferredRequestedEvent);
+      }
+      await logRoleMutationEvent(deferredDeniedEvent);
+    }
+    throw err;
   }
 
-  const rows = await query<User>(
-    `UPDATE users
-     SET role = $1
-     WHERE id = $2
-     RETURNING id, google_id, email, name, avatar_url, role, created_at, updated_at`,
-    [role, id]
-  );
+  const { user, actor, target, revokedSessionCount } = result;
 
-  if (!rows[0]) throw new NotFoundError('User');
-  return rows[0];
+  if (deferredRequestedEvent) {
+    await logRoleMutationEvent(deferredRequestedEvent);
+  }
+  await logRoleMutationEvent({
+    eventType: 'admin.role_changed',
+    severity: 'high',
+    actorId,
+    actor,
+    targetId: id,
+    target,
+    oldRole: target.role,
+    requestedRole: role,
+    reason: 'super_admin_role_change',
+    requestContext,
+  });
+  await logRoleMutationEvent({
+    eventType: 'admin.sessions_revoked_after_role_change',
+    severity: 'high',
+    actorId,
+    actor,
+    targetId: id,
+    target,
+    oldRole: target.role,
+    requestedRole: role,
+    reason: `revoked_${revokedSessionCount}_sessions`,
+    sessionRevokedCount: revokedSessionCount,
+    requestContext,
+  });
+  return user;
 }
 
 export async function getOrderDetail(id: string): Promise<Record<string, any> | null> {

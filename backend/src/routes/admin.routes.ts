@@ -2,9 +2,14 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { isAdmin, requireAdminPermission } from '../middleware/admin';
-import { requireAdminMfa } from '../middleware/mfa';
+import { requireAdminMfa, requireFreshAdminMfa } from '../middleware/mfa';
 import { adminAudit } from '../middleware/adminAudit';
-import { adminMutationLimiter, uploadLimiter } from '../middleware/rateLimiter';
+import {
+  adminMutationLimiter,
+  adminReadLimiter,
+  sensitiveAdminActionLimiter,
+  uploadLimiter,
+} from '../middleware/rateLimiter';
 import {
   validate,
   adminProductRules,
@@ -68,6 +73,7 @@ const router = Router();
 router.use(requireAuth);
 router.use(isAdmin);
 router.use(requireAdminMfa);
+router.use(adminReadLimiter);
 router.use(adminMutationLimiter);
 router.use((req, res, next) => {
   if (req.method === 'POST' && req.path === '/uploads/image') {
@@ -105,9 +111,15 @@ router.put('/brands/:id', requireAdminPermission('products'), ...adminBrandRules
 router.delete('/brands/:id', requireAdminPermission('products'), adminController.deleteBrand);
 
 // Users
-router.get('/users', requireAdminPermission('users'), adminController.listUsers);
-router.get('/users/:id', requireAdminPermission('users'), adminController.getUserDetail);
-router.put('/users/:id/role', requireAdminPermission('users'), adminController.updateUserRole);
+router.get('/users', requireAdminPermission('customers'), adminController.listUsers);
+router.get('/users/:id', requireAdminPermission('customers'), adminController.getUserDetail);
+router.put(
+  '/users/:id/role',
+  requireAdminPermission('admin_roles'),
+  sensitiveAdminActionLimiter,
+  requireFreshAdminMfa(10),
+  adminController.updateUserRole
+);
 
 // Orders
 router.get('/orders', requireAdminPermission('orders'), adminController.listOrders);
@@ -122,32 +134,32 @@ router.put('/reviews/:id/status', requireAdminPermission('reviews'), ...reviewMo
 router.delete('/reviews/:id', requireAdminPermission('reviews'), ...reviewIdRules, validate, adminController.deleteReview);
 
 // Homepage CMS
-router.get('/homepage', requireAdminPermission('content'), getAdminHomepage);
-router.get('/homepage/blocks', requireAdminPermission('content'), getAdminBlocks);
-router.post('/homepage/blocks', requireAdminPermission('content'), ...homepageBlockCreateRules, validate, createBlock);
-router.post('/homepage/blocks/reset-defaults', requireAdminPermission('content'), resetBlocksToDefaults);
-router.put('/homepage/blocks/:id', requireAdminPermission('content'), ...homepageBlockUpdateRules, validate, updateBlock);
-router.delete('/homepage/blocks/:id', requireAdminPermission('content'), ...homepageBlockIdRules, validate, deleteBlock);
-router.post('/homepage/blocks/:id/move-up', requireAdminPermission('content'), ...homepageBlockIdRules, validate, moveBlockUp);
-router.post('/homepage/blocks/:id/move-down', requireAdminPermission('content'), ...homepageBlockIdRules, validate, moveBlockDown);
-router.get('/homepage/brand-product-sections', requireAdminPermission('content'), getAdminBrandProductSections);
-router.post('/homepage/brand-product-sections', requireAdminPermission('content'), ...homepageBrandProductSectionCreateRules, validate, createBrandProductSection);
-router.put('/homepage/brand-product-sections/:id', requireAdminPermission('content'), ...homepageBrandProductSectionUpdateRules, validate, updateBrandProductSection);
-router.delete('/homepage/brand-product-sections/:id', requireAdminPermission('content'), ...homepageBrandProductSectionIdRules, validate, deleteBrandProductSection);
-router.post('/homepage/brand-product-sections/:id/move-up', requireAdminPermission('content'), ...homepageBrandProductSectionIdRules, validate, moveBrandProductSectionUp);
-router.post('/homepage/brand-product-sections/:id/move-down', requireAdminPermission('content'), ...homepageBrandProductSectionIdRules, validate, moveBrandProductSectionDown);
-router.get('/homepage/category-product-sections', requireAdminPermission('content'), getAdminCategoryProductSections);
-router.post('/homepage/category-product-sections', requireAdminPermission('content'), ...homepageCategoryProductSectionCreateRules, validate, createCategoryProductSection);
-router.put('/homepage/category-product-sections/:id', requireAdminPermission('content'), ...homepageCategoryProductSectionUpdateRules, validate, updateCategoryProductSection);
-router.delete('/homepage/category-product-sections/:id', requireAdminPermission('content'), ...homepageCategoryProductSectionIdRules, validate, deleteCategoryProductSection);
-router.post('/homepage/category-product-sections/:id/move-up', requireAdminPermission('content'), ...homepageCategoryProductSectionIdRules, validate, moveCategoryProductSectionUp);
-router.post('/homepage/category-product-sections/:id/move-down', requireAdminPermission('content'), ...homepageCategoryProductSectionIdRules, validate, moveCategoryProductSectionDown);
-router.post('/homepage/sections', requireAdminPermission('content'), ...homepageSectionCreateRules, validate, createSection);
-router.put('/homepage/sections/:id', requireAdminPermission('content'), ...homepageSectionUpdateRules, validate, updateSection);
-router.delete('/homepage/sections/:id', requireAdminPermission('content'), ...homepageSectionIdRules, validate, deleteSection);
-router.post('/homepage/sections/:id/items', requireAdminPermission('content'), ...homepageItemCreateRules, validate, createSectionItem);
-router.put('/homepage/items/:id', requireAdminPermission('content'), ...homepageItemUpdateRules, validate, updateSectionItem);
-router.delete('/homepage/items/:id', requireAdminPermission('content'), ...homepageItemIdRules, validate, deleteSectionItem);
+router.get('/homepage', requireAdminPermission('homepage'), getAdminHomepage);
+router.get('/homepage/blocks', requireAdminPermission('homepage'), getAdminBlocks);
+router.post('/homepage/blocks', requireAdminPermission('homepage'), ...homepageBlockCreateRules, validate, createBlock);
+router.post('/homepage/blocks/reset-defaults', requireAdminPermission('homepage'), resetBlocksToDefaults);
+router.put('/homepage/blocks/:id', requireAdminPermission('homepage'), ...homepageBlockUpdateRules, validate, updateBlock);
+router.delete('/homepage/blocks/:id', requireAdminPermission('homepage'), ...homepageBlockIdRules, validate, deleteBlock);
+router.post('/homepage/blocks/:id/move-up', requireAdminPermission('homepage'), ...homepageBlockIdRules, validate, moveBlockUp);
+router.post('/homepage/blocks/:id/move-down', requireAdminPermission('homepage'), ...homepageBlockIdRules, validate, moveBlockDown);
+router.get('/homepage/brand-product-sections', requireAdminPermission('homepage'), getAdminBrandProductSections);
+router.post('/homepage/brand-product-sections', requireAdminPermission('homepage'), ...homepageBrandProductSectionCreateRules, validate, createBrandProductSection);
+router.put('/homepage/brand-product-sections/:id', requireAdminPermission('homepage'), ...homepageBrandProductSectionUpdateRules, validate, updateBrandProductSection);
+router.delete('/homepage/brand-product-sections/:id', requireAdminPermission('homepage'), ...homepageBrandProductSectionIdRules, validate, deleteBrandProductSection);
+router.post('/homepage/brand-product-sections/:id/move-up', requireAdminPermission('homepage'), ...homepageBrandProductSectionIdRules, validate, moveBrandProductSectionUp);
+router.post('/homepage/brand-product-sections/:id/move-down', requireAdminPermission('homepage'), ...homepageBrandProductSectionIdRules, validate, moveBrandProductSectionDown);
+router.get('/homepage/category-product-sections', requireAdminPermission('homepage'), getAdminCategoryProductSections);
+router.post('/homepage/category-product-sections', requireAdminPermission('homepage'), ...homepageCategoryProductSectionCreateRules, validate, createCategoryProductSection);
+router.put('/homepage/category-product-sections/:id', requireAdminPermission('homepage'), ...homepageCategoryProductSectionUpdateRules, validate, updateCategoryProductSection);
+router.delete('/homepage/category-product-sections/:id', requireAdminPermission('homepage'), ...homepageCategoryProductSectionIdRules, validate, deleteCategoryProductSection);
+router.post('/homepage/category-product-sections/:id/move-up', requireAdminPermission('homepage'), ...homepageCategoryProductSectionIdRules, validate, moveCategoryProductSectionUp);
+router.post('/homepage/category-product-sections/:id/move-down', requireAdminPermission('homepage'), ...homepageCategoryProductSectionIdRules, validate, moveCategoryProductSectionDown);
+router.post('/homepage/sections', requireAdminPermission('homepage'), ...homepageSectionCreateRules, validate, createSection);
+router.put('/homepage/sections/:id', requireAdminPermission('homepage'), ...homepageSectionUpdateRules, validate, updateSection);
+router.delete('/homepage/sections/:id', requireAdminPermission('homepage'), ...homepageSectionIdRules, validate, deleteSection);
+router.post('/homepage/sections/:id/items', requireAdminPermission('homepage'), ...homepageItemCreateRules, validate, createSectionItem);
+router.put('/homepage/items/:id', requireAdminPermission('homepage'), ...homepageItemUpdateRules, validate, updateSectionItem);
+router.delete('/homepage/items/:id', requireAdminPermission('homepage'), ...homepageItemIdRules, validate, deleteSectionItem);
 
 // Promotions
 router.get('/promotions', requireAdminPermission('marketing'), adminController.listPromotions);

@@ -5,7 +5,7 @@ import * as productsService from '../services/products.service';
 import { ReviewService, Review } from '../services/review.service';
 import { uploadImageToImageKit } from '../services/imageUpload.service';
 import { AppError, NotFoundError } from '../utils/errors';
-import { logUploadRejected } from '../services/securityEvent.service';
+import { logUploadRejected, requestSecurityContext } from '../services/securityEvent.service';
 
 function parseCsv(csv: string): string[][] {
   const rows: string[][] = [];
@@ -321,7 +321,12 @@ export async function getUserDetail(req: Request, res: Response, next: NextFunct
 
 export async function updateUserRole(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const user = await adminService.updateUserRole(req.params.id, req.body.role, req.user!.id);
+    const user = await adminService.updateUserRole(
+      req.params.id,
+      req.body.role,
+      req.user!.id,
+      requestSecurityContext(req)
+    );
     res.json({ success: true, user });
   } catch (err) {
     next(err);

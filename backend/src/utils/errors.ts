@@ -8,11 +8,13 @@ import { logUploadRejected } from '../services/securityEvent.service';
 export class AppError extends Error {
   public readonly statusCode: number;
   public readonly isOperational: boolean;
+  public readonly code?: string;
 
-  constructor(message: string, statusCode: number, isOperational = true) {
+  constructor(message: string, statusCode: number, isOperational = true, code?: string) {
     super(message);
     this.statusCode = statusCode;
     this.isOperational = isOperational;
+    this.code = code;
     Object.setPrototypeOf(this, new.target.prototype);
     Error.captureStackTrace(this, this.constructor);
   }
@@ -31,8 +33,8 @@ export class UnauthorizedError extends AppError {
 }
 
 export class ForbiddenError extends AppError {
-  constructor(message = 'Access denied') {
-    super(message, 403);
+  constructor(message = 'Access denied', code?: string) {
+    super(message, 403, true, code);
   }
 }
 
@@ -63,6 +65,7 @@ export function errorHandler(
   let statusCode = 500;
   let message = 'Internal server error';
   let errors: Record<string, string>[] | undefined;
+  let code: string | undefined;
 
   if (err instanceof ValidationError) {
     statusCode = err.statusCode;
@@ -71,6 +74,7 @@ export function errorHandler(
   } else if (err instanceof AppError) {
     statusCode = err.statusCode;
     message = err.message;
+    code = err.code;
   } else if ((err as any).type === 'entity.too.large' || (err as any).status === 413) {
     statusCode = 413;
     if (req.originalUrl.includes('/api/v1/admin/uploads/image')) {
@@ -90,6 +94,7 @@ export function errorHandler(
   res.status(statusCode).json({
     success: false,
     message,
+    ...(code && { code }),
     ...(errors && { errors }),
   });
 }

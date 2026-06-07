@@ -9,12 +9,12 @@ import { AdminPermission, hasAdminPermission } from '../../lib/adminPermissions'
 
 const navItems = [
   { name: 'Overview', href: '/admin', icon: LayoutDashboard, permission: 'analytics' },
-  { name: 'Homepage', href: '/admin/homepage', icon: Home, permission: 'content' },
+  { name: 'Homepage', href: '/admin/homepage', icon: Home, permission: 'homepage' },
   { name: 'Carousel', href: '/admin/carousel', icon: ImageIcon, permission: 'content' },
   { name: 'Products', href: '/admin/products', icon: Package, permission: 'products' },
   { name: 'Categories', href: '/admin/categories', icon: Grid, permission: 'products' },
   { name: 'Brands', href: '/admin/brands', icon: Tags, permission: 'products' },
-  { name: 'Customers', href: '/admin/customers', icon: Users, permission: 'users' },
+  { name: 'Customers', href: '/admin/customers', icon: Users, permission: 'customers' },
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart, permission: 'orders' },
   { name: 'Reviews', href: '/admin/reviews', icon: MessageSquare, permission: 'reviews' },
   { name: 'Inventory', href: '/admin/inventory', icon: AlertTriangle, permission: 'products' },

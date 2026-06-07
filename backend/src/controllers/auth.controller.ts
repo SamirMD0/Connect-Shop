@@ -80,6 +80,26 @@ function getOAuthStateCookieOptions(): CookieOptions {
   };
 }
 
+function isAdminMfaUser(req: Request): boolean {
+  return ['support', 'manager', 'admin', 'super_admin'].includes(req.user?.role || '');
+}
+
+function logAdminFreshMfaEvent(
+  req: Request,
+  eventType: 'admin.fresh_mfa_verified' | 'admin.fresh_mfa_failed',
+  severity: 'info' | 'warning' | 'high',
+  reason: string
+): void {
+  if (!isAdminMfaUser(req)) return;
+
+  void logSecurityEvent({
+    ...requestSecurityContext(req),
+    eventType,
+    severity,
+    metadata: { reason },
+  });
+}
+
 /**
  * GET /api/auth/google
  * Redirect user to Google OAuth consent screen.
@@ -447,6 +467,7 @@ export async function setupMfa(req: Request, res: Response, next: NextFunction):
 export async function verifyMfa(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
     if (await isMfaCooldownActive(req)) {
+      logAdminFreshMfaEvent(req, 'admin.fresh_mfa_failed', 'warning', 'cooldown_active');
       throw new AppError(MFA_COOLDOWN_MESSAGE, 429);
     }
 
@@ -454,6 +475,12 @@ export async function verifyMfa(req: Request, res: Response, next: NextFunction)
 
     if (!/^\d{6}$/.test(code)) {
       const cooldownTriggered = await recordFailedMfaAttempt(req, 'invalid_format');
+      logAdminFreshMfaEvent(
+        req,
+        'admin.fresh_mfa_failed',
+        cooldownTriggered ? 'high' : 'warning',
+        'invalid_format'
+      );
       if (cooldownTriggered) {
         throw new AppError(MFA_COOLDOWN_MESSAGE, 429);
       }
@@ -463,12 +490,19 @@ export async function verifyMfa(req: Request, res: Response, next: NextFunction)
     const verified = await verifyMfaCode(req.user!.id, req.user!.session_id!, code);
     if (!verified) {
       const cooldownTriggered = await recordFailedMfaAttempt(req, 'invalid_code');
+      logAdminFreshMfaEvent(
+        req,
+        'admin.fresh_mfa_failed',
+        cooldownTriggered ? 'high' : 'warning',
+        'invalid_code'
+      );
       if (cooldownTriggered) {
         throw new AppError(MFA_COOLDOWN_MESSAGE, 429);
       }
       throw new ForbiddenError('Invalid MFA code');
     }
 
+    logAdminFreshMfaEvent(req, 'admin.fresh_mfa_verified', 'info', 'totp_verified');
     res.json({ success: true, message: 'MFA verified' });
   } catch (err) {
     next(err);

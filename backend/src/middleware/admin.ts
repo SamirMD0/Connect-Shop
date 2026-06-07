@@ -7,16 +7,32 @@ export type AdminPermission =
   | 'analytics'
   | 'products'
   | 'orders'
-  | 'users'
+  | 'customers'
+  | 'admin_roles'
   | 'reviews'
   | 'content'
-  | 'marketing';
+  | 'homepage'
+  | 'marketing'
+  | 'security'
+  | 'settings';
 
 const ROLE_PERMISSIONS: Record<string, AdminPermission[]> = {
-  super_admin: ['analytics', 'products', 'orders', 'users', 'reviews', 'content', 'marketing'],
-  admin: ['analytics', 'products', 'orders', 'users', 'reviews', 'content', 'marketing'],
-  manager: ['analytics', 'products', 'orders', 'reviews', 'content', 'marketing'],
-  support: ['analytics', 'orders', 'reviews'],
+  super_admin: [
+    'analytics',
+    'products',
+    'orders',
+    'customers',
+    'admin_roles',
+    'reviews',
+    'content',
+    'homepage',
+    'marketing',
+    'security',
+    'settings',
+  ],
+  admin: ['analytics', 'products', 'orders', 'customers', 'reviews', 'content', 'homepage', 'marketing'],
+  manager: ['analytics', 'products', 'orders', 'reviews', 'content', 'homepage', 'marketing'],
+  support: ['analytics', 'orders', 'customers', 'reviews'],
   customer: [],
 };
 

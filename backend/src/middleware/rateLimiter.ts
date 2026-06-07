@@ -10,6 +10,16 @@ const isDev = env.NODE_ENV !== 'production';
 const GENERAL_LIMIT = isDev ? 2000 : 600;
 const AUTH_LIMIT = isDev ? 200 : 20;
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const ADMIN_READ_DEVELOPMENT_LIMIT = 2000;
+const ADMIN_READ_PRODUCTION_LIMITS: Record<string, number> = {
+  support: 200,
+  manager: 200,
+  admin: 200,
+  super_admin: 500,
+};
+export const ADMIN_MUTATION_PRODUCTION_LIMIT = 100;
+export const SENSITIVE_ADMIN_ACTION_PRODUCTION_LIMIT = 15;
+export const SENSITIVE_ADMIN_ACTION_DEVELOPMENT_LIMIT = 100;
 
 function createRedisStore(prefix: string) {
   if (!redisClient) return undefined;
@@ -33,6 +43,15 @@ function identityKeyGenerator(req: Request): string {
 
 function skipSafeMethods(req: Request): boolean {
   return SAFE_METHODS.has(req.method);
+}
+
+function skipUnsafeMethods(req: Request): boolean {
+  return !SAFE_METHODS.has(req.method);
+}
+
+export function getAdminReadLimitForRole(role: string | undefined, nodeEnv = env.NODE_ENV): number {
+  if (nodeEnv !== 'production') return ADMIN_READ_DEVELOPMENT_LIMIT;
+  return ADMIN_READ_PRODUCTION_LIMITS[role || ''] || ADMIN_READ_PRODUCTION_LIMITS.support;
 }
 
 function createIdentityLimiter({
@@ -190,6 +209,49 @@ export const uploadLimiter = createIdentityLimiter({
 });
 
 /**
+ * Role-aware limiter for authenticated admin dashboard reads only.
+ * Must be mounted after requireAuth/isAdmin so req.user is available.
+ * Production: support/manager/admin 200 reads per 15 minutes; super_admin 500.
+ */
+export const adminReadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: (req) => getAdminReadLimitForRole(req.user?.role),
+  keyGenerator: identityKeyGenerator,
+  standardHeaders: true,
+  legacyHeaders: false,
+  store: createRedisStore('rl:admin-read:'),
+  passOnStoreError: true,
+  skip: skipUnsafeMethods,
+  handler: (req, res) => {
+    logRateLimitHit(req, 'admin-read', {
+      role: req.user?.role,
+      limit: getAdminReadLimitForRole(req.user?.role),
+    });
+    res.status(429).json({
+      success: false,
+      message: 'Too many admin dashboard requests. Please slow down.',
+    });
+  },
+  message: {
+    success: false,
+    message: 'Too many admin dashboard requests. Please slow down.',
+  },
+});
+
+/**
+ * Strict identity-aware limiter for sensitive admin/security actions.
+ * This stacks with adminMutationLimiter and is intentionally not role-expanded.
+ */
+export const sensitiveAdminActionLimiter = createIdentityLimiter({
+  name: 'sensitive-admin-action',
+  prefix: 'rl:sensitive-admin-action:',
+  windowMs: 60 * 60 * 1000,
+  productionLimit: SENSITIVE_ADMIN_ACTION_PRODUCTION_LIMIT,
+  developmentLimit: SENSITIVE_ADMIN_ACTION_DEVELOPMENT_LIMIT,
+  message: 'Too many sensitive admin actions. Please try again later.',
+});
+
+/**
  * Identity-aware limiter for admin mutation routes.
  * GET/HEAD/OPTIONS are skipped so admin read workflows keep the global limiter only.
  */
@@ -197,7 +259,7 @@ export const adminMutationLimiter = createIdentityLimiter({
   name: 'admin-mutation',
   prefix: 'rl:admin-mutation:',
   windowMs: 15 * 60 * 1000,
-  productionLimit: 100,
+  productionLimit: ADMIN_MUTATION_PRODUCTION_LIMIT,
   developmentLimit: 500,
   message: 'Too many admin changes. Please slow down.',
   skip: skipSafeMethods,

@@ -1,7 +1,7 @@
 import { API_URL } from './constants';
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
     this.name = 'ApiError';
   }
@@ -89,7 +89,8 @@ async function fetchWrapper<T>(endpoint: string, options: RequestOptions = {}): 
     }
 
     const message = (isJson && data.message) ? data.message : response.statusText;
-    throw new ApiError(response.status, message);
+    const code = isJson && typeof data.code === 'string' ? data.code : undefined;
+    throw new ApiError(response.status, message, code);
   }
 
   return data as T;

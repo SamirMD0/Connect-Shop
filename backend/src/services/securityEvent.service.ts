@@ -16,6 +16,9 @@ const SENSITIVE_KEY_PATTERNS = [
   /csrf/i,
   /privateKey/i,
   /secret/i,
+  /mfa.*code/i,
+  /totp/i,
+  /otp/i,
   /^file$/i,
   /base64/i,
   /imageData/i,
@@ -45,7 +48,7 @@ function getClientIp(req: Request): string | null {
     return forwardedFor.split(',')[0].trim() || null;
   }
 
-  return req.ip || req.socket.remoteAddress || null;
+  return req.ip || req.socket?.remoteAddress || null;
 }
 
 function getRequestId(req: Request): string | null {
@@ -54,6 +57,10 @@ function getRequestId(req: Request): string | null {
 
 function isSensitiveKey(key: string): boolean {
   return SENSITIVE_KEY_PATTERNS.some((pattern) => pattern.test(key));
+}
+
+function isAllowedSensitiveNameMetric(key: string, value: unknown): boolean {
+  return key === 'sessionRevokedCount' && typeof value === 'number';
 }
 
 function sanitizeValue(value: unknown, depth: number): unknown {
@@ -87,7 +94,9 @@ function sanitizeValue(value: unknown, depth: number): unknown {
 
     const sanitized: Record<string, unknown> = {};
     for (const [key, nestedValue] of Object.entries(value).slice(0, MAX_OBJECT_KEYS)) {
-      sanitized[key] = isSensitiveKey(key) ? '[redacted]' : sanitizeValue(nestedValue, depth + 1);
+      sanitized[key] = isSensitiveKey(key) && !isAllowedSensitiveNameMetric(key, nestedValue)
+        ? '[redacted]'
+        : sanitizeValue(nestedValue, depth + 1);
     }
     return sanitized;
   }
@@ -167,12 +176,16 @@ export function logFailedLogin(req: Request, metadata: Record<string, unknown> =
   });
 }
 
-export function logRateLimitHit(req: Request, limiter: string): void {
+export function logRateLimitHit(req: Request, limiter: string, metadata: Record<string, unknown> = {}): void {
   void logSecurityEvent({
     ...requestSecurityContext(req),
     eventType: 'rate_limit.hit',
     severity: 'warning',
-    metadata: { limiter },
+    metadata: {
+      limiter,
+      userRole: req.user?.role,
+      ...metadata,
+    },
   });
 }
 
