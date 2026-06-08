@@ -94,6 +94,16 @@ Default local URLs:
 
 Do not commit real `.env` files or secrets.
 
+## Continuous Integration
+
+GitHub Actions runs `Connect-shop CI` on every push and pull request to `main`.
+
+The workflow installs dependencies, runs backend tests, runs available lint/typecheck scripts, builds the backend and frontend, audits backend and frontend dependencies for high or critical vulnerabilities, and runs a Semgrep OWASP Top 10 scan.
+
+Backend CI starts PostgreSQL 15 and Redis 7 service containers. PostgreSQL uses the test-only database `connect_shop_test`, loads `backend/src/db/schema.sql`, and runs the existing backend migration script before tests.
+
+To inspect failures, open the repository on GitHub, go to the **Actions** tab, select the failed `Connect-shop CI` run, and expand the failing job log.
+
 ## Deployment Summary
 
 Recommended deployment stack:

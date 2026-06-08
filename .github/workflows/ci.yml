@@ -1,0 +1,180 @@
+name: Connect-shop CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: "20"
+
+jobs:
+  backend:
+    name: Backend CI
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: testuser
+          POSTGRES_PASSWORD: testpassword
+          POSTGRES_DB: connect_shop_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U testuser -d connect_shop_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgres://testuser:testpassword@localhost:5432/connect_shop_test
+      REDIS_URL: redis://localhost:6379
+      SESSION_SECRET: test_session_secret_for_connect_shop_ci_only
+      GOOGLE_CLIENT_ID: test_google_client_id
+      GOOGLE_CLIENT_SECRET: test_google_client_secret
+      GOOGLE_CALLBACK_URL: http://localhost:5000/api/v1/auth/google/callback
+      FRONTEND_URL: http://localhost:3000
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+
+      # TODO: Add a backend lint script so CI can lint API code on every PR.
+      - name: Run backend lint if available
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
+            npm run lint
+          else
+            echo "::notice::No backend lint script found; skipping backend lint."
+          fi
+
+      - name: Prepare test database
+        run: |
+          npm run db:schema
+          npm run db:migrate
+
+      - name: Run backend tests
+        run: npm test
+
+      - name: Run backend build if available
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.build ? 0 : 1)"; then
+            npm run build
+          else
+            echo "::notice::No backend build script found; skipping backend build."
+          fi
+
+  frontend:
+    name: Frontend CI
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    env:
+      NEXT_PUBLIC_API_URL: http://localhost:5000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+      NEXT_PUBLIC_APP_NAME: ELECTRO SHOP
+      NEXT_PUBLIC_BUSINESS_PHONE: "+961 00 000 000"
+      NEXT_PUBLIC_BUSINESS_WHATSAPP: "+96100000000"
+      NEXT_PUBLIC_BUSINESS_EMAIL: support@example.com
+      NEXT_PUBLIC_BUSINESS_ADDRESS: Lebanon
+      NEXT_PUBLIC_BUSINESS_HOURS: "Monday to Saturday, 9:00 AM - 8:00 PM"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend lint if available
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
+            npm run lint
+          else
+            echo "::notice::No frontend lint script found; skipping frontend lint."
+          fi
+
+      - name: Run frontend typecheck if available
+        run: |
+          if node -e "process.exit(require('./package.json').scripts?.typecheck ? 0 : 1)"; then
+            npm run typecheck
+          else
+            echo "::notice::No frontend typecheck script found; skipping frontend typecheck."
+          fi
+
+      - name: Build frontend
+        run: npm run build
+
+  security:
+    name: Security CI
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install backend dependencies for audit
+        working-directory: backend
+        run: npm ci
+
+      - name: Audit backend dependencies
+        working-directory: backend
+        run: npm audit --audit-level=high
+
+      - name: Install frontend dependencies for audit
+        working-directory: frontend
+        run: npm ci
+
+      - name: Audit frontend dependencies
+        working-directory: frontend
+        run: npm audit --audit-level=high
+
+      - name: Semgrep OWASP Top 10 scan
+        uses: semgrep/semgrep-action@v1
+        with:
+          config: p/owasp-top-ten
