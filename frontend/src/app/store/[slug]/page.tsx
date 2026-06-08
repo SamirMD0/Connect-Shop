@@ -122,11 +122,7 @@ export default async function ProductDetailPage({ params }: Props) {
 
   return (
     <div className="animate-fade-in">
-      {/* nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml - JSON-LD is server-generated and escapes '<' before injection. */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: safeJsonLd }}
-      />
+      <script type="application/ld+json">{safeJsonLd}</script>
       <Container className="py-8">
         {/* Breadcrumb */}
         <nav className="flex items-center gap-2 text-sm text-text-muted mb-8">
