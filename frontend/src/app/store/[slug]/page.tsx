@@ -118,12 +118,14 @@ export default async function ProductDetailPage({ params }: Props) {
       url: `${SITE_URL}/store/${product.slug}`,
     },
   };
+  const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
   return (
     <div className="animate-fade-in">
+      {/* nosemgrep: typescript.react.security.audit.react-dangerouslysetinnerhtml.react-dangerouslysetinnerhtml - JSON-LD is server-generated and escapes '<' before injection. */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd }}
       />
       <Container className="py-8">
         {/* Breadcrumb */}
