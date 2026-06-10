@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc --project tsconfig.json",
-    "test": "tsx --test --test-concurrency=1 tests/admin.role-permissions.test.ts tests/auth.session.test.ts tests/homepage.brand-product.validation.test.ts",
+    "test": "tsx --test --test-concurrency=1 tests/admin.role-permissions.test.ts tests/admin.security-monitoring.test.ts tests/auth.session.test.ts tests/homepage.brand-product.validation.test.ts",
     "start": "node dist/server.js",
     "db:schema": "psql $DATABASE_URL -f src/db/schema.sql",
     "db:seed": "psql $DATABASE_URL -f src/db/seed.sql",

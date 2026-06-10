@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Edit2, ImageIcon, LayoutGrid, List, Plus, Trash2 } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { Edit2, ImageIcon, LayoutGrid, List, Plus, Trash2, Upload } from 'lucide-react';
+import { api, ApiError } from '../../../lib/api';
 import { Brand, Category, HomepageSection, HomepageSectionItem, Product } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
@@ -74,6 +74,7 @@ const emptyCountdownForm: CountdownForm = {
 };
 
 type LinkTargetType = 'product' | 'category' | 'brand' | 'custom';
+type PromotionImageTarget = 'promotion' | 'top' | 'countdown';
 
 function getPromotionLink(type: LinkTargetType, value: string): string {
   if (!value) return '';
@@ -175,6 +176,8 @@ export default function AdminPromotions() {
   const [linkTargetValue, setLinkTargetValue] = useState('');
   const [productSearch, setProductSearch] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [uploadingImageTarget, setUploadingImageTarget] = useState<PromotionImageTarget | null>(null);
+  const [imageUploadError, setImageUploadError] = useState<{ target: PromotionImageTarget; message: string } | null>(null);
 
   async function fetchPromotions() {
     const [promoRes, homepageRes, productRes, categoryRes, brandRes] = await Promise.all([
@@ -340,6 +343,41 @@ export default function AdminPromotions() {
     await fetchPromotions();
   }
 
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  async function handleImageUpload(file: File, target: PromotionImageTarget) {
+    setUploadingImageTarget(target);
+    setImageUploadError(null);
+
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const res = await api.post<{ success: boolean; url: string }>('/api/admin/uploads/image', {
+        fileName: file.name,
+        dataUrl,
+      });
+
+      if (target === 'promotion') {
+        setForm(current => ({ ...current, image_url: res.url }));
+      } else if (target === 'top') {
+        setTopPromoForm(current => ({ ...current, image_url: res.url }));
+      } else {
+        setCountdownForm(current => ({ ...current, background_image_url: res.url }));
+      }
+    } catch (error) {
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to upload image.';
+      setImageUploadError({ target, message });
+    } finally {
+      setUploadingImageTarget(null);
+    }
+  }
+
   const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
   const renderPromotionImage = (promotion: Promotion, size: 'table' | 'grid' = 'table') => {
     const frameClasses = size === 'grid'
@@ -386,6 +424,53 @@ export default function AdminPromotions() {
       )}
     </div>
   );
+
+  const renderImageUploadControls = (
+    target: PromotionImageTarget,
+    imageUrl: string,
+    previewAlt: string
+  ) => {
+    const isUploading = uploadingImageTarget === target;
+
+    return (
+      <div className="mt-3 space-y-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <label
+            className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent ${
+              isUploading ? 'pointer-events-none opacity-60' : ''
+            }`}
+          >
+            <Upload className="h-4 w-4" />
+            {isUploading ? 'Uploading...' : 'Upload image'}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              disabled={isUploading}
+              onChange={event => {
+                const file = event.target.files?.[0];
+                event.currentTarget.value = '';
+                if (file) void handleImageUpload(file, target);
+              }}
+            />
+          </label>
+          <span className="text-xs text-slate-500">Uploads to ImageKit when configured.</span>
+        </div>
+
+        {imageUploadError?.target === target && (
+          <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {imageUploadError.message}
+          </p>
+        )}
+
+        {imageUrl && (
+          <div className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50 p-2">
+            {renderHomepageImage(imageUrl, previewAlt)}
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const renderPromotionStatus = (promotion: Promotion) => (
     <span className={`rounded-lg px-2.5 py-1 text-xs font-medium ${promotion.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
@@ -682,6 +767,7 @@ export default function AdminPromotions() {
               value={topPromoForm.image_url}
               onChange={event => setTopPromoForm({ ...topPromoForm, image_url: event.target.value })}
             />
+            {renderImageUploadControls('top', topPromoForm.image_url, 'Top promo image preview')}
           </div>
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
             <label className="mb-3 block text-sm font-medium text-[#0B1B48]">Top promo click target</label>
@@ -837,6 +923,7 @@ export default function AdminPromotions() {
                 value={countdownForm.background_image_url}
                 onChange={event => setCountdownForm({ ...countdownForm, background_image_url: event.target.value })}
               />
+              {renderImageUploadControls('countdown', countdownForm.background_image_url, 'Countdown promo image preview')}
             </div>
             <div>
               <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Button text</label>
@@ -987,6 +1074,7 @@ export default function AdminPromotions() {
           <div>
             <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Image URL</label>
             <input className={inputClasses} placeholder="Image URL or /uploads path" value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })} />
+            {renderImageUploadControls('promotion', form.image_url, 'Promotion image preview')}
           </div>
 
           <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">

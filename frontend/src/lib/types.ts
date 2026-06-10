@@ -203,6 +203,68 @@ export interface ApiResponse<T> {
   [key: string]: any; // Allow spreading result
 }
 
+// ─── Admin Security Monitoring ───────────────────────────────────────────────
+export type SecurityHealthStatus = 'ok' | 'down';
+export type RedisHealthStatus = 'ok' | 'disabled' | 'down';
+export type SecuritySeverity = 'critical' | 'high' | 'warning' | 'info';
+export type SecurityAlertWindow = '15m' | '1h' | '24h';
+
+export interface SecurityHealthResponse {
+  success: boolean;
+  health: {
+    api: {
+      status: 'ok';
+      checkedAt: string;
+    };
+    database: {
+      status: SecurityHealthStatus;
+      latencyMs?: number;
+    };
+    redis: {
+      status: RedisHealthStatus;
+      latencyMs?: number;
+    };
+    environment: string;
+    lastCheckedAt: string;
+  };
+}
+
+export interface SecurityAlert {
+  id: string;
+  severity: SecuritySeverity;
+  source: string;
+  title: string;
+  message: string;
+  count?: number;
+  window: SecurityAlertWindow;
+  suggestedAction: string;
+  createdAt: string;
+}
+
+export interface SecurityEventSummary {
+  id: string;
+  eventType: string;
+  severity: SecuritySeverity;
+  userId: string | null;
+  route: string | null;
+  method: string | null;
+  requestId: string | null;
+  ipAddress: string | null;
+  metadataSummary: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface SecurityEventsResponse {
+  success: boolean;
+  events: SecurityEventSummary[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 // ─── Admin Analytics ─────────────────────────────────────────────────────────
 export interface MonthlyRevenue {
   month: string;

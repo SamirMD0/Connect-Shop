@@ -38,6 +38,7 @@ import {
   homepageCategoryProductSectionIdRules,
 } from '../middleware/validate';
 import * as adminController from '../controllers/admin.controller';
+import * as adminSecurityController from '../controllers/adminSecurity.controller';
 import {
   createBlock,
   createBrandProductSection,
@@ -90,6 +91,11 @@ router.get('/analytics/monthly-revenue', requireAdminPermission('analytics'), ad
 router.get('/inventory/alerts', requireAdminPermission('products'), adminController.getInventoryAlerts);
 router.get('/search', requireAdminPermission('analytics'), adminController.searchAdmin);
 router.post('/uploads/image', requireAdminPermission('products'), adminController.uploadImage);
+
+// Security monitoring
+router.get('/security/health', requireAdminPermission('security'), adminSecurityController.getSecurityHealth);
+router.get('/security/events', requireAdminPermission('security'), adminSecurityController.getSecurityEvents);
+router.get('/security/alerts', requireAdminPermission('security'), adminSecurityController.getSecurityAlertsController);
 
 // Products
 router.get('/products/export', requireAdminPermission('products'), adminController.exportProductsCsv);

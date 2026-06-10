@@ -3,7 +3,7 @@
 import type { ComponentType } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { LayoutDashboard, Package, Grid, Users, ShoppingCart, LogOut, Image as ImageIcon, Zap, X, AlertTriangle, BadgePercent, Megaphone, Search, MessageSquare, Tags, Home } from 'lucide-react';
+import { LayoutDashboard, Package, Grid, Users, ShoppingCart, LogOut, Image as ImageIcon, Zap, X, AlertTriangle, BadgePercent, Megaphone, Search, MessageSquare, Tags, Home, Shield } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { AdminPermission, hasAdminPermission } from '../../lib/adminPermissions';
 
@@ -21,6 +21,7 @@ const navItems = [
   { name: 'Promotions', href: '/admin/promotions', icon: Megaphone, permission: 'marketing' },
   { name: 'Coupons', href: '/admin/coupons', icon: BadgePercent, permission: 'marketing' },
   { name: 'Search', href: '/admin/search', icon: Search, permission: 'analytics' },
+  { name: 'Security', href: '/admin/security', icon: Shield, permission: 'security' },
 ] satisfies Array<{ name: string; href: string; icon: ComponentType<{ className?: string }>; permission: AdminPermission }>;
 
 interface AdminSidebarProps {
