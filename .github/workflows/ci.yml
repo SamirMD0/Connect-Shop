@@ -60,6 +60,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Validate backup scripts
+        working-directory: .
         run: |
           bash -n scripts/backup_db.sh
           bash -n scripts/restore_db.sh

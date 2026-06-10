@@ -67,7 +67,10 @@ function isProductOrderable(product?: ApiProduct | null): product is ApiProduct 
 test.describe('guest cash-on-delivery checkout', () => {
   test('opens catalog, adds an in-stock product, and places a COD order', async ({ page, request }) => {
     const product = await getEligibleProduct(request);
-    test.skip(!product, 'E2E checkout needs at least one in-stock seeded product with an orderable default variant.');
+    if (!product) {
+      test.skip(true, 'E2E checkout needs at least one in-stock seeded product with an orderable default variant.');
+      return;
+    }
 
     await page.goto('/store');
 
