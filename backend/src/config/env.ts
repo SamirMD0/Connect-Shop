@@ -14,6 +14,14 @@ const optionalEnvUrl = z.preprocess(
   z.string().url().optional()
 );
 
+const sampleRate = (defaultValue: string) => z
+  .string()
+  .default(defaultValue)
+  .transform((value) => parseFloat(value))
+  .refine((value) => Number.isFinite(value) && value >= 0 && value <= 1, {
+    message: 'Sample rate must be between 0 and 1',
+  });
+
 const envSchema = z.object({
   // Server
   PORT: z
@@ -51,6 +59,12 @@ const envSchema = z.object({
 
   // Redis
   REDIS_URL: z.string().url().optional(),
+
+  // Sentry
+  SENTRY_DSN: optionalEnvUrl,
+  SENTRY_ENVIRONMENT: optionalEnvString,
+  SENTRY_TRACES_SAMPLE_RATE: sampleRate('0.1'),
+  SENTRY_PROFILES_SAMPLE_RATE: sampleRate('0.0'),
 
   // ImageKit
   IMAGEKIT_PUBLIC_KEY: optionalEnvString,

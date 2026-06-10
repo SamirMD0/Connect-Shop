@@ -59,6 +59,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate backup scripts
+        run: |
+          bash -n scripts/backup_db.sh
+          bash -n scripts/restore_db.sh
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:

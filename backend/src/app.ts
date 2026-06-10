@@ -13,6 +13,7 @@ import { generalLimiter } from './middleware/rateLimiter';
 import { csrfProtection } from './middleware/csrf';
 import { sanitizeInput } from './middleware/sanitize';
 import { errorHandler } from './utils/errors';
+import { setupSentryExpressErrorHandler } from './config/sentry';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -91,6 +92,7 @@ app.use((_req, res) => {
 });
 
 // ─── Global Error Handler ────────────────────────────────────────────────────
+setupSentryExpressErrorHandler(app);
 app.use(errorHandler);
 
 export default app;
