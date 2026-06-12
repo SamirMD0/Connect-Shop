@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CategoryFilter } from './CategoryFilter';
 import { SearchBar } from './SearchBar';
@@ -35,6 +35,18 @@ export function StoreFilters({
   const searchParams = useSearchParams();
   const router = useRouter();
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [advancedSpecsOpen, setAdvancedSpecsOpen] = useState(Boolean(specKey || specValue));
+  const [brandDraft, setBrandDraft] = useState(currentBrand);
+  const [minPriceDraft, setMinPriceDraft] = useState(minPrice);
+  const [maxPriceDraft, setMaxPriceDraft] = useState(maxPrice);
+  const [specKeyDraft, setSpecKeyDraft] = useState(specKey);
+  const [specValueDraft, setSpecValueDraft] = useState(specValue);
+
+  useEffect(() => setBrandDraft(currentBrand), [currentBrand]);
+  useEffect(() => setMinPriceDraft(minPrice), [minPrice]);
+  useEffect(() => setMaxPriceDraft(maxPrice), [maxPrice]);
+  useEffect(() => setSpecKeyDraft(specKey), [specKey]);
+  useEffect(() => setSpecValueDraft(specValue), [specValue]);
 
   const categoryNameBySlug = useMemo(() => {
     return new Map(categories.map(category => [category.slug, category.name]));
@@ -87,6 +99,35 @@ export function StoreFilters({
     router.push('/store');
   };
 
+  const applyBrand = useCallback(() => {
+    if (brandDraft !== currentBrand) updateParams({ brand: brandDraft.trim() || null });
+  }, [brandDraft, currentBrand, updateParams]);
+
+  const applyPriceRange = useCallback(() => {
+    if (minPriceDraft !== minPrice || maxPriceDraft !== maxPrice) {
+      updateParams({
+        min_price: minPriceDraft.trim() || null,
+        max_price: maxPriceDraft.trim() || null,
+      });
+    }
+  }, [maxPrice, maxPriceDraft, minPrice, minPriceDraft, updateParams]);
+
+  const applySpecs = useCallback(() => {
+    if (specKeyDraft !== specKey || specValueDraft !== specValue) {
+      updateParams({
+        spec_key: specKeyDraft.trim() || null,
+        spec_value: specValueDraft.trim() || null,
+      });
+    }
+  }, [specKey, specKeyDraft, specValue, specValueDraft, updateParams]);
+
+  const applyOnEnter = (event: KeyboardEvent<HTMLInputElement>, apply: () => void) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      apply();
+    }
+  };
+
   const activeFilters = [
     currentSearch
       ? { key: 'search', label: 'Search', value: currentSearch, clear: () => updateParams({ search: null }) }
@@ -132,41 +173,14 @@ export function StoreFilters({
   ].filter(Boolean) as Array<{ key: string; label: string; value: string; clear: () => void }>;
 
   return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5">
-      <div className="grid gap-3 lg:grid-cols-[1fr_220px_auto] lg:items-end">
+    <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5 lg:sticky lg:top-24">
+      <div className="flex items-center justify-between gap-3">
         <div>
-          <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-            Search catalog
-          </label>
-          <SearchBar
-            value={currentSearch}
-            onChange={(v) => updateParams({ search: v })}
-            ariaLabel="Search catalog products"
-          />
+          <h2 className="text-sm font-bold text-text-primary">Filters</h2>
+          <p className="mt-1 text-xs text-text-muted">
+            {activeFilters.length > 0 ? `${activeFilters.length} active` : 'Refine the catalog'}
+          </p>
         </div>
-
-        <div>
-          <label htmlFor="store-sort" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-            Sort
-          </label>
-          <div className="relative">
-            <select
-              id="store-sort"
-              value={currentSort}
-              onChange={(e) => updateParams({ sort: e.target.value })}
-              className="w-full appearance-none rounded-xl border border-slate-200 bg-bg-surface px-4 py-3 pr-10 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
-            >
-              <option value="">Default</option>
-              <option value="price_asc">Price: Low to High</option>
-              <option value="price_desc">Price: High to Low</option>
-              <option value="newest">Newest First</option>
-              <option value="rating">Highest Rated</option>
-              <option value="popular">Most Popular</option>
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-          </div>
-        </div>
-
         <button
           type="button"
           onClick={() => setFiltersOpen(open => !open)}
@@ -215,7 +229,46 @@ export function StoreFilters({
         id="store-advanced-filters"
         className={`${filtersOpen ? 'block' : 'hidden'} mt-5 border-t border-slate-100 pt-5 lg:block`}
       >
-        <div className="grid gap-5">
+        <div className="grid gap-6">
+          <section aria-labelledby="search-sort-filter-label" className="space-y-4">
+            <h3 id="search-sort-filter-label" className="text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Search and sort
+            </h3>
+            <div>
+              <label className="mb-2 block text-sm font-medium text-text-primary">
+                Search catalog
+              </label>
+              <SearchBar
+                value={currentSearch}
+                onChange={(v) => updateParams({ search: v })}
+                placeholder="Search products by name..."
+                ariaLabel="Search catalog products"
+              />
+            </div>
+
+            <div>
+              <label htmlFor="store-sort" className="mb-2 block text-sm font-medium text-text-primary">
+                Sort results
+              </label>
+              <div className="relative">
+                <select
+                  id="store-sort"
+                  value={currentSort}
+                  onChange={(e) => updateParams({ sort: e.target.value })}
+                  className="w-full appearance-none rounded-xl border border-slate-200 bg-bg-surface px-4 py-3 pr-10 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                >
+                  <option value="">Default</option>
+                  <option value="price_asc">Price: Low to High</option>
+                  <option value="price_desc">Price: High to Low</option>
+                  <option value="newest">Newest First</option>
+                  <option value="rating">Highest Rated</option>
+                  <option value="popular">Most Popular</option>
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
+              </div>
+            </div>
+          </section>
+
           <section aria-labelledby="category-filter-label">
             <div className="mb-2 flex items-center justify-between gap-3">
               <h3 id="category-filter-label" className="text-xs font-semibold uppercase tracking-wide text-text-muted">
@@ -235,54 +288,77 @@ export function StoreFilters({
               categories={categories}
               selected={currentCategory}
               onSelect={(slug) => updateParams({ category: slug })}
+              layout="stack"
             />
           </section>
 
-          <div className="grid gap-4 lg:grid-cols-[minmax(150px,1fr)_minmax(220px,1.2fr)_180px_minmax(220px,1.2fr)]">
-            <div>
-              <label htmlFor="store-brand" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+          <section aria-labelledby="brand-filter-label">
+            <h3 id="brand-filter-label" className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Brand
+            </h3>
+            <div className="space-y-2">
+              <label htmlFor="store-brand" className="sr-only">
                 Brand
               </label>
               <input
                 id="store-brand"
                 type="text"
-                placeholder="Apple, Samsung..."
-                value={currentBrand}
-                onChange={(e) => updateParams({ brand: e.target.value })}
+                placeholder="Type a brand, then press Enter"
+                value={brandDraft}
+                onChange={(e) => setBrandDraft(e.target.value)}
+                onBlur={applyBrand}
+                onKeyDown={(e) => applyOnEnter(e, applyBrand)}
                 className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-4 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
+              <p className="text-xs leading-5 text-text-muted">Use the brand name or slug. Press Enter or leave the field to apply.</p>
             </div>
+          </section>
 
-            <fieldset>
-              <legend className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Price range
-              </legend>
+          <fieldset>
+            <legend className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Price
+            </legend>
+            <div className="space-y-3">
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
                 <input
                   type="number"
-                  placeholder="Min"
-                  value={minPrice}
-                  onChange={(e) => updateParams({ min_price: e.target.value })}
+                  min="0"
+                  placeholder="Min $"
+                  value={minPriceDraft}
+                  onChange={(e) => setMinPriceDraft(e.target.value)}
+                  onBlur={applyPriceRange}
+                  onKeyDown={(e) => applyOnEnter(e, applyPriceRange)}
                   aria-label="Minimum price"
                   className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
                 <span className="text-text-muted">-</span>
                 <input
                   type="number"
-                  placeholder="Max"
-                  value={maxPrice}
-                  onChange={(e) => updateParams({ max_price: e.target.value })}
+                  min="0"
+                  placeholder="Max $"
+                  value={maxPriceDraft}
+                  onChange={(e) => setMaxPriceDraft(e.target.value)}
+                  onBlur={applyPriceRange}
+                  onKeyDown={(e) => applyOnEnter(e, applyPriceRange)}
                   aria-label="Maximum price"
                   className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
               </div>
-            </fieldset>
+              <button
+                type="button"
+                onClick={applyPriceRange}
+                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-accent hover:text-accent"
+              >
+                Apply price
+              </button>
+            </div>
+          </fieldset>
 
-            <div>
-              <label htmlFor="store-rating" className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Rating
-              </label>
-              <div className="relative">
+          <section aria-labelledby="rating-filter-label">
+            <h3 id="rating-filter-label" className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">
+              Rating
+            </h3>
+            <div className="relative">
                 <select
                   id="store-rating"
                   value={minRating}
@@ -295,33 +371,62 @@ export function StoreFilters({
                   <option value="2">2+ stars</option>
                 </select>
                 <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" />
-              </div>
             </div>
+          </section>
 
-            <fieldset>
-              <legend className="mb-2 block text-xs font-semibold uppercase tracking-wide text-text-muted">
-                Specification
-              </legend>
-              <div className="grid grid-cols-2 gap-2">
+          <section aria-labelledby="spec-filter-label" className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <button
+              type="button"
+              onClick={() => setAdvancedSpecsOpen(open => !open)}
+              className="flex w-full items-center justify-between gap-3 text-left"
+              aria-expanded={advancedSpecsOpen}
+              aria-controls="advanced-spec-filters"
+            >
+              <span>
+                <span id="spec-filter-label" className="block text-xs font-semibold uppercase tracking-wide text-text-muted">
+                  Advanced specs
+                </span>
+                <span className="mt-1 block text-xs text-text-muted">
+                  Filter by a specific product spec, such as color or capacity.
+                </span>
+              </span>
+              <ChevronDown className={`h-4 w-4 shrink-0 text-text-muted transition-transform ${advancedSpecsOpen ? 'rotate-180' : ''}`} />
+            </button>
+            {advancedSpecsOpen && (
+              <fieldset id="advanced-spec-filters" className="mt-3">
+                <legend className="sr-only">Advanced specification filter</legend>
+                <div className="grid grid-cols-1 gap-2">
                 <input
                   type="text"
-                  placeholder="Spec"
-                  value={specKey}
-                  onChange={(e) => updateParams({ spec_key: e.target.value })}
+                  placeholder="Spec name, e.g. color"
+                  value={specKeyDraft}
+                  onChange={(e) => setSpecKeyDraft(e.target.value)}
+                  onBlur={applySpecs}
+                  onKeyDown={(e) => applyOnEnter(e, applySpecs)}
                   aria-label="Specification name"
                   className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
                 <input
                   type="text"
-                  placeholder="Value"
-                  value={specValue}
-                  onChange={(e) => updateParams({ spec_value: e.target.value })}
+                  placeholder="Value, e.g. inox"
+                  value={specValueDraft}
+                  onChange={(e) => setSpecValueDraft(e.target.value)}
+                  onBlur={applySpecs}
+                  onKeyDown={(e) => applyOnEnter(e, applySpecs)}
                   aria-label="Specification value"
                   className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
+                <button
+                  type="button"
+                  onClick={applySpecs}
+                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-accent hover:text-accent"
+                >
+                  Apply specs
+                </button>
               </div>
-            </fieldset>
-          </div>
+              </fieldset>
+            )}
+          </section>
         </div>
       </div>
     </div>
