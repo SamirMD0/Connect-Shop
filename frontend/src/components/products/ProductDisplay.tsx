@@ -210,6 +210,28 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
           </div>
         )}
 
+        {product.specs && Object.keys(product.specs).length > 0 && (
+          <div className="mb-8">
+            <h2 className="mb-4 text-sm font-semibold text-text-primary">Specifications</h2>
+            <div className="space-y-3">
+              {Object.entries(product.specs).map(([key, value]) => (
+                <div key={key} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(180px,0.45fr)_1fr] sm:gap-5">
+                  <div className="rounded-lg bg-slate-50 px-4 py-3">
+                    <span className="text-sm font-bold uppercase text-text-primary">
+                      {key.replace(/_/g, ' ')}
+                    </span>
+                  </div>
+                  <div className="flex items-center px-1 py-2 sm:py-3">
+                    <span className="break-words text-sm font-medium leading-6 text-text-primary sm:text-base">
+                      {value}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Variant Selection */}
         {product.variants && product.variants.length > 0 && (
           <div className="mb-8">
@@ -307,31 +329,6 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
             </div>
           ))}
         </div>
-
-        {/* Specs Table */}
-        {product.specs && Object.keys(product.specs).length > 0 && (
-          <div className="mt-8">
-            <h3 className="mb-4 text-sm font-semibold text-text-primary">Specifications</h3>
-            <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white">
-              {Object.entries(product.specs).map(([key, value], index) => (
-                <div
-                  key={key}
-                  className={cn(
-                    "grid gap-1 px-4 py-3 sm:grid-cols-[180px_1fr] sm:gap-4",
-                    index % 2 === 0 ? 'bg-slate-50' : 'bg-white'
-                  )}
-                >
-                  <span className="text-xs font-semibold uppercase tracking-wide text-text-muted sm:text-sm sm:normal-case sm:capitalize sm:tracking-normal">
-                    {key.replace(/_/g, ' ')}
-                  </span>
-                  <span className="break-words text-sm font-medium leading-6 text-text-primary">
-                    {value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

@@ -33,6 +33,7 @@ interface ProductWriteInput {
   sku?: string | null;
   compare_at_price?: number | null;
   weight_grams?: number | null;
+  specs?: Record<string, string> | null;
   meta_title?: string | null;
   meta_description?: string | null;
   gallery_images?: ProductImageInput[];
@@ -125,10 +126,10 @@ export class ProductRepository {
   static async create(data: ProductWriteInput) {
     return withTransaction(async (client) => {
       const rows = await client.query<Product>(
-        `INSERT INTO products (name, slug, description, price, image_url, category_id, stock, is_featured, brand_id, brand, sku, compare_at_price, weight_grams, meta_title, meta_description)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        `INSERT INTO products (name, slug, description, price, image_url, category_id, stock, is_featured, brand_id, brand, sku, compare_at_price, weight_grams, specs, meta_title, meta_description)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
          RETURNING *`,
-        [data.name, data.slug, data.description, data.price, data.image_url, data.category_id, data.stock, data.is_featured, data.brand_id ?? null, data.brand || null, data.sku || null, data.compare_at_price ?? null, data.weight_grams ?? null, data.meta_title || null, data.meta_description || null]
+        [data.name, data.slug, data.description, data.price, data.image_url, data.category_id, data.stock, data.is_featured, data.brand_id ?? null, data.brand || null, data.sku || null, data.compare_at_price ?? null, data.weight_grams ?? null, data.specs ? JSON.stringify(data.specs) : null, data.meta_title || null, data.meta_description || null]
       );
       const product = rows.rows[0];
       await this.replaceImages(client, product.id, data.gallery_images || []);
@@ -142,10 +143,10 @@ export class ProductRepository {
       const rows = await client.query<Product>(
         `UPDATE products
          SET name = $1, slug = $2, description = $3, price = $4, image_url = $5, category_id = $6, stock = $7, is_featured = $8,
-             brand_id = $9, brand = $10, sku = $11, compare_at_price = $12, weight_grams = $13, meta_title = $14, meta_description = $15, updated_at = NOW()
-         WHERE id = $16
+             brand_id = $9, brand = $10, sku = $11, compare_at_price = $12, weight_grams = $13, specs = $14, meta_title = $15, meta_description = $16, updated_at = NOW()
+         WHERE id = $17
          RETURNING *`,
-        [data.name, data.slug, data.description, data.price, data.image_url, data.category_id, data.stock, data.is_featured, data.brand_id ?? null, data.brand || null, data.sku || null, data.compare_at_price ?? null, data.weight_grams ?? null, data.meta_title || null, data.meta_description || null, id]
+        [data.name, data.slug, data.description, data.price, data.image_url, data.category_id, data.stock, data.is_featured, data.brand_id ?? null, data.brand || null, data.sku || null, data.compare_at_price ?? null, data.weight_grams ?? null, data.specs ? JSON.stringify(data.specs) : null, data.meta_title || null, data.meta_description || null, id]
       );
       const product = rows.rows[0] || null;
       if (!product) return null;

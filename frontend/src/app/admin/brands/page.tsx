@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
-import { Edit2, ImageIcon, Plus, Trash2 } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { Edit2, ImageIcon, Plus, Trash2, Upload } from 'lucide-react';
+import { api, ApiError } from '../../../lib/api';
 import { Brand } from '../../../lib/types';
 import { Modal } from '../../../components/admin/Modal';
 
@@ -30,6 +30,8 @@ export default function AdminBrands() {
   const [isBrandModalOpen, setIsBrandModalOpen] = useState(false);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [brandForm, setBrandForm] = useState(emptyBrandForm);
+  const [formError, setFormError] = useState('');
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15';
 
@@ -64,11 +66,13 @@ export default function AdminBrands() {
       description: brand.description || '',
       is_active: brand.is_active,
     } : emptyBrandForm);
+    setFormError('');
     setIsBrandModalOpen(true);
   }
 
   async function saveBrand(event: React.FormEvent) {
     event.preventDefault();
+    setFormError('');
     const payload = {
       name: brandForm.name.trim(),
       slug: brandForm.slug.trim() || slugify(brandForm.name),
@@ -77,14 +81,49 @@ export default function AdminBrands() {
       is_active: brandForm.is_active,
     };
 
-    if (editingBrand) {
-      await api.put(`/api/admin/brands/${editingBrand.id}`, payload);
-    } else {
-      await api.post('/api/admin/brands', payload);
-    }
+    try {
+      if (editingBrand) {
+        await api.put(`/api/admin/brands/${editingBrand.id}`, payload);
+      } else {
+        await api.post('/api/admin/brands', payload);
+      }
 
-    setIsBrandModalOpen(false);
-    await fetchBrands();
+      setIsBrandModalOpen(false);
+      await fetchBrands();
+    } catch (error: unknown) {
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to save brand. Please check your inputs.';
+      setFormError(message);
+    }
+  }
+
+  const readFileAsDataUrl = (file: File) => new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+
+  async function handleLogoUpload(file: File) {
+    setFormError('');
+    setUploadingLogo(true);
+    try {
+      const dataUrl = await readFileAsDataUrl(file);
+      const response = await api.post<{ success: boolean; url: string }>('/api/admin/uploads/image', {
+        fileName: file.name,
+        dataUrl,
+      });
+
+      setBrandForm(current => ({ ...current, logo_url: response.url }));
+    } catch (error: unknown) {
+      const message = error instanceof ApiError || error instanceof Error
+        ? error.message
+        : 'Failed to upload brand logo.';
+      setFormError(message);
+    } finally {
+      setUploadingLogo(false);
+    }
   }
 
   async function deleteBrand(brand: Brand) {
@@ -177,6 +216,11 @@ export default function AdminBrands() {
 
       <Modal isOpen={isBrandModalOpen} onClose={() => setIsBrandModalOpen(false)} title={editingBrand ? 'Edit Brand' : 'Add Brand'}>
         <form onSubmit={saveBrand} className="space-y-4">
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           <div>
             <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Brand Name</label>
             <input
@@ -205,6 +249,42 @@ export default function AdminBrands() {
               value={brandForm.logo_url}
               onChange={event => setBrandForm({...brandForm, logo_url: event.target.value})}
             />
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <label
+                className={`inline-flex cursor-pointer items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent ${
+                  uploadingLogo ? 'pointer-events-none opacity-60' : ''
+                }`}
+              >
+                <Upload className="h-4 w-4" />
+                {uploadingLogo ? 'Uploading...' : 'Upload logo'}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  disabled={uploadingLogo}
+                  onChange={event => {
+                    const file = event.target.files?.[0];
+                    event.currentTarget.value = '';
+                    if (file) void handleLogoUpload(file);
+                  }}
+                />
+              </label>
+              <span className="text-xs text-slate-500">Uploads to ImageKit when configured.</span>
+            </div>
+            {brandForm.logo_url && (
+              <div className="mt-3 flex items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="relative flex h-14 w-20 items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white">
+                  <Image
+                    src={brandForm.logo_url}
+                    alt="Brand logo preview"
+                    fill
+                    sizes="80px"
+                    className="object-contain p-2"
+                  />
+                </div>
+                <p className="text-xs text-slate-500">Logo preview</p>
+              </div>
+            )}
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Description</label>

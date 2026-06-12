@@ -10,7 +10,8 @@
     "start": "node dist/server.js",
     "db:schema": "psql $DATABASE_URL -f src/db/schema.sql",
     "db:seed": "psql $DATABASE_URL -f src/db/seed.sql",
-    "db:migrate": "tsx src/db/migrate.ts"
+    "db:migrate": "tsx src/db/migrate.ts",
+    "bootstrap:super-admin": "tsx src/db/bootstrapSuperAdmin.ts"
   },
   "dependencies": {
     "@sentry/node": "^10.57.0",

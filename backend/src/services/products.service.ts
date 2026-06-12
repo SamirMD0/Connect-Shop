@@ -293,6 +293,7 @@ export async function createProduct(data: {
   sku?: string | null;
   compare_at_price?: number | null;
   weight_grams?: number | null;
+  specs?: Record<string, string> | null;
   meta_title?: string | null;
   meta_description?: string | null;
   gallery_images?: ProductImageInput[];
@@ -323,6 +324,7 @@ export async function updateProduct(id: string, data: {
   sku?: string | null;
   compare_at_price?: number | null;
   weight_grams?: number | null;
+  specs?: Record<string, string> | null;
   meta_title?: string | null;
   meta_description?: string | null;
   gallery_images?: ProductImageInput[];

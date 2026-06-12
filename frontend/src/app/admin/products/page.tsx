@@ -17,6 +17,11 @@ interface VariantForm {
   image_url: string;
 }
 
+interface SpecForm {
+  key: string;
+  value: string;
+}
+
 interface ProductFormData {
   name: string;
   slug: string;
@@ -31,6 +36,7 @@ interface ProductFormData {
   sku: string;
   compare_at_price: string;
   weight_grams: string;
+  specs: SpecForm[];
   meta_title: string;
   meta_description: string;
   gallery_images_text: string;
@@ -61,11 +67,31 @@ function createEmptyForm(categoryId = ''): ProductFormData {
     sku: '',
     compare_at_price: '',
     weight_grams: '',
+    specs: [{ key: '', value: '' }],
     meta_title: '',
     meta_description: '',
     gallery_images_text: '',
     variants: [],
   };
+}
+
+function specsToRows(specs: Record<string, string> | null | undefined): SpecForm[] {
+  const rows = Object.entries(specs || {})
+    .filter(([key, value]) => key.trim() && String(value).trim())
+    .map(([key, value]) => ({ key, value: String(value) }));
+
+  return rows.length > 0 ? rows : [{ key: '', value: '' }];
+}
+
+function rowsToSpecs(rows: SpecForm[]): Record<string, string> | null {
+  const specs = rows.reduce<Record<string, string>>((acc, row) => {
+    const key = row.key.trim();
+    const value = row.value.trim();
+    if (key && value) acc[key] = value;
+    return acc;
+  }, {});
+
+  return Object.keys(specs).length > 0 ? specs : null;
 }
 
 function slugify(value: string): string {
@@ -186,6 +212,7 @@ export default function AdminProducts() {
         sku: fullProduct.sku || '',
         compare_at_price: fullProduct.compare_at_price || '',
         weight_grams: fullProduct.weight_grams?.toString() || '',
+        specs: specsToRows(fullProduct.specs),
         meta_title: fullProduct.meta_title || '',
         meta_description: fullProduct.meta_description || '',
         gallery_images_text: fullProduct.gallery_images?.map(img => img.image_url).join('\n') || '',
@@ -255,6 +282,7 @@ export default function AdminProducts() {
         sku: formData.sku.trim() || null,
         compare_at_price: formData.compare_at_price ? parseFloat(formData.compare_at_price) : null,
         weight_grams: formData.weight_grams ? parseInt(formData.weight_grams, 10) : null,
+        specs: rowsToSpecs(formData.specs),
         meta_title: formData.meta_title.trim() || null,
         meta_description: formData.meta_description.trim() || null,
         gallery_images: galleryImages,
@@ -390,6 +418,32 @@ export default function AdminProducts() {
         ? generateProductSku(current.name, brand)
         : current.sku,
     }));
+  };
+
+  const updateSpecRow = (index: number, field: keyof SpecForm, value: string) => {
+    setFormData(current => ({
+      ...current,
+      specs: current.specs.map((row, rowIndex) => (
+        rowIndex === index ? { ...row, [field]: value } : row
+      )),
+    }));
+  };
+
+  const addSpecRow = () => {
+    setFormData(current => ({
+      ...current,
+      specs: [...current.specs, { key: '', value: '' }],
+    }));
+  };
+
+  const removeSpecRow = (index: number) => {
+    setFormData(current => {
+      const specs = current.specs.filter((_, rowIndex) => rowIndex !== index);
+      return {
+        ...current,
+        specs: specs.length > 0 ? specs : [{ key: '', value: '' }],
+      };
+    });
   };
 
   const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
@@ -702,28 +756,16 @@ export default function AdminProducts() {
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Compare-at Price</label>
-              <input
-                type="number"
-                step="0.01"
-                className={inputClasses}
-                placeholder="0.00"
-                value={formData.compare_at_price}
-                onChange={e => setFormData({...formData, compare_at_price: e.target.value})}
-              />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Weight (grams)</label>
-              <input
-                type="number"
-                className={inputClasses}
-                placeholder="0"
-                value={formData.weight_grams}
-                onChange={e => setFormData({...formData, weight_grams: e.target.value})}
-              />
-            </div>
+          <div>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Compare-at Price</label>
+            <input
+              type="number"
+              step="0.01"
+              className={inputClasses}
+              placeholder="0.00"
+              value={formData.compare_at_price}
+              onChange={e => setFormData({...formData, compare_at_price: e.target.value})}
+            />
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Category</label>
@@ -736,6 +778,51 @@ export default function AdminProducts() {
               <option value="">Select a category</option>
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
+          </div>
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <div>
+                <label className="block text-sm font-medium text-[#0B1B48]">Specifications</label>
+                <p className="mt-1 text-xs text-slate-500">
+                  Add label/value rows like Size, Capacity, Type, Color, Dimensions, Country, and Warranty.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={addSpecRow}
+                className="shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent"
+              >
+                Add spec
+              </button>
+            </div>
+            <div className="space-y-3">
+              {formData.specs.map((spec, index) => (
+                <div key={index} className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)_auto]">
+                  <input
+                    type="text"
+                    className={inputClasses}
+                    placeholder="SIZE (CUBIC FEET)"
+                    value={spec.key}
+                    onChange={e => updateSpecRow(index, 'key', e.target.value)}
+                  />
+                  <input
+                    type="text"
+                    className={inputClasses}
+                    placeholder="18 Cft"
+                    value={spec.value}
+                    onChange={e => updateSpecRow(index, 'value', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeSpecRow(index)}
+                    className="inline-flex h-12 items-center justify-center rounded-lg border border-slate-200 bg-white px-3 text-slate-500 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                    aria-label={`Remove specification row ${index + 1}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
           <div>
             <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Image URL</label>
@@ -780,11 +867,11 @@ export default function AdminProducts() {
             </label>
           </div>
           <div>
-            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Description</label>
+            <label className="mb-2 block text-sm font-medium text-[#0B1B48]">Overview</label>
             <textarea 
               className={inputClasses}
               rows={3} 
-              placeholder="Product description..."
+              placeholder="Short product overview shown above the specifications."
               value={formData.description} 
               onChange={e => setFormData({...formData, description: e.target.value})} 
             />
