@@ -1,84 +1,103 @@
-version: '3.9'
-
 services:
-  # ───────────────────────────────────────────────────────────────────────────
-  # PostgreSQL 16
-  # ───────────────────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
-    container_name: elecshop_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER:-elecshop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-elecshop_password}
       POSTGRES_DB: ${POSTGRES_DB:-elecshop_db}
     ports:
-      - '5432:5432'
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-    networks:
-      - elecshop_net
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB:-elecshop_db}']
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # Redis
-  # ───────────────────────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: elecshop_redis
     restart: unless-stopped
     ports:
-      - '6379:6379'
-    volumes:
-      - redisdata:/data
-    networks:
-      - elecshop_net
+      - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 5s
       retries: 5
 
-  # ───────────────────────────────────────────────────────────────────────────
-  # Express Backend
-  # ───────────────────────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: elecshop_backend
     restart: unless-stopped
+    environment:
+      NODE_ENV: ${BACKEND_NODE_ENV:-development}
+      LOG_PRETTY: ${LOG_PRETTY:-false}
+      PORT: 5000
+      DATABASE_URL: ${DATABASE_URL:-postgresql://elecshop:elecshop_password@postgres:5432/elecshop_db}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      SESSION_SECRET: ${SESSION_SECRET:-docker_local_session_secret_change_me_1234567890}
+      COOKIE_MAX_AGE: ${COOKIE_MAX_AGE:-604800000}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-docker_local_placeholder}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-docker_local_placeholder}
+      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL:-http://localhost:5000/api/v1/auth/google/callback}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-docker-local}
+      SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0.0}
+      SENTRY_PROFILES_SAMPLE_RATE: ${SENTRY_PROFILES_SAMPLE_RATE:-0.0}
+      IMAGEKIT_PUBLIC_KEY: ${IMAGEKIT_PUBLIC_KEY:-}
+      IMAGEKIT_PRIVATE_KEY: ${IMAGEKIT_PRIVATE_KEY:-}
+      IMAGEKIT_URL_ENDPOINT: ${IMAGEKIT_URL_ENDPOINT:-}
+      IMAGEKIT_FOLDER: ${IMAGEKIT_FOLDER:-/connect-shop}
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:5000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: "${NEXT_PUBLIC_API_URL:-http://localhost:5000}"
+        NEXT_PUBLIC_SITE_URL: "${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}"
+        NEXT_PUBLIC_APP_NAME: "${NEXT_PUBLIC_APP_NAME:-ELECTRO SHOP}"
+        NEXT_PUBLIC_BUSINESS_PHONE: "${NEXT_PUBLIC_BUSINESS_PHONE:-+961 00 000 000}"
+        NEXT_PUBLIC_BUSINESS_WHATSAPP: "${NEXT_PUBLIC_BUSINESS_WHATSAPP:-+96100000000}"
+        NEXT_PUBLIC_BUSINESS_EMAIL: "${NEXT_PUBLIC_BUSINESS_EMAIL:-support@example.com}"
+        NEXT_PUBLIC_BUSINESS_ADDRESS: "${NEXT_PUBLIC_BUSINESS_ADDRESS:-Lebanon}"
+        NEXT_PUBLIC_BUSINESS_HOURS: "${NEXT_PUBLIC_BUSINESS_HOURS:-Monday to Saturday, 9:00 AM - 8:00 PM}"
+    restart: unless-stopped
     environment:
       NODE_ENV: production
-      PORT: 5000
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-elecshop_db}
-      SESSION_SECRET: ${SESSION_SECRET}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
-      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
-      GOOGLE_CALLBACK_URL: ${GOOGLE_CALLBACK_URL}
-      FRONTEND_URL: ${FRONTEND_URL}
-      COOKIE_MAX_AGE: ${COOKIE_MAX_AGE:-604800000}
-      REDIS_URL: redis://redis:6379
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://backend:5000}
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-http://localhost:3000}
+      NEXT_PUBLIC_SENTRY_DSN: ${NEXT_PUBLIC_SENTRY_DSN:-}
     ports:
-      - '5000:5000'
-    networks:
-      - elecshop_net
+      - "${FRONTEND_PORT:-3000}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
-  pgdata:
-    driver: local
-  redisdata:
-    driver: local
-
-networks:
-  elecshop_net:
-    driver: bridge
+  postgres_data:

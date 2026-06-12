@@ -12,13 +12,16 @@ Configure branch protection for `main` in GitHub:
    - `Backend CI`
    - `Frontend CI`
    - `Security CI`
-4. Block direct pushes to `main`.
-5. Require conversation resolution before merging.
-6. Keep administrators included unless there is a specific operational reason to exempt them.
+4. After the Phase 4B security workflows have passed reliably, also require:
+   - `CodeQL JavaScript/TypeScript`
+   - `Dependency Review`
+5. Block direct pushes to `main`.
+6. Require conversation resolution before merging.
+7. Keep administrators included unless there is a specific operational reason to exempt them.
 
 ## Optional Later Hardening
 
-CodeQL can be added in Phase 4 as a separate security workflow once the project is ready for deeper production hardening.
+Keep CodeQL and Dependency Review in observation mode until the first successful runs are confirmed in GitHub Actions. Once stable, add them to required status checks.
 
 ## Notes
 
