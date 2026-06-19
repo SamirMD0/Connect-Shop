@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import { createWhatsAppUrl } from '@/lib/business-config';
 import { API_URL } from '@/lib/constants';
 import { Order } from '@/lib/types';
@@ -82,8 +82,8 @@ export default function OrdersPage() {
       await refreshOrders();
       setExpandedId(null);
       setExpandedOrder(null);
-    } catch (error: any) {
-      addToast(error.message || 'Unable to cancel order.', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Unable to cancel order.'), 'error');
     }
   };
 
@@ -95,8 +95,8 @@ export default function OrdersPage() {
       addToast('Return request submitted.', 'success');
       const res = await api.get<{ success: boolean; order: Order }>(`/api/orders/${orderId}`);
       setExpandedOrder(res.order);
-    } catch (error: any) {
-      addToast(error.message || 'Unable to request return.', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Unable to request return.'), 'error');
     }
   };
 
@@ -105,8 +105,8 @@ export default function OrdersPage() {
       await api.post(`/api/orders/${orderId}/reorder`);
       addToast('Order items were added to your cart.', 'success');
       router.push('/cart');
-    } catch (error: any) {
-      addToast(error.message || 'Unable to reorder these items.', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Unable to reorder these items.'), 'error');
     }
   };
 

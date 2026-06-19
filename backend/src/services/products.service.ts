@@ -223,14 +223,23 @@ export async function getBrands(): Promise<Brand[]> {
 // ─── Admin Mutations ─────────────────────────────────────────────────────────
 
 async function invalidateCategoryCaches(): Promise<void> {
-  await delCache(CACHE_KEYS.categoriesTree);
-  await delCacheByPattern(CACHE_KEYS.productListPattern);
+  await Promise.all([
+    delCache(CACHE_KEYS.categoriesTree, CACHE_KEYS.homepageFull),
+    delCacheByPattern(CACHE_KEYS.productListPattern),
+  ]);
 }
 
 export async function invalidateProductCaches(slugs: string[] = []): Promise<void> {
-  await delCache(...slugs.map((slug) => CACHE_KEYS.productSlug(slug)));
+  await delCache(CACHE_KEYS.homepageFull, ...slugs.map((slug) => CACHE_KEYS.productSlug(slug)));
   await Promise.all([
     delCacheByPattern(CACHE_KEYS.featuredProductsPattern),
+    delCacheByPattern(CACHE_KEYS.productListPattern),
+  ]);
+}
+
+async function invalidateBrandCaches(): Promise<void> {
+  await Promise.all([
+    delCache(CACHE_KEYS.brandsPublic, CACHE_KEYS.homepageFull),
     delCacheByPattern(CACHE_KEYS.productListPattern),
   ]);
 }
@@ -424,7 +433,9 @@ export async function createBrand(data: {
   is_active?: boolean;
 }): Promise<Brand> {
   try {
-    return await BrandRepository.create(data);
+    const brand = await BrandRepository.create(data);
+    await invalidateBrandCaches();
+    return brand;
   } catch (error: any) {
     if (error.code === '23505') {
       throw new ConflictError('A brand with this name or slug already exists.');
@@ -443,6 +454,7 @@ export async function updateBrand(id: number, data: {
   try {
     const brand = await BrandRepository.update(id, data);
     if (brand) {
+      await invalidateBrandCaches();
       await invalidateProductCaches();
     }
     return brand;
@@ -457,6 +469,7 @@ export async function updateBrand(id: number, data: {
 export async function deleteBrand(id: number): Promise<boolean> {
   const deleted = await BrandRepository.delete(id);
   if (deleted) {
+    await invalidateBrandCaches();
     await invalidateProductCaches();
   }
   return deleted;

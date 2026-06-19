@@ -18,6 +18,7 @@ import { Testimonials } from '@/components/home/Testimonials';
 import { Newsletter } from '@/components/home/Newsletter';
 import { api } from '@/lib/api';
 import { APP_NAME } from '@/lib/constants';
+import { logServerRenderTiming } from '@/lib/perf';
 import {
   Product,
   Category,
@@ -27,7 +28,7 @@ import {
   HomepageBrandProductSection,
   HomepageCategoryProductSection,
   HomepageContent,
-  HomepageContentResponse,
+  HomepageFullResponse,
   HomepagePromotion,
   HomepageSection,
   HomepageSectionItem,
@@ -341,7 +342,6 @@ function renderHomepageBlock(
     bestSellerProducts: Product[];
     categories: Category[];
     brands: Brand[];
-    displayCategories: Category[];
     categoryImages: string[];
   }
 ) {
@@ -365,7 +365,7 @@ function renderHomepageBlock(
       return (
         <BrowseCategories
           key={block.id}
-          categories={context.displayCategories}
+          categories={context.categories}
           fallbackImages={context.categoryImages}
         />
       );
@@ -442,6 +442,7 @@ const lowerHomepageBlockTypes = new Set<HomepageBlock['block_type']>([
 ]);
 
 export default async function HomePage() {
+  const renderStart = performance.now();
   let featured: Product[] = [];
   let trending: Product[] = [];
   let categories: Category[] = [];
@@ -450,32 +451,26 @@ export default async function HomePage() {
   let homepage: HomepageContent = emptyHomepageContent;
 
   try {
-    const [featuredRes, trendingRes, catRes, brandsRes, slidesRes, homepageRes] = await Promise.all([
-      api.get<{ success: boolean; products: Product[] }>('/api/products/featured')
-        .catch(() => ({ success: false, products: [] })),
-      api.get<{ success: boolean; products: Product[] }>('/api/products', {
-        params: { sort: 'rating', limit: 8 },
-      }).catch(() => ({ success: false, products: [] })),
-      api.get<{ success: boolean; categories: Category[] }>('/api/categories')
-        .catch(() => ({ success: false, categories: [] })),
-      api.get<{ success: boolean; brands: Brand[] }>('/api/brands').catch(() => ({ success: false, brands: [] })),
-      api.get<{ success: boolean; slides: CarouselSlide[] }>('/api/carousel').catch(() => ({ success: false, slides: [] })),
-      api.get<HomepageContentResponse>('/api/homepage', { cache: 'no-store' }).catch(() => ({ success: false, homepage: emptyHomepageContent })),
-    ]);
-    featured = featuredRes.products || [];
-    trending = trendingRes.products || [];
-    categories = catRes.categories || [];
-    brands = brandsRes.brands || [];
-    slides = slidesRes.slides || [];
+    const homepageRes = await api.get<HomepageFullResponse>('/api/homepage/full', { cache: 'no-store' });
+    const homepageData = homepageRes.data;
+
+    featured = homepageData.featuredProducts || [];
+    trending = homepageData.trendingProducts || [];
+    categories = homepageData.categories || [];
+    brands = homepageData.brands || [];
+    slides = homepageData.carouselSlides || [];
     homepage = {
       ...emptyHomepageContent,
-      ...(homepageRes.homepage || {}),
-      brand_product_sections: homepageRes.homepage?.brand_product_sections || [],
-      category_product_sections: homepageRes.homepage?.category_product_sections || [],
-      homepage_blocks: homepageRes.homepage?.homepage_blocks || [],
+      ...(homepageData.homepage || {}),
+      brand_product_sections: homepageData.homepage?.brand_product_sections || [],
+      category_product_sections: homepageData.homepage?.category_product_sections || [],
+      homepage_blocks: homepageData.homepage?.homepage_blocks || [],
     };
+    if (homepageRes.partialFailures && homepageRes.partialFailures.length > 0) {
+      console.warn('Homepage aggregate returned section fallbacks:', homepageRes.partialFailures);
+    }
   } catch (error) {
-    console.error('Error fetching homepage data:', error);
+    console.error('Error fetching homepage aggregate data:', error);
   }
 
   const cmsHeroSlides = mapCmsHeroSlides(homepage.hero_carousel || []);
@@ -499,7 +494,6 @@ export default async function HomePage() {
     ];
   }
 
-  const displayCategories = categories.slice(0, 12);
   const categoryImages = [
     '/nextmerce/categories/categories-01.png',
     '/nextmerce/categories/categories-02.png',
@@ -540,7 +534,6 @@ export default async function HomePage() {
       bestSellerProducts,
       categories,
       brands,
-      displayCategories,
       categoryImages,
     };
     const movableHomepageSections: ReactNode[] = [];
@@ -566,15 +559,27 @@ export default async function HomePage() {
       );
     }
 
+    logServerRenderTiming({
+      pageType: 'homepage',
+      phase: 'render_prep',
+      durationMs: performance.now() - renderStart,
+    });
+
     return (
       <div className="animate-fade-in bg-white">
         {renderHeroBlock(slides, homepage, hasHeroSidePromos, heroSidePromos)}
         <BrandShowcase brands={brands} />
-        <BrowseCategories categories={displayCategories} fallbackImages={categoryImages} />
+        <BrowseCategories categories={categories} fallbackImages={categoryImages} />
         {movableHomepageSections}
       </div>
     );
   }
+
+  logServerRenderTiming({
+    pageType: 'homepage',
+    phase: 'render_prep',
+    durationMs: performance.now() - renderStart,
+  });
 
   return (
     <div className="animate-fade-in bg-white">
@@ -615,7 +620,7 @@ export default async function HomePage() {
 
       <BrandShowcase brands={brands} />
 
-      <BrowseCategories categories={displayCategories} fallbackImages={categoryImages} />
+      <BrowseCategories categories={categories} fallbackImages={categoryImages} />
 
       <section className="py-14 sm:py-16">
         <Container className="max-w-[1170px]">

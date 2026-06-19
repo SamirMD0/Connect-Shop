@@ -1,4 +1,5 @@
 import { API_URL } from './constants';
+import { logServerFetchTiming } from './perf';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code?: string) {
@@ -11,12 +12,45 @@ interface RequestOptions extends RequestInit {
   params?: Record<string, string | number | undefined>;
 }
 
+export function getErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof ApiError || error instanceof Error ? error.message : fallback;
+}
+
 const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+const SSR_SECRET_HEADER = 'x-connect-shop-ssr-secret';
 let csrfToken: string | null = null;
 let csrfTokenPromise: Promise<string> | null = null;
 
 function getVersionedEndpoint(endpoint: string): string {
   return endpoint.startsWith('/api/') ? endpoint.replace('/api/', '/api/v1/') : endpoint;
+}
+
+function isServerSidePublicRead(versionedEndpoint: string, method: string): boolean {
+  if (typeof window !== 'undefined') return false;
+  if (method !== 'GET' && method !== 'HEAD') return false;
+
+  const path = versionedEndpoint.split('?')[0];
+
+  return path === '/api/v1/homepage'
+    || path === '/api/v1/homepage/full'
+    || path.startsWith('/api/v1/homepage/')
+    || path === '/api/v1/products'
+    || path.startsWith('/api/v1/products/')
+    || path === '/api/v1/categories'
+    || path.startsWith('/api/v1/categories/')
+    || path === '/api/v1/brands'
+    || path.startsWith('/api/v1/brands/')
+    || path === '/api/v1/carousel';
+}
+
+function addInternalSsrSecretHeader(headers: Headers, versionedEndpoint: string, method: string) {
+  if (!isServerSidePublicRead(versionedEndpoint, method)) return;
+  if (headers.has(SSR_SECRET_HEADER)) return;
+
+  const ssrSecret = process.env.INTERNAL_SSR_API_SECRET;
+  if (!ssrSecret) return;
+
+  headers.set(SSR_SECRET_HEADER, ssrSecret);
 }
 
 async function fetchCsrfToken(): Promise<string> {
@@ -74,10 +108,19 @@ async function fetchWrapper<T>(endpoint: string, options: RequestOptions = {}): 
     headers.set('X-CSRF-Token', await fetchCsrfToken());
   }
 
+  addInternalSsrSecretHeader(headers, versionedEndpoint, method);
+
+  const fetchStart = performance.now();
   const response = await fetch(url, {
     ...options,
     headers,
     credentials: 'include', // Important for cookies (session auth)
+  });
+  logServerFetchTiming({
+    endpoint: versionedEndpoint,
+    method,
+    status: response.status,
+    durationMs: performance.now() - fetchStart,
   });
 
   const isJson = response.headers.get('content-type')?.includes('application/json');
@@ -88,8 +131,20 @@ async function fetchWrapper<T>(endpoint: string, options: RequestOptions = {}): 
       csrfToken = null;
     }
 
-    const message = (isJson && data.message) ? data.message : response.statusText;
-    const code = isJson && typeof data.code === 'string' ? data.code : undefined;
+    const message = (
+      isJson
+      && typeof data === 'object'
+      && data !== null
+      && 'message' in data
+      && typeof data.message === 'string'
+    ) ? data.message : response.statusText;
+    const code = (
+      isJson
+      && typeof data === 'object'
+      && data !== null
+      && 'code' in data
+      && typeof data.code === 'string'
+    ) ? data.code : undefined;
     throw new ApiError(response.status, message, code);
   }
 
@@ -100,13 +155,13 @@ export const api = {
   get: <T>(endpoint: string, options?: RequestOptions) =>
     fetchWrapper<T>(endpoint, { ...options, method: 'GET' }),
 
-  post: <T>(endpoint: string, body?: any, options?: RequestOptions) =>
+  post: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     fetchWrapper<T>(endpoint, { ...options, method: 'POST', body: JSON.stringify(body) }),
 
-  put: <T>(endpoint: string, body?: any, options?: RequestOptions) =>
+  put: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     fetchWrapper<T>(endpoint, { ...options, method: 'PUT', body: JSON.stringify(body) }),
 
-  patch: <T>(endpoint: string, body?: any, options?: RequestOptions) =>
+  patch: <T>(endpoint: string, body?: unknown, options?: RequestOptions) =>
     fetchWrapper<T>(endpoint, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
 
   delete: <T>(endpoint: string, options?: RequestOptions) =>

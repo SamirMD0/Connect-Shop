@@ -9,6 +9,8 @@ This project is intended as a practical small-business ecommerce system, not a m
 - Frontend: Next.js + TypeScript
 - Backend: Express.js + TypeScript
 - Database: PostgreSQL
+- Redis: shared rate-limit buckets and public-read cache support
+- Deployment target: Vercel frontend, Render backend, managed PostgreSQL, managed Redis, ImageKit/CDN
 - Admin dashboard
 - Authentication and protected admin routes
 - Cart, wishlist, and orders
@@ -42,6 +44,8 @@ project-docs/ Project audit, setup, deployment, and production checklists
 ```
 
 ## Local Setup
+
+You need Node.js, npm, PostgreSQL, and optionally Redis for local cache/rate-limit testing. Docker Compose is available for local PostgreSQL/Redis/backend/frontend orchestration.
 
 Install backend dependencies:
 
@@ -94,6 +98,48 @@ Default local URLs:
 
 Do not commit real `.env` files or secrets.
 
+## Production Deployment
+
+Target production/demo stack:
+
+- Frontend: Vercel
+- Backend: Render Web Service
+- Database: managed PostgreSQL
+- Redis: paid/higher-capacity managed Redis or Upstash paid/pay-as-you-go
+- Images: ImageKit/CDN
+- Payments: Cash on Delivery/manual order flow
+
+Production deployment URL placeholders:
+
+- Frontend: `https://yourdomain.com`
+- Backend API: `https://api.yourdomain.com`
+- Backend health: `https://api.yourdomain.com/api/health`
+
+Deployment validation status:
+
+- Phase M deployment documentation is complete.
+- Phase N final deployment validation is pending deployed Vercel/Render URLs and provider details.
+- Cash on Delivery/manual order flow is the current payment path; no online payment gateway is required for the documented deployment validation.
+
+Use [Production Deployment Guide](docs/DEPLOYMENT_PRODUCTION_GUIDE.md) for Vercel, Render, PostgreSQL, Redis, ImageKit, environment variables, migrations, health checks, post-deploy validation, and rollback notes.
+Use [Phase N Final Deployment Validation](docs/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md) to record deployed URLs, health checks, COD order validation, admin validation, Redis/log status, k6 smoke results, and remaining issues after deployment.
+
+Do not deploy with real credentials stored in files. Configure secrets in Vercel and Render environment variable settings.
+
+## Performance Work Summary
+
+Recent performance phases added:
+
+- structured k6 smoke/small/medium public-read tests
+- homepage SSR API fan-out reduction
+- Redis-backed public-read caching
+- public product query indexes
+- route-specific public-read rate-limit buckets
+- verified internal SSR public-read bucket
+- Redis quota documentation and sensitive limiter fail-closed hardening
+
+Current local API medium validation passed with 0 backend 429s after the public-read limiter split, but this does not prove 1,000-5,000 concurrent-user support. Production-scale claims require provider-approved staging tests with adequate Redis, PostgreSQL, backend, and monitoring capacity.
+
 ## Continuous Integration
 
 GitHub Actions runs `Connect-shop CI` on every push and pull request to `main`.
@@ -115,7 +161,7 @@ Recommended deployment stack:
 - Domain: Namecheap
 - Redis: optional Render Redis-compatible Key Value or Upstash Redis
 
-See [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md), [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md), and [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md).
+See [Production Deployment Guide](docs/DEPLOYMENT_PRODUCTION_GUIDE.md), [Legacy Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md), [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md), and [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md).
 
 ## Documentation
 
@@ -129,6 +175,10 @@ See [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](
 - [Maintenance and Support](docs/MAINTENANCE_AND_SUPPORT.md)
 - [Known Limitations](docs/KNOWN_LIMITATIONS.md)
 - [Launch Checklist](docs/LAUNCH_CHECKLIST.md)
+- [Production Deployment Guide](docs/DEPLOYMENT_PRODUCTION_GUIDE.md)
+- [Phase N Final Deployment Validation](docs/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md)
+- [Performance and Scalability Plan](docs/PERFORMANCE_SCALING_PLAN.md)
+- [Performance Phase L Redis Capacity](docs/PERFORMANCE_PHASE_L_REDIS_CAPACITY.md)
 - [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md)
 - [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md)
 - [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md)

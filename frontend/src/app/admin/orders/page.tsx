@@ -99,6 +99,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     void fetchOrders();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, statusFilter]);
 
   const openOrderDetail = async (orderId: string) => {

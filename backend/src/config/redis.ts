@@ -1,6 +1,7 @@
 import { Redis } from 'ioredis';
 import { env } from './env';
 import { logger } from '../utils/logger';
+import { recordCacheMetric } from '../utils/performance';
 
 export const redisEnabled = env.NODE_ENV !== 'test' && Boolean(env.REDIS_URL);
 
@@ -28,6 +29,7 @@ export async function cacheGet(key: string): Promise<string | null> {
   try {
     return await redisClient.get(key);
   } catch (err) {
+    recordCacheMetric(key, 'getFailures');
     logger.warn({ err, key }, 'Redis cache get failed; treating as cache miss');
     return null;
   }
@@ -39,6 +41,7 @@ export async function cacheSetEx(key: string, ttlSeconds: number, value: string)
   try {
     await redisClient.setex(key, ttlSeconds, value);
   } catch (err) {
+    recordCacheMetric(key, 'setFailures');
     logger.warn({ err, key }, 'Redis cache set failed; continuing without cache');
     // Cache failures should never break request handling.
   }
@@ -50,6 +53,7 @@ export async function cacheDel(...keys: string[]): Promise<void> {
   try {
     await redisClient.del(...keys);
   } catch (err) {
+    keys.forEach((key) => recordCacheMetric(key, 'deleteFailures'));
     logger.warn({ err, keys }, 'Redis cache delete failed; continuing without cache');
     // Cache failures should never break request handling.
   }
@@ -57,11 +61,16 @@ export async function cacheDel(...keys: string[]): Promise<void> {
 
 export async function getJsonCache<T>(key: string): Promise<T | null> {
   const cached = await cacheGet(key);
-  if (!cached) return null;
+  if (!cached) {
+    recordCacheMetric(key, 'misses');
+    return null;
+  }
 
   try {
+    recordCacheMetric(key, 'hits');
     return JSON.parse(cached) as T;
   } catch (err) {
+    recordCacheMetric(key, 'jsonParseFailures');
     logger.warn({ err, key }, 'Redis cache JSON parse failed; deleting bad key');
     await cacheDel(key);
     return null;
@@ -94,6 +103,7 @@ export async function delCacheByPattern(pattern: string): Promise<void> {
       await redisClient.del(...keysToDelete);
     }
   } catch (err) {
+    recordCacheMetric(pattern, 'deleteFailures');
     logger.warn({ err, pattern }, 'Redis pattern delete failed; continuing without cache invalidation');
   }
 }

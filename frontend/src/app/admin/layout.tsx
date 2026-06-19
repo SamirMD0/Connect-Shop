@@ -180,6 +180,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     <div>
                       <p className="mb-2 text-xs uppercase tracking-wide text-slate-500">Step 1: Scan this QR code</p>
                       <div className="inline-flex rounded-xl bg-white p-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={mfaQrCode}
                           alt="Authenticator setup QR code"

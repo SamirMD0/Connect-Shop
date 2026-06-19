@@ -22,6 +22,14 @@ const sampleRate = (defaultValue: string) => z
     message: 'Sample rate must be between 0 and 1',
   });
 
+const positiveInteger = (defaultValue: string, label: string) => z
+  .string()
+  .default(defaultValue)
+  .transform((value) => parseInt(value, 10))
+  .refine((value) => Number.isFinite(value) && value > 0, {
+    message: `${label} must be a positive integer`,
+  });
+
 const envSchema = z.object({
   // Server
   PORT: z
@@ -59,6 +67,16 @@ const envSchema = z.object({
 
   // Redis
   REDIS_URL: z.string().url().optional(),
+
+  // Public read rate limits
+  PUBLIC_READ_WINDOW_MS: positiveInteger('900000', 'PUBLIC_READ_WINDOW_MS'),
+  PUBLIC_READ_HOMEPAGE_LIMIT: optionalEnvString,
+  PUBLIC_READ_PRODUCT_LIST_LIMIT: optionalEnvString,
+  PUBLIC_READ_PRODUCT_DETAIL_LIMIT: optionalEnvString,
+  PUBLIC_READ_METADATA_LIMIT: optionalEnvString,
+  PUBLIC_READ_FALLBACK_LIMIT: optionalEnvString,
+  PUBLIC_READ_SSR_LIMIT: optionalEnvString,
+  INTERNAL_SSR_API_SECRET: optionalEnvString,
 
   // Sentry
   SENTRY_DSN: optionalEnvUrl,

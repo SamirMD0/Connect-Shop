@@ -3,7 +3,6 @@
 import React, { createContext, useState, useEffect, useCallback, ReactNode, useContext } from 'react';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/hooks/useAuth';
-import { Product } from '@/lib/types';
 
 export interface WishlistItem {
   user_id: string;

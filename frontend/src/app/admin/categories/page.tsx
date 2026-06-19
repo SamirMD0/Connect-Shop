@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Grid, Upload } from 'lucide-react';
-import { api, ApiError } from '../../../lib/api';
+import { api, getErrorMessage } from '../../../lib/api';
 import { Category } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
@@ -96,11 +96,8 @@ export default function AdminCategories() {
       }
       setIsModalOpen(false);
       await fetchCategories();
-    } catch (error: any) {
-      const message = error instanceof ApiError || error instanceof Error
-        ? error.message
-        : 'Failed to save category. Please check your inputs.';
-      setFormError(message);
+    } catch (error: unknown) {
+      setFormError(getErrorMessage(error, 'Failed to save category. Please check your inputs.'));
     } finally {
       setSubmitting(false);
     }
@@ -124,11 +121,8 @@ export default function AdminCategories() {
       });
 
       setFormData(current => ({ ...current, image_url: res.url }));
-    } catch (error: any) {
-      const message = error instanceof ApiError || error instanceof Error
-        ? error.message
-        : 'Failed to upload category image.';
-      setFormError(message);
+    } catch (error: unknown) {
+      setFormError(getErrorMessage(error, 'Failed to upload category image.'));
     } finally {
       setUploadingImage(false);
     }
@@ -139,8 +133,8 @@ export default function AdminCategories() {
     try {
       await api.delete(`/api/admin/categories/${id}`);
       fetchCategories();
-    } catch (error: any) {
-      alert(error.message || 'Failed to delete category.');
+    } catch (error: unknown) {
+      alert(getErrorMessage(error, 'Failed to delete category.'));
     }
   };
 

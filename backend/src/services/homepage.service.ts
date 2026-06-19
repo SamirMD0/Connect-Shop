@@ -277,7 +277,7 @@ export function createEmptyHomepageContent(): HomepageContent {
 }
 
 async function invalidateHomepageCache(): Promise<void> {
-  await delCache(CACHE_KEYS.homepageActive);
+  await delCache(CACHE_KEYS.homepageActive, CACHE_KEYS.homepageFull);
 }
 
 function isHomepageBlockType(value: unknown): value is HomepageBlockType {

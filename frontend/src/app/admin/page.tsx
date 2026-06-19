@@ -156,7 +156,7 @@ export default function AdminOverview() {
                 }}
                 itemStyle={{ color: '#0B1B48' }}
                 labelStyle={{ color: '#64748b' }}
-                formatter={(value: any) => [`$${value.toLocaleString()}`, 'Revenue']}
+                formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']}
               />
               <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={50} />
             </BarChart>

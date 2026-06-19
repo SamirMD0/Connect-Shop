@@ -5,7 +5,6 @@ import { Container } from '@/components/layout/Container';
 import { CartItemCard } from '@/components/cart/CartItem';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Button } from '@/components/ui/Button';
 import { useCart } from '@/hooks/useCart';
 import { useAuth } from '@/hooks/useAuth';
 import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';

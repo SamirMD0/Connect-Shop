@@ -8,6 +8,7 @@ import { ProductComparison } from '@/components/products/ProductComparison';
 import { SectionTitle } from '@/components/ui/SectionTitle';
 import { api } from '@/lib/api';
 import { APP_NAME } from '@/lib/constants';
+import { logServerRenderTiming } from '@/lib/perf';
 import { Product, Category, PaginatedProducts } from '@/lib/types';
 import { Search } from 'lucide-react';
 
@@ -50,6 +51,7 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function StorePage({ searchParams }: Props) {
+  const renderStart = performance.now();
   const params = await searchParams;
   const currentCategory = (params.category as string) || null;
   const currentSearch = (params.search as string) || '';
@@ -93,6 +95,12 @@ export default async function StorePage({ searchParams }: Props) {
   } catch (error) {
     console.error('Error fetching store data:', error);
   }
+
+  logServerRenderTiming({
+    pageType: currentCategory ? 'category_store' : 'store',
+    phase: 'render_prep',
+    durationMs: performance.now() - renderStart,
+  });
 
   return (
     <div className="animate-fade-in">

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { api, getErrorMessage } from '../../../lib/api';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
 import { ConfirmDialog } from '../../../components/admin/ConfirmDialog';
@@ -103,8 +103,8 @@ export default function AdminCoupons() {
       setCouponToDelete(null);
       addToast('Coupon deleted.', 'success');
       await fetchCoupons();
-    } catch (error: any) {
-      addToast(error.message || 'Failed to delete coupon.', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Failed to delete coupon.'), 'error');
     } finally {
       setDeleting(false);
     }

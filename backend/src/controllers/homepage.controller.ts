@@ -19,6 +19,7 @@ import {
   moveHomepageBlock,
   moveHomepageBrandProductSection,
   moveHomepageCategoryProductSection,
+  createEmptyHomepageContent,
   resetHomepageBlocksToDefaults,
   updateHomepageBlock,
   updateHomepageSection,
@@ -26,9 +27,48 @@ import {
   updateHomepageBrandProductSection,
   updateHomepageCategoryProductSection,
 } from '../services/homepage.service';
+import { getActiveSlides } from '../services/carousel.service';
+import { getBrands, getCategories, getFeaturedProducts, listProducts } from '../services/products.service';
 import { getJsonCache, setJsonCache } from '../config/redis';
 import { CACHE_KEYS, CACHE_TTL_SECONDS } from '../utils/cachePolicy';
 import { NotFoundError } from '../utils/errors';
+import { logger } from '../utils/logger';
+
+type HomepageAggregateSection =
+  | 'featuredProducts'
+  | 'trendingProducts'
+  | 'categories'
+  | 'brands'
+  | 'carouselSlides'
+  | 'homepage';
+
+interface HomepageAggregateData {
+  featuredProducts: Awaited<ReturnType<typeof getFeaturedProducts>>;
+  trendingProducts: Awaited<ReturnType<typeof getFeaturedProducts>>;
+  categories: Awaited<ReturnType<typeof getCategories>>;
+  brands: Awaited<ReturnType<typeof getBrands>>;
+  carouselSlides: Awaited<ReturnType<typeof getActiveSlides>>;
+  homepage: HomepageContent;
+}
+
+interface HomepageAggregateResponse {
+  success: true;
+  data: HomepageAggregateData;
+  partialFailures: HomepageAggregateSection[];
+}
+
+async function safelyResolveHomepageSection<T>(
+  section: HomepageAggregateSection,
+  fallback: T,
+  load: () => Promise<T>
+): Promise<{ value: T; failed: boolean }> {
+  try {
+    return { value: await load(), failed: false };
+  } catch (error) {
+    logger.error({ err: error, section }, 'Homepage aggregate section failed');
+    return { value: fallback, failed: true };
+  }
+}
 
 export async function getPublicHomepage(
   _req: Request,
@@ -45,6 +85,69 @@ export async function getPublicHomepage(
     const homepage = await getActiveHomepageContent();
     await setJsonCache(CACHE_KEYS.homepageActive, homepage, CACHE_TTL_SECONDS.homepage);
     res.json({ success: true, homepage });
+  } catch (err) {
+    next(err);
+  }
+}
+
+export async function getPublicHomepageFull(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const cached = await getJsonCache<HomepageAggregateResponse>(CACHE_KEYS.homepageFull);
+    if (cached) {
+      res.json(cached);
+      return;
+    }
+
+    const [
+      featuredProducts,
+      trendingProducts,
+      categories,
+      brands,
+      carouselSlides,
+      homepage,
+    ] = await Promise.all([
+      safelyResolveHomepageSection('featuredProducts', [], () => getFeaturedProducts()),
+      safelyResolveHomepageSection('trendingProducts', [], async () => (
+        await listProducts({ sort: 'rating', limit: 8 })
+      ).products),
+      safelyResolveHomepageSection('categories', [], () => getCategories()),
+      safelyResolveHomepageSection('brands', [], async () => (
+        await getBrands()
+      ).filter((brand) => brand.is_active)),
+      safelyResolveHomepageSection('carouselSlides', [], () => getActiveSlides()),
+      safelyResolveHomepageSection('homepage', createEmptyHomepageContent(), () => getActiveHomepageContent()),
+    ]);
+    const partialFailures = [
+      featuredProducts.failed ? 'featuredProducts' : null,
+      trendingProducts.failed ? 'trendingProducts' : null,
+      categories.failed ? 'categories' : null,
+      brands.failed ? 'brands' : null,
+      carouselSlides.failed ? 'carouselSlides' : null,
+      homepage.failed ? 'homepage' : null,
+    ].filter((section): section is HomepageAggregateSection => section !== null);
+    const data: HomepageAggregateData = {
+      featuredProducts: featuredProducts.value,
+      trendingProducts: trendingProducts.value,
+      categories: categories.value,
+      brands: brands.value,
+      carouselSlides: carouselSlides.value,
+      homepage: homepage.value,
+    };
+    const responseBody: HomepageAggregateResponse = {
+      success: true,
+      data,
+      partialFailures,
+    };
+
+    if (partialFailures.length === 0) {
+      await setJsonCache(CACHE_KEYS.homepageFull, responseBody, CACHE_TTL_SECONDS.homepageFull);
+    }
+
+    res.json(responseBody);
   } catch (err) {
     next(err);
   }

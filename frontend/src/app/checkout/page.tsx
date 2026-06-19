@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/useToast';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import { createWhatsAppUrl } from '@/lib/business-config';
 import { ShippingAddress, Order, UserAddress } from '@/lib/types';
 import DOMPurify from 'dompurify';
@@ -300,8 +300,8 @@ export default function CheckoutPage() {
       }
       clearCart();
       addToast('Order placed successfully!', 'success');
-    } catch (error: any) {
-      const message = error.message || 'Failed to place order. Please try again.';
+    } catch (error: unknown) {
+      const message = getErrorMessage(error, 'Failed to place order. Please try again.');
       setFormError(message);
       addToast(message, 'error');
     } finally {
@@ -484,6 +484,7 @@ export default function CheckoutPage() {
                           aria-label={`Phone region code: ${selectedPhoneRegion.country} ${selectedPhoneRegion.code}`}
                           aria-expanded={phoneRegionMenuOpen}
                         >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
                           <img
                             src={`https://flagcdn.com/w20/${selectedPhoneRegion.flagCode}.png`}
                             alt=""
@@ -505,6 +506,7 @@ export default function CheckoutPage() {
                                 className="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm text-text-primary transition-colors hover:bg-slate-50"
                                 aria-label={`${region.country} ${region.code}`}
                               >
+                                {/* eslint-disable-next-line @next/next/no-img-element */}
                                 <img
                                   src={`https://flagcdn.com/w20/${region.flagCode}.png`}
                                   alt=""

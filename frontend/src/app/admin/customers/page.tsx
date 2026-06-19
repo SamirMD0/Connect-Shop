@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Eye } from 'lucide-react';
 import { api, ApiError } from '../../../lib/api';
-import { User, ApiResponse } from '../../../lib/types';
+import { User } from '../../../lib/types';
 import { hasAdminPermission } from '../../../lib/adminPermissions';
 import { useAuth } from '../../../hooks/useAuth';
 import { useToast } from '../../../hooks/useToast';
@@ -20,12 +20,37 @@ interface PendingRoleChange {
   label: string;
 }
 
+interface CustomerAddress {
+  id: string;
+  recipient_name: string;
+  address_line1: string;
+  city: string;
+  country: string;
+}
+
+interface CustomerOrder {
+  id: string;
+  status: string;
+  total: string | number;
+}
+
+interface CustomerDetail {
+  success: boolean;
+  user: User;
+  addresses: CustomerAddress[];
+  orders: CustomerOrder[];
+  totals: {
+    order_count: number;
+    total_spent: string | number;
+  };
+}
+
 export default function AdminCustomers() {
   const { user: currentUser } = useAuth();
   const { addToast } = useToast();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedDetail, setSelectedDetail] = useState<any | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<CustomerDetail | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [pendingRoleChange, setPendingRoleChange] = useState<PendingRoleChange | null>(null);
   const [mfaCode, setMfaCode] = useState('');
@@ -36,7 +61,7 @@ export default function AdminCustomers() {
   useEffect(() => {
     async function fetchUsers() {
       try {
-        const res = await api.get<ApiResponse<{ users: User[] }>>('/api/admin/users');
+        const res = await api.get<{ success: boolean; users?: User[]; data?: { users: User[] } }>('/api/admin/users');
         if (res.success) {
           setUsers(res.data?.users || res.users || []);
         }
@@ -122,7 +147,7 @@ export default function AdminCustomers() {
   }
 
   async function openDetail(user: User) {
-    const res = await api.get<{ success: boolean; user: any; addresses: any[]; orders: any[]; totals: any }>(`/api/admin/users/${user.id}`);
+    const res = await api.get<CustomerDetail>(`/api/admin/users/${user.id}`);
     if (res.success) {
       setSelectedDetail(res);
       setDetailOpen(true);
@@ -247,7 +272,7 @@ export default function AdminCustomers() {
             <section>
               <h2 className="mb-2 font-semibold text-[#0B1B48]">Addresses</h2>
               <div className="space-y-2">
-                {selectedDetail.addresses.map((address: any) => (
+                {selectedDetail.addresses.map((address) => (
                   <div key={address.id} className="rounded-lg border border-slate-200 bg-white p-3 text-slate-600">
                     {address.recipient_name}, {address.address_line1}, {address.city}, {address.country}
                   </div>
@@ -259,7 +284,7 @@ export default function AdminCustomers() {
             <section>
               <h2 className="mb-2 font-semibold text-[#0B1B48]">Recent Orders</h2>
               <div className="space-y-2">
-                {selectedDetail.orders.map((order: any) => (
+                {selectedDetail.orders.map((order) => (
                   <div key={order.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 text-slate-600">
                     <span className="font-mono">{String(order.id).slice(0, 8)}</span>
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold capitalize text-slate-600">{order.status}</span>

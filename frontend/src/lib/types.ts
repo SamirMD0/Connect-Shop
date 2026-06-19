@@ -59,7 +59,7 @@ export interface ProductVariant {
   name: string;
   price: string;
   stock: number;
-  attributes: Record<string, any>;
+  attributes: Record<string, unknown>;
   image_url: string | null;
   created_at: string;
 }
@@ -200,7 +200,7 @@ export interface ApiResponse<T> {
   data?: T;
   error?: string;
   message?: string;
-  [key: string]: any; // Allow spreading result
+  [key: string]: unknown; // Allow spreading result
 }
 
 // ─── Admin Security Monitoring ───────────────────────────────────────────────
@@ -539,4 +539,24 @@ export interface HomepageContent {
 export interface HomepageContentResponse {
   success: boolean;
   homepage: HomepageContent;
+}
+
+export interface HomepageFullResponse {
+  success: boolean;
+  data: {
+    featuredProducts: Product[];
+    trendingProducts: Product[];
+    categories: Category[];
+    brands: Brand[];
+    carouselSlides: CarouselSlide[];
+    homepage: HomepageContent;
+  };
+  partialFailures?: Array<
+    | 'featuredProducts'
+    | 'trendingProducts'
+    | 'categories'
+    | 'brands'
+    | 'carouselSlides'
+    | 'homepage'
+  >;
 }

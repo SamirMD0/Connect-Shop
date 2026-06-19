@@ -2,6 +2,7 @@
 import { Pool, PoolClient } from 'pg';
 import { env } from './env';
 import { logger } from '../utils/logger';
+import { logSlowQuery } from '../utils/performance';
 
 // Single connection pool shared across the application
 export const pool = new Pool({
@@ -44,7 +45,9 @@ export async function query<T extends Record<string, any> = Record<string, any>>
   text: string,
   values?: unknown[]
 ): Promise<T[]> {
+  const start = performance.now();
   const result = await pool.query<T>(text, values);
+  logSlowQuery(text, performance.now() - start, result.rowCount);
   return result.rows;
 }
 

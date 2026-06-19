@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 import { RatingStars } from './RatingStars';
 import { Button } from '@/components/ui/Button';
 import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';
@@ -53,7 +53,7 @@ export function ProductReviews({ productId }: { productId: string }) {
     
     setSubmitting(true);
     try {
-      const res = await api.post<{ success: boolean; review: any }>(`/api/reviews/${productId}`, {
+      const res = await api.post<{ success: boolean; review: Review }>(`/api/reviews/${productId}`, {
         rating,
         title,
         body
@@ -64,8 +64,8 @@ export function ProductReviews({ productId }: { productId: string }) {
       setBody('');
       setRating(5);
       addToast('Review submitted successfully!', 'success');
-    } catch (err: any) {
-      addToast(err.response?.data?.message || 'Failed to submit review', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Failed to submit review'), 'error');
     } finally {
       setSubmitting(false);
     }

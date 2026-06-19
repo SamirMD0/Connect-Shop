@@ -34,6 +34,7 @@ export default function AdminInventory() {
 
   useEffect(() => {
     void fetchAlerts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const columns = [

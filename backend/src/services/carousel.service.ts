@@ -21,7 +21,7 @@ export interface CarouselSlide {
 // ─── Service Functions ───────────────────────────────────────────────────────
 
 async function invalidateCarouselCache(): Promise<void> {
-  await delCache(CACHE_KEYS.carouselActive);
+  await delCache(CACHE_KEYS.carouselActive, CACHE_KEYS.homepageFull);
 }
 
 /** Public: returns only active slides ordered by display_order */

@@ -2,7 +2,9 @@ import crypto from 'crypto';
 
 export const CACHE_TTL_SECONDS = {
   homepage: 180,
+  homepageFull: 60,
   categories: 600,
+  brands: 600,
   featuredProducts: 180,
   productDetail: 180,
   productList: 45,
@@ -11,7 +13,9 @@ export const CACHE_TTL_SECONDS = {
 
 export const CACHE_KEYS = {
   homepageActive: 'homepage:active:v1',
+  homepageFull: 'homepage:full:v1',
   categoriesTree: 'categories:tree:v1',
+  brandsPublic: 'brands:public:v1',
   featuredProducts: (limit: number) => `products:featured:v1:limit=${limit}`,
   featuredProductsPattern: 'products:featured:v1:*',
   productSlug: (slug: string) => `product:slug:v1:${slug}`,

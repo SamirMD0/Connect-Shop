@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
-import { api } from '../../../lib/api';
+import { api, getErrorMessage } from '../../../lib/api';
 import { DataTable } from '../../../components/admin/DataTable';
 import { ConfirmDialog } from '../../../components/admin/ConfirmDialog';
 import { useToast } from '@/hooks/useToast';
@@ -61,6 +61,7 @@ export default function AdminReviewsPage() {
 
   useEffect(() => {
     void fetchReviews();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page, status]);
 
   async function updateReviewStatus(reviewId: string, nextStatus: Exclude<ReviewStatus, 'all'>) {
@@ -74,8 +75,8 @@ export default function AdminReviewsPage() {
           review.id === reviewId ? { ...review, status: res.review.status } : review
         )));
       }
-    } catch (error: any) {
-      addToast(error.message || 'Failed to update review.', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Failed to update review.'), 'error');
     } finally {
       setUpdatingId(null);
     }
@@ -90,8 +91,8 @@ export default function AdminReviewsPage() {
       setReviews(current => current.filter(review => review.id !== reviewToDelete.id));
       setReviewToDelete(null);
       addToast('Review deleted.', 'success');
-    } catch (error: any) {
-      addToast(error.message || 'Failed to delete review.', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Failed to delete review.'), 'error');
     } finally {
       setUpdatingId(null);
     }

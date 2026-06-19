@@ -261,6 +261,13 @@ CREATE INDEX IF NOT EXISTS idx_products_name_trgm   ON products USING GIN (name 
 CREATE INDEX IF NOT EXISTS idx_products_price ON products (price);
 CREATE INDEX IF NOT EXISTS idx_products_created_at ON products (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_products_rating ON products (rating DESC);
+CREATE INDEX IF NOT EXISTS idx_products_featured_created_at
+  ON products (is_featured DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_category_featured_created_at
+  ON products (category_id, is_featured DESC, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_products_featured_rating
+  ON products (rating DESC)
+  WHERE is_featured = true;
 
 ALTER TABLE products ADD COLUMN IF NOT EXISTS brand VARCHAR(100);
 ALTER TABLE products ADD COLUMN IF NOT EXISTS sku VARCHAR(100);
@@ -273,6 +280,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_products_sku_unique
   ON products (sku)
   WHERE sku IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_products_brand_id ON products (brand_id);
+CREATE INDEX IF NOT EXISTS idx_products_brand_featured_created_at
+  ON products (brand_id, is_featured DESC, created_at DESC);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- product_images
@@ -286,6 +295,8 @@ CREATE TABLE IF NOT EXISTS product_images (
   is_primary  BOOLEAN NOT NULL DEFAULT FALSE
 );
 CREATE INDEX IF NOT EXISTS idx_product_images_product_id ON product_images (product_id);
+CREATE INDEX IF NOT EXISTS idx_product_images_product_sort
+  ON product_images (product_id, sort_order ASC);
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- product_variants
@@ -302,6 +313,8 @@ CREATE TABLE IF NOT EXISTS product_variants (
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id ON product_variants (product_id);
+CREATE INDEX IF NOT EXISTS idx_product_variants_product_created_at
+  ON product_variants (product_id, created_at ASC);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_product_variants_sku_unique
   ON product_variants (sku);
 

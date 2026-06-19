@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button';
 import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 
 interface Question {
   id: string;
@@ -44,8 +44,8 @@ export function ProductQuestions({ slug }: { slug: string }) {
       setQuestions([res.question, ...questions]);
       setQuestion('');
       addToast('Question submitted', 'success');
-    } catch (err: any) {
-      addToast(err.message || 'Failed to submit question', 'error');
+    } catch (error: unknown) {
+      addToast(getErrorMessage(error, 'Failed to submit question'), 'error');
     } finally {
       setSubmitting(false);
     }

@@ -9,11 +9,12 @@ import { randomUUID } from 'crypto';
 import { logger } from './utils/logger';
 import { corsOptions } from './config/cors';
 import { env } from './config/env';
-import { generalLimiter } from './middleware/rateLimiter';
+import { generalLimiter, publicReadLimiter } from './middleware/rateLimiter';
 import { csrfProtection } from './middleware/csrf';
 import { sanitizeInput } from './middleware/sanitize';
 import { errorHandler } from './utils/errors';
 import { setupSentryExpressErrorHandler } from './config/sentry';
+import { performanceRequestLogger, startPerformanceBackgroundMonitors } from './utils/performance';
 
 // Route imports
 import authRoutes from './routes/auth.routes';
@@ -38,7 +39,20 @@ app.set('trust proxy', 1);
 // ─── Security Middleware ─────────────────────────────────────────────────────
 app.use(helmet());                          // Secure HTTP headers
 app.use(cors(corsOptions));                 // Strict CORS
-app.use(generalLimiter);                    // Rate limiting (100/15min)
+
+// ─── Health Check ────────────────────────────────────────────────────────────
+// Keep deployment/load-balancer health checks independent from user traffic
+// rate-limit buckets. Express also answers HEAD for this GET route.
+app.get('/api/health', (_req, res) => {
+  res.json({
+    success: true,
+    message: 'ElecSHOP API is running',
+    timestamp: new Date().toISOString(),
+    environment: env.NODE_ENV,
+  });
+});
+
+app.use(generalLimiter);                    // General rate limiting for non-public-read traffic
 
 // ─── Request Logging ─────────────────────────────────────────────────────────
 app.use(pinoHttp({
@@ -49,6 +63,8 @@ app.use(pinoHttp({
     return id;
   }
 }));
+startPerformanceBackgroundMonitors();
+app.use(performanceRequestLogger);
 
 // ─── Body Parsing ────────────────────────────────────────────────────────────
 app.use('/api/v1/admin/uploads/image', express.json({ limit: '7mb' }));
@@ -59,26 +75,16 @@ app.use(sanitizeInput);                      // Normalize and strip control char
 app.use(xss());                             // Sanitize data against XSS
 app.use(csrfProtection);                    // CSRF protection for unsafe cookie-authenticated requests
 
-// ─── Health Check ────────────────────────────────────────────────────────────
-app.get('/api/health', (_req, res) => {
-  res.json({
-    success: true,
-    message: 'ElecSHOP API is running',
-    timestamp: new Date().toISOString(),
-    environment: env.NODE_ENV,
-  });
-});
-
 // ─── API Routes ──────────────────────────────────────────────────────────────
 app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/products', productsRoutes);
-app.use('/api/v1/categories', categoriesRoutes);
-app.use('/api/v1/brands', brandsRoutes);
+app.use('/api/v1/products', publicReadLimiter, productsRoutes);
+app.use('/api/v1/categories', publicReadLimiter, categoriesRoutes);
+app.use('/api/v1/brands', publicReadLimiter, brandsRoutes);
 app.use('/api/v1/cart', cartRoutes);
 app.use('/api/v1/orders', ordersRoutes);
 app.use('/api/v1/admin', adminRoutes);
-app.use('/api/v1/carousel', carouselRoutes);
-app.use('/api/v1/homepage', homepageRoutes);
+app.use('/api/v1/carousel', publicReadLimiter, carouselRoutes);
+app.use('/api/v1/homepage', publicReadLimiter, homepageRoutes);
 app.use('/api/v1/reviews', reviewRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/users', usersRoutes);

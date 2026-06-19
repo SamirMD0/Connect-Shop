@@ -1,3 +1,6 @@
+'use client';
+
+import { useMemo, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Category } from '@/lib/types';
@@ -7,7 +10,28 @@ interface BrowseCategoriesProps {
   fallbackImages: string[];
 }
 
+const CATEGORIES_PER_PAGE = 12;
+
 export function BrowseCategories({ categories, fallbackImages }: BrowseCategoriesProps) {
+  const [page, setPage] = useState(0);
+  const pageCount = Math.ceil(categories.length / CATEGORIES_PER_PAGE);
+  const hasMultiplePages = pageCount > 1;
+  const safePage = hasMultiplePages ? page % pageCount : 0;
+  const visibleCategories = useMemo(() => {
+    const start = safePage * CATEGORIES_PER_PAGE;
+    return categories.slice(start, start + CATEGORIES_PER_PAGE);
+  }, [categories, safePage]);
+
+  const previousPage = () => {
+    if (!hasMultiplePages) return;
+    setPage(current => (current - 1 + pageCount) % pageCount);
+  };
+
+  const nextPage = () => {
+    if (!hasMultiplePages) return;
+    setPage(current => (current + 1) % pageCount);
+  };
+
   return (
     <section className="overflow-hidden pt-14 sm:pt-16">
       <div className="mx-auto w-full max-w-[1170px] px-4 pb-14 sm:px-8 xl:px-0">
@@ -53,6 +77,8 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
             <div className="hidden items-center gap-3 sm:flex">
               <button
                 type="button"
+                onClick={previousPage}
+                disabled={!hasMultiplePages}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-text-muted transition-colors hover:border-accent hover:text-accent"
                 aria-label="Previous categories"
               >
@@ -60,6 +86,8 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
               </button>
               <button
                 type="button"
+                onClick={nextPage}
+                disabled={!hasMultiplePages}
                 className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-text-muted transition-colors hover:border-accent hover:text-accent"
                 aria-label="Next categories"
               >
@@ -69,7 +97,7 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
           </div>
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
-            {categories.slice(0, 12).map((cat, index) => (
+            {visibleCategories.map((cat, index) => (
               <Link
                 key={cat.id}
                 href={`/store?category=${cat.slug}`}

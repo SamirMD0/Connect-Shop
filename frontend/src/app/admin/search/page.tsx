@@ -6,10 +6,26 @@ import { Search } from 'lucide-react';
 import { api } from '../../../lib/api';
 
 interface SearchResults {
-  products: any[];
-  orders: any[];
-  users: any[];
-  categories: any[];
+  products: Array<{
+    id: string;
+    name: string;
+    sku?: string | null;
+    slug?: string | null;
+  }>;
+  orders: Array<{
+    id: string;
+    customer_email?: string | null;
+  }>;
+  users: Array<{
+    id: string;
+    name: string;
+    email: string;
+  }>;
+  categories: Array<{
+    id: number;
+    name: string;
+    slug: string;
+  }>;
 }
 
 const emptyResults: SearchResults = { products: [], orders: [], users: [], categories: [] };

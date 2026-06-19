@@ -67,6 +67,7 @@ export default function CarouselManagementPage() {
 
   useEffect(() => {
     loadSlides();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadSlides = async () => {

@@ -9,6 +9,7 @@ import { ProductQuestions } from '@/components/products/ProductQuestions';
 import { RecentlyViewedProducts } from '@/components/products/RecentlyViewedProducts';
 import { api } from '@/lib/api';
 import { APP_NAME, SITE_URL } from '@/lib/constants';
+import { logServerRenderTiming } from '@/lib/perf';
 import { Product } from '@/lib/types';
 import { ChevronRight } from 'lucide-react';
 
@@ -73,6 +74,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function ProductDetailPage({ params }: Props) {
+  const renderStart = performance.now();
   const p = await params;
   const product = await getProduct(p.slug);
 
@@ -92,6 +94,12 @@ export default async function ProductDetailPage({ params }: Props) {
       // ignore
     }
   }
+
+  logServerRenderTiming({
+    pageType: 'product_detail',
+    phase: 'render_prep',
+    durationMs: performance.now() - renderStart,
+  });
 
   const imageUrls = [
     product.image_url,
