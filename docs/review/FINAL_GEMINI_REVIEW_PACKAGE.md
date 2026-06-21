@@ -46,26 +46,26 @@ Target:
 |---|---|---|---|
 | Project summary/business readiness | completed | `../.claude/PROJECT_SUMMARY_AND_BUSINESS_READINESS.md`, `../README.md` | Business positioning exists; `.claude` file is legacy planning. |
 | Sellable checklist | completed | `../project-docs/SELLABLE_VERSION_CHECKLIST.md` | Checklist exists; items still need final manual verification. |
-| Cost estimate | completed | `FINAL_PRODUCTION_COST_REVIEW.md`, `../.claude/CONNECT_SHOP_COST_ESTIMATE.md` | Ranges only; final provider pricing must be checked manually. |
+| Cost estimate | completed | `docs/review/FINAL_PRODUCTION_COST_REVIEW.md`, `../.claude/CONNECT_SHOP_COST_ESTIMATE.md` | Ranges only; final provider pricing must be checked manually. |
 | Phase 1 order flow + COD | pending verification | Codebase order/cart docs and checklist | Gemini should verify code and UI behavior. |
-| Phase 2 admin order management | pending verification | `ADMIN_GUIDE.md`, production checklist, backend/frontend code | Gemini should verify admin order routes and UI. |
+| Phase 2 admin order management | pending verification | `docs/client/ADMIN_GUIDE.md`, production checklist, backend/frontend code | Gemini should verify admin order routes and UI. |
 | Phase 3 product/category/image production testing | partially completed | `../project-docs/IMAGEKIT_SETUP.md`, `../project-docs/PRODUCTION_CHECKLIST.md` | ImageKit documented/implemented; deployed testing still required. |
-| Phase 4 notifications/contact/WhatsApp | partially completed | `ADMIN_GUIDE.md`, `KNOWN_LIMITATIONS.md`, README | Manual WhatsApp/support exists; automated notifications may be future work. |
+| Phase 4 notifications/contact/WhatsApp | partially completed | `docs/client/ADMIN_GUIDE.md`, `docs/client/KNOWN_LIMITATIONS.md`, README | Manual WhatsApp/support exists; automated notifications may be future work. |
 | Phase 5 policy/contact/about pages | pending verification | README, launch checklist, frontend code | Gemini should confirm pages exist and render. |
 | Phase 6 SEO/mobile polish | pending verification | README, frontend code | Gemini should verify sitemap, robots, metadata, and mobile layout. |
 | Phase 7 deployment/backups/domain preparation | partially completed | `../project-docs/DEPLOYMENT_GUIDE.md`, `../project-docs/BACKUP_AND_RECOVERY.md` | Domain/Cloudflare may be skipped until domain is available. |
-| Phase 8 documentation/client handover | completed | `CLIENT_HANDOVER_CHECKLIST.md`, `ADMIN_GUIDE.md`, `MAINTENANCE_AND_SUPPORT.md` | Client docs exist; should be customized per client. |
+| Phase 8 documentation/client handover | completed | `docs/client/CLIENT_HANDOVER_CHECKLIST.md`, `docs/client/ADMIN_GUIDE.md`, `docs/client/MAINTENANCE_AND_SUPPORT.md` | Client docs exist; should be customized per client. |
 | ImageKit production upload | completed, pending deployed verification | `../project-docs/IMAGEKIT_SETUP.md` | Verify actual upload on Render with real env vars. |
 | Backup/recovery plan | documented only | `../project-docs/BACKUP_AND_RECOVERY.md` | Actual backup schedule/provider settings must be configured. |
 | Redis read-through caching | partially completed | `../project-docs/REDIS_CACHE_POLICY.md`, backend code | Verify actual cache usage and invalidation in code. |
-| Staging deployment plan | partially completed | `../docs/LAUNCH_CHECKLIST.md`, `../project-docs/PRODUCTION_CHECKLIST.md` | Dedicated staging plan files were not found. |
+| Staging deployment plan | partially completed | `docs/deployment/LAUNCH_CHECKLIST.md`, `../project-docs/PRODUCTION_CHECKLIST.md` | Dedicated staging plan files were not found. |
 | Identity-aware rate limiting | completed, pending verification | `../RATE_LIMITING_AND_API_SECURITY_AUDIT.md`, backend code | Verify routes and Redis fallback. |
 | Upload/checkout abuse protection | completed, pending verification | `../RATE_LIMITING_AND_API_SECURITY_AUDIT.md`, backend code | Verify file validation and COD active-order cap. |
 | Behavior logging | completed, pending verification | `../SECURITY_MONITORING.md`, backend code | Verify `security_events` migration and writes. |
 | Progressive protection | completed, pending verification | `../PROGRESSIVE_PROTECTION.md`, backend code | Verify login and MFA cooldown thresholds. |
 | Monitoring/alerting plan | documented only | `../MONITORING_AND_ALERTING_PLAN.md` | No paid monitoring service added. |
-| Production smoke-test/launch verification | documented only | `../project-docs/PRODUCTION_CHECKLIST.md`, `LAUNCH_CHECKLIST.md` | Must be executed on staging/production. |
-| Documentation organization/final review package | completed | `DOCUMENTATION_INDEX.md`, this file | Existing docs indexed; files were not moved. |
+| Production smoke-test/launch verification | documented only | `../project-docs/PRODUCTION_CHECKLIST.md`, `docs/deployment/LAUNCH_CHECKLIST.md` | Must be executed on staging/production. |
+| Documentation organization/final review package | completed | `docs/DOCUMENTATION_INDEX.md`, this file | Existing docs are grouped by purpose under `docs/`. |
 
 ## 5. Feature Verification Checklist For Gemini
 
@@ -243,5 +243,5 @@ Gemini must list:
 ## 11. Final Gemini Prompt
 
 ```text
-Act as a senior software engineer, security auditor, and production readiness reviewer. Read the full repository and all Markdown docs, especially docs/FINAL_GEMINI_REVIEW_PACKAGE.md. Verify the code, not just the documentation. Rate the project, verify the completed phases, estimate realistic production costs for the chosen stack, identify security/scalability risks, and give a final GO / CONDITIONAL GO / NO-GO decision for selling this ecommerce system to a real small business.
+Act as a senior software engineer, security auditor, and production readiness reviewer. Read the full repository and all Markdown docs, especially docs/review/FINAL_GEMINI_REVIEW_PACKAGE.md. Verify the code, not just the documentation. Rate the project, verify the completed phases, estimate realistic production costs for the chosen stack, identify security/scalability risks, and give a final GO / CONDITIONAL GO / NO-GO decision for selling this ecommerce system to a real small business.
 ```

@@ -121,8 +121,8 @@ Deployment validation status:
 - Phase N final deployment validation is pending deployed Vercel/Render URLs and provider details.
 - Cash on Delivery/manual order flow is the current payment path; no online payment gateway is required for the documented deployment validation.
 
-Use [Production Deployment Guide](docs/DEPLOYMENT_PRODUCTION_GUIDE.md) for Vercel, Render, PostgreSQL, Redis, ImageKit, environment variables, migrations, health checks, post-deploy validation, and rollback notes.
-Use [Phase N Final Deployment Validation](docs/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md) to record deployed URLs, health checks, COD order validation, admin validation, Redis/log status, k6 smoke results, and remaining issues after deployment.
+Use [Production Deployment Guide](docs/deployment/DEPLOYMENT_PRODUCTION_GUIDE.md) for Vercel, Render, PostgreSQL, Redis, ImageKit, environment variables, migrations, health checks, post-deploy validation, and rollback notes.
+Use [Phase N Final Deployment Validation](docs/deployment/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md) to record deployed URLs, health checks, COD order validation, admin validation, Redis/log status, k6 smoke results, and remaining issues after deployment.
 
 Do not deploy with real credentials stored in files. Configure secrets in Vercel and Render environment variable settings.
 
@@ -161,24 +161,25 @@ Recommended deployment stack:
 - Domain: Namecheap
 - Redis: optional Render Redis-compatible Key Value or Upstash Redis
 
-See [Production Deployment Guide](docs/DEPLOYMENT_PRODUCTION_GUIDE.md), [Legacy Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md), [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md), and [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md).
+See [Production Deployment Guide](docs/deployment/DEPLOYMENT_PRODUCTION_GUIDE.md), [Legacy Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md), [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md), [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md), and [Production Checklist](project-docs/PRODUCTION_CHECKLIST.md).
 
 ## Documentation
 
 - [Documentation Index](docs/DOCUMENTATION_INDEX.md)
 - [Final Production Readiness Verdict](FINAL_PRODUCTION_READINESS_VERDICT.md)
-- [Final Gemini Review Package](docs/FINAL_GEMINI_REVIEW_PACKAGE.md)
-- [Final Production Cost Review](docs/FINAL_PRODUCTION_COST_REVIEW.md)
-- [Phases Completion Summary](docs/PHASES_COMPLETION_SUMMARY.md)
-- [Admin Guide](docs/ADMIN_GUIDE.md)
-- [Client Handover Checklist](docs/CLIENT_HANDOVER_CHECKLIST.md)
-- [Maintenance and Support](docs/MAINTENANCE_AND_SUPPORT.md)
-- [Known Limitations](docs/KNOWN_LIMITATIONS.md)
-- [Launch Checklist](docs/LAUNCH_CHECKLIST.md)
-- [Production Deployment Guide](docs/DEPLOYMENT_PRODUCTION_GUIDE.md)
-- [Phase N Final Deployment Validation](docs/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md)
-- [Performance and Scalability Plan](docs/PERFORMANCE_SCALING_PLAN.md)
-- [Performance Phase L Redis Capacity](docs/PERFORMANCE_PHASE_L_REDIS_CAPACITY.md)
+- [System Design Diagrams](docs/SystemDesign/ERASER_SYSTEM_DESIGNS.md)
+- [Final Gemini Review Package](docs/review/FINAL_GEMINI_REVIEW_PACKAGE.md)
+- [Final Production Cost Review](docs/review/FINAL_PRODUCTION_COST_REVIEW.md)
+- [Phases Completion Summary](docs/review/PHASES_COMPLETION_SUMMARY.md)
+- [Admin Guide](docs/client/ADMIN_GUIDE.md)
+- [Client Handover Checklist](docs/client/CLIENT_HANDOVER_CHECKLIST.md)
+- [Maintenance and Support](docs/client/MAINTENANCE_AND_SUPPORT.md)
+- [Known Limitations](docs/client/KNOWN_LIMITATIONS.md)
+- [Launch Checklist](docs/deployment/LAUNCH_CHECKLIST.md)
+- [Production Deployment Guide](docs/deployment/DEPLOYMENT_PRODUCTION_GUIDE.md)
+- [Phase N Final Deployment Validation](docs/deployment/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md)
+- [Performance and Scalability Plan](docs/performance/PERFORMANCE_SCALING_PLAN.md)
+- [Performance Phase L Redis Capacity](docs/performance/PERFORMANCE_PHASE_L_REDIS_CAPACITY.md)
 - [Deployment Guide](project-docs/DEPLOYMENT_GUIDE.md)
 - [Backup and Recovery](project-docs/BACKUP_AND_RECOVERY.md)
 - [Monitoring and Alerting Plan](MONITORING_AND_ALERTING_PLAN.md)

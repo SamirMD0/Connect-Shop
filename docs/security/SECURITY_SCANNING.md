@@ -78,4 +78,4 @@ Automated scanners do not fully understand business logic. Reviewers should stil
 
 AI review can help spot issues, but it is optional and should not be treated as the primary security layer. GitHub Actions, CodeQL, Dependency Review, npm audit, Semgrep, tests, and human review remain the authoritative gates.
 
-See `docs/AI_CODE_REVIEW.md` for the optional AI pull request review setup notes and ecommerce-specific review checklist.
+See `docs/review/AI_CODE_REVIEW.md` for the optional AI pull request review setup notes and ecommerce-specific review checklist.

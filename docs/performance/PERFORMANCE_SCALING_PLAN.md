@@ -163,7 +163,7 @@ To safely reach the production targets, the work must be implemented in the foll
 ### Phase A — Measurement & Baseline
 **Status:** Implemented for structured measurement; deeper resource profiling remains a measurement gap.
 
-* Document current k6 results (completed in `docs/PERFORMANCE_BASELINE_RESULTS.md`).
+* Document current k6 results (completed in `docs/performance/PERFORMANCE_BASELINE_RESULTS.md`).
 * Add structured smoke/small/medium public-read k6 stage scripts (completed under `load-tests/k6/`).
 * Measure exact API fan-out per page (completed for Home, Store, Category Store, and Product Detail).
 * Record baseline p95, p99, failed requests, and 429s (supported by updated k6 metrics; known baseline results documented).
@@ -176,7 +176,7 @@ To safely reach the production targets, the work must be implemented in the foll
 * Assign public read routes to this dedicated bucket rather than the `generalLimiter` (completed).
 * **Note on IP Whitelisting:** Avoid whitelisting the frontend server's IP. In production environments with CDNs or reverse proxies, IP whitelisting can be dangerous and spoofable without strict infrastructure controls. Rely on route-specific limits and caching instead.
 * **Crucial:** Keep strict limits on auth, checkout, cart, admin, upload, and reviews (preserved).
-* Document abuse risks (e.g., scraping) and expected production limits (documented in `docs/PERFORMANCE_PHASE_B_RESULTS.md`).
+* Document abuse risks (e.g., scraping) and expected production limits (documented in `docs/performance/PERFORMANCE_PHASE_B_RESULTS.md`).
 
 Implemented public-read coverage:
 
@@ -194,7 +194,7 @@ The `generalLimiter` skips only requests classified by `isPublicReadRequest`; it
 ### Phase C — Public Read Caching Plan
 **Status:** Implemented for selected safe public reads; broader cache strategy remains limited by local validation.
 
-* Audit API calls on homepage, store, product, and category pages (completed; see `docs/PERFORMANCE_PHASE_C_RESULTS.md`).
+* Audit API calls on homepage, store, product, and category pages (completed; see `docs/performance/PERFORMANCE_PHASE_C_RESULTS.md`).
 * Identify cacheable public data (products, categories, brands, homepage layout) (completed).
 * Identify private/user-specific data that **must not** be cached (cart state, user profile) (completed).
 * Add Redis cache-aside behavior for selected heavy public routes (completed for `/api/v1/homepage/full` and public brands).
@@ -222,7 +222,7 @@ Store/category/product detail fan-out remains unchanged and should be handled se
 **Status:** Implemented for public-read query audit and verified index additions; production-scale query profiling remains pending.
 
 * Identify heavy DB queries using local query audit and EXPLAIN (completed for public storefront reads; `pg_stat_statements` remains future staging work).
-* Check and verify indexes for product listing, category filtering, brand filtering, and product details (completed; see `docs/PERFORMANCE_PHASE_E_RESULTS.md`).
+* Check and verify indexes for product listing, category filtering, brand filtering, and product details (completed; see `docs/performance/PERFORMANCE_PHASE_E_RESULTS.md`).
 * Add justified public-read indexes matching real query patterns (completed in `012_public_read_product_indexes`).
 * Review the pagination strategy (offset remains unchanged; count queries remain a known cost).
 * Review database connection pool settings (completed; pool max remains hard-coded at 20).
@@ -231,7 +231,7 @@ Store/category/product detail fan-out remains unchanged and should be handled se
 ### Phase F — Infrastructure Scaling Plan
 **Status:** Implemented as a production infrastructure scaling plan. No infrastructure changes were applied.
 
-Documented in `docs/PRODUCTION_INFRASTRUCTURE_SCALING_PLAN.md`:
+Documented in `docs/deployment/PRODUCTION_INFRASTRUCTURE_SCALING_PLAN.md`:
 
 * **Frontend:** Production Next.js build, standalone/container hosting path, CDN/static asset delivery, and internal API URL strategy.
 * **Backend:** Multiple Express replicas behind a load balancer, health-check requirements, and strict preservation of sensitive endpoint limits.
@@ -261,7 +261,7 @@ Current Phase G local result:
 * Small warm passed.
 * Medium completed with 100% checks, 0 failed frontend-page HTTP requests, and 0 k6-visible 429s, but failed latency thresholds. Phase H later confirmed backend public-read 429s hidden by frontend fallback HTML responses.
 * Homepage was the slowest medium page by p95.
-* Results are documented in `docs/PERFORMANCE_PHASE_G_RESULTS.md`.
+* Results are documented in `docs/performance/PERFORMANCE_PHASE_G_RESULTS.md`.
 
 ### Phase H — Bottleneck Attribution and Observability
 **Status:** Implemented for env-gated instrumentation and local medium-load attribution. No tuning was applied.
@@ -286,7 +286,7 @@ Current Phase H conclusion:
 * The current frontend-page k6 profile is useful for user-facing latency, but insufficient by itself for backend 429 detection.
 * Next work should improve backend API status visibility in load tests before changing rate limits, cache behavior, database queries, or infrastructure.
 
-Detailed results are documented in `docs/PERFORMANCE_PHASE_H_RESULTS.md`.
+Detailed results are documented in `docs/performance/PERFORMANCE_PHASE_H_RESULTS.md`.
 
 ### Phase I — Backend Public-Read API Visibility
 **Status:** Implemented for k6 measurement. No rate limits or app behavior were changed.
@@ -323,7 +323,7 @@ New validation rule:
 * Backend API tests prove backend public APIs avoided 429s.
 * A frontend website pass does not override backend API 429 failures.
 
-Detailed results and commands are documented in `docs/PERFORMANCE_PHASE_I_RESULTS.md`.
+Detailed results and commands are documented in `docs/performance/PERFORMANCE_PHASE_I_RESULTS.md`.
 
 Current Phase I local result:
 
@@ -358,7 +358,7 @@ Recommended Phase K direction:
 * Avoid blindly trusting `X-Forwarded-For`.
 * Avoid one unlimited public bucket.
 
-Detailed strategy is documented in `docs/PERFORMANCE_PHASE_J_PUBLIC_READ_LIMITER_STRATEGY.md`.
+Detailed strategy is documented in `docs/performance/PERFORMANCE_PHASE_J_PUBLIC_READ_LIMITER_STRATEGY.md`.
 
 ### Phase K — Safe Public-Read Limiter Strategy
 **Status:** Implemented for route-specific public-read buckets and verified internal SSR bucket. Redis capacity remains a validation blocker.
@@ -407,7 +407,7 @@ Important caveat:
 * Backend logs showed Redis provider request quota exhaustion during validation: `ERR max requests limit exceeded`.
 * Because rate-limit Redis store errors fail open, Phase K API medium is not a clean staging-readiness proof until Redis capacity is corrected and re-tested.
 
-Detailed results are documented in `docs/PERFORMANCE_PHASE_K_RESULTS.md`.
+Detailed results are documented in `docs/performance/PERFORMANCE_PHASE_K_RESULTS.md`.
 
 ### Phase L — Redis Capacity And Limiter Failure Modes
 **Status:** Implemented for documentation, limiter failure policy, tests, and user-provided API medium validation. Paired website medium and frontend production build remain pending.
@@ -429,14 +429,14 @@ Important caveat:
 * If Redis is not configured, express-rate-limit uses its memory store. That is acceptable for local single-process development but not production multi-replica enforcement.
 * API smoke/small, paired website medium, and frontend production build should be completed against the intended Redis target before staging confidence.
 
-Detailed results and commands are documented in `docs/PERFORMANCE_PHASE_L_REDIS_CAPACITY.md`.
+Detailed results and commands are documented in `docs/performance/PERFORMANCE_PHASE_L_REDIS_CAPACITY.md`.
 
 ### Phase M — Production/Demo Deployment Setup
 **Status:** Implemented for deployment documentation and environment examples. No production deployment was performed.
 
 Implemented:
 
-* Created `docs/DEPLOYMENT_PRODUCTION_GUIDE.md`.
+* Created `docs/deployment/DEPLOYMENT_PRODUCTION_GUIDE.md`.
 * Documented Vercel frontend deployment settings.
 * Documented Render backend deployment settings.
 * Documented managed PostgreSQL setup, migration command, backup/PITR checks, and connection-pool caveats.
@@ -457,7 +457,7 @@ Important caveat:
 
 Created:
 
-* `docs/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md`
+* `docs/deployment/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md`
 
 Pending inputs/results:
 
@@ -501,7 +501,7 @@ During all optimization phases, the following rules are immutable:
 3. **Phase D:** SSR fan-out reduction (homepage request consolidation completed; remaining pages still pending).
 4. **Phase C:** Public read caching. Completed for selected anonymous public reads.
 5. **Phase E:** DB/query performance. Completed for verified public-read indexes; staging-scale profiling remains.
-6. **Phase F:** Infrastructure scaling plan documentation. Completed in `docs/PRODUCTION_INFRASTRUCTURE_SCALING_PLAN.md`.
+6. **Phase F:** Infrastructure scaling plan documentation. Completed in `docs/deployment/PRODUCTION_INFRASTRUCTURE_SCALING_PLAN.md`.
 7. **Phase G:** Local public-read k6 validation and p99 investigation documented; staging-safe and production-like validation remains incomplete.
 8. **Phase H:** Env-gated observability and bottleneck attribution documented; backend public-read 429 visibility must be improved in tests before tuning.
 9. **Phase I:** Backend public-read API k6 visibility added; run paired frontend/backend tests before public-read limiter tuning.
@@ -543,7 +543,7 @@ Progress can only be claimed when:
 ## 10. Final Recommendation
 
 **What to do next:** 
-Use `docs/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md` to record deployed URLs, backend/frontend checks, COD order validation, admin validation, Redis/log status, and k6 smoke results. After Phase N passes, plan provider-approved 250 -> 500 VU public-read staging testing only if Redis/PostgreSQL capacity is confirmed.
+Use `docs/deployment/PHASE_N_FINAL_DEPLOYMENT_VALIDATION.md` to record deployed URLs, backend/frontend checks, COD order validation, admin validation, Redis/log status, and k6 smoke results. After Phase N passes, plan provider-approved 250 -> 500 VU public-read staging testing only if Redis/PostgreSQL capacity is confirmed.
 
 **What not to do yet:** 
 Do not claim 1,000-5,000 concurrent-user support yet. Do not run huge 1,000+ VU tests locally. Do not weaken security settings, auth flow, checkout/order protections, admin limits, CSRF, validation, or sensitive mutation rate limits.

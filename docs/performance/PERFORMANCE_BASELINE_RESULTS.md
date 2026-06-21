@@ -2,7 +2,7 @@
 
 > Date: 2026-06-15
 > Scope: Phase A measurement and baseline only.
-> Status: Baseline documented. Phase B public-read limiter changes are documented in `docs/PERFORMANCE_PHASE_B_RESULTS.md`; Phase D homepage fan-out reduction is documented in `docs/PERFORMANCE_PHASE_D_RESULTS.md`.
+> Status: Baseline documented. Phase B public-read limiter changes are documented in `docs/performance/PERFORMANCE_PHASE_B_RESULTS.md`; Phase D homepage fan-out reduction is documented in `docs/performance/PERFORMANCE_PHASE_D_RESULTS.md`.
 
 ## Scope
 
