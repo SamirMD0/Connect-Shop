@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction, CookieOptions } from 'express';
 import { env } from '../config/env';
+import { getCrossSiteCookieSecurityOptions } from '../config/cookies';
 import { ForbiddenError } from '../utils/errors';
 import { generateBrowserToken } from '../utils/crypto';
 
@@ -11,8 +12,7 @@ const UNSAFE_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
 function getCsrfCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
     maxAge: env.COOKIE_MAX_AGE,
     path: '/',
     signed: true,

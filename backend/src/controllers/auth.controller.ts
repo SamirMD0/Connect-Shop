@@ -2,6 +2,7 @@
 import { Request, Response, NextFunction, CookieOptions } from 'express';
 import { OAuth2Client } from 'google-auth-library';
 import { env } from '../config/env';
+import { getCrossSiteCookieSecurityOptions } from '../config/cookies';
 import {
   upsertUser,
   createSession,
@@ -61,8 +62,7 @@ function getClientIp(req: Request): string | undefined {
 function getSessionCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
+    ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
     maxAge: env.COOKIE_MAX_AGE,
     path: '/',
     signed: true,
@@ -72,8 +72,7 @@ function getSessionCookieOptions(): CookieOptions {
 function getOAuthStateCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
     maxAge: OAUTH_STATE_MAX_AGE,
     path: '/',
     signed: true,
@@ -171,8 +170,7 @@ export async function googleCallback(
     if (!state || typeof state !== 'string' || !expectedState || state !== expectedState) {
       res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
         httpOnly: true,
-        secure: env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
         path: '/',
       });
       throw new AppError('Invalid OAuth state', 400);
@@ -181,8 +179,7 @@ export async function googleCallback(
     if (!(await consumeOAuthState(state))) {
       res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
         httpOnly: true,
-        secure: env.NODE_ENV === 'production',
-        sameSite: 'lax',
+        ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
         path: '/',
       });
       throw new AppError('Invalid OAuth state', 400);
@@ -190,8 +187,7 @@ export async function googleCallback(
 
     res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
       path: '/',
     });
 
@@ -523,8 +519,7 @@ export async function logout(req: Request, res: Response, next: NextFunction): P
 
     res.clearCookie(COOKIE_NAME, {
       httpOnly: true,
-      secure: env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
       path: '/',
     });
 

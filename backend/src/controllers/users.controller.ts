@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/errors';
+import { env } from '../config/env';
+import { getCrossSiteCookieSecurityOptions } from '../config/cookies';
 import {
   createAddress,
   deleteAccount,
@@ -105,8 +107,7 @@ export async function deleteMe(req: Request, res: Response, next: NextFunction):
     await deleteAccount(req.user!.id);
     res.clearCookie('elecshop_session', {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
       path: '/',
     });
     res.json({ success: true, message: 'Account deleted' });
