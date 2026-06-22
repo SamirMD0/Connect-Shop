@@ -2,22 +2,44 @@
 
 @theme {
   --font-sans: "Inter", "ui-sans-serif", "system-ui", "sans-serif", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
-  
-  /* Brand Colors - Light Theme */
+
+  /* Typography */
+  --text-xs: 0.75rem;
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem;
+  --text-sm--line-height: 1.375rem;
+  --text-base: 1rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg: 1.125rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.25rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl: 1.5rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl: 1.875rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+
+  /* Semantic colors */
   --color-bg-primary: #f8fafc;
   --color-bg-surface: #ffffff;
   --color-bg-elevated: #f1f5f9;
-  
+  --color-border: #e2e8f0;
+  --color-border-strong: #cbd5e1;
+
   --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
   --color-accent-glow: #60a5fa;
-  
+
   --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
   --color-text-muted: #64748b;
-  
+
   /* Status Colors */
-  --color-success: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-success: #15803d;
+  --color-warning: #b45309;
+  --color-danger: #dc2626;
 
   /* Admin Light Theme */
   --color-admin-bg: #f8fafc;
@@ -68,11 +90,27 @@
 /* Custom base styles */
 @layer base {
   html {
-    @apply bg-bg-primary;
+    @apply bg-bg-primary scroll-smooth;
   }
-  
+
   body {
-    @apply bg-bg-primary text-text-primary antialiased min-h-screen flex flex-col;
+    @apply min-h-screen flex flex-col bg-bg-primary text-base text-text-primary antialiased;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    @apply text-text-primary;
+  }
+
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
+
+  ::selection {
+    @apply bg-accent/20 text-text-primary;
   }
 }
 
@@ -83,11 +121,11 @@
   }
   
   .glass-card {
-    @apply bg-bg-surface border border-slate-200/60 rounded-2xl shadow-lg shadow-slate-200/50 transition-all duration-300;
+    @apply rounded-lg border border-border bg-bg-surface shadow-sm transition-[border-color,box-shadow,transform] duration-200;
   }
-  
+
   .glass-card:hover {
-    @apply border-slate-300 shadow-xl shadow-slate-200/80 -translate-y-0.5;
+    @apply -translate-y-0.5 border-border-strong shadow-md;
   }
 
   .text-gradient {
@@ -96,11 +134,11 @@
 
   /* Premium card styles */
   .premium-card {
-    @apply bg-bg-surface border border-slate-200/60 rounded-2xl shadow-lg transition-all duration-300;
+    @apply rounded-lg border border-border bg-bg-surface shadow-sm transition-[border-color,box-shadow,transform] duration-200;
   }
 
   .premium-card:hover {
-    @apply shadow-xl border-slate-300 scale-[1.02];
+    @apply border-border-strong shadow-md;
   }
 
   /* Glassmorphism navbar */
@@ -127,7 +165,7 @@
 
   /* Input styles */
   .input-field {
-    @apply w-full px-4 py-3 rounded-xl bg-bg-surface border border-slate-200 text-sm text-text-primary placeholder-text-muted focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent/20 transition-all;
+    @apply w-full rounded-lg border border-border bg-bg-surface px-4 py-3 text-sm text-text-primary transition-[border-color,box-shadow] placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20;
   }
 
   /* Value prop gradient backgrounds */
@@ -141,5 +179,20 @@
 
   .value-prop-support {
     @apply bg-gradient-to-br from-violet-50 to-purple-50;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

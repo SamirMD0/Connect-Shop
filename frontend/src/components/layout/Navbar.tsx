@@ -90,12 +90,12 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky left-0 top-0 z-50 w-full bg-white shadow-sm shadow-slate-200/60 transition-all duration-300">
+    <header className="sticky left-0 top-0 z-50 w-full border-b border-border bg-white shadow-sm shadow-slate-200/40">
       <Container className="max-w-[1170px]">
-        <div className="flex flex-col gap-5 py-5 lg:flex-row lg:items-center lg:justify-between xl:py-6">
-          <div className="flex w-full flex-col gap-5 sm:flex-row sm:items-center sm:justify-between xl:w-auto xl:gap-10">
+        <div className="flex items-center justify-between gap-3 py-3 sm:py-4 lg:gap-6 xl:py-5">
+          <div className="flex min-w-0 items-center lg:flex-1 xl:gap-10">
             <Link className="flex shrink-0 items-center" href="/" aria-label={APP_NAME}>
-              <span className="text-[28px] font-bold leading-none tracking-tight text-[#1C274C]">
+              <span className="whitespace-nowrap text-[21px] font-bold leading-none text-text-primary sm:text-[26px] lg:text-[28px]">
                 ELECTRO<span className="text-accent"> SHOP</span>
               </span>
             </Link>
@@ -248,7 +248,7 @@ export function Navbar() {
             </form>
           </div>
 
-          <div className="flex w-full items-center justify-between gap-5 lg:w-auto">
+          <div className="flex shrink-0 items-center gap-3 lg:gap-5">
             <div className="hidden items-center gap-3.5 xl:flex">
               <span className="flex h-6 w-6 items-center justify-center text-accent">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -297,13 +297,16 @@ export function Navbar() {
               <CartIcon />
             </div>
 
-            <div className="flex items-center gap-2 md:hidden">
+            <div className="flex items-center gap-1.5 md:hidden">
               <WishlistIcon />
               <CartIcon />
               <button
+                type="button"
                 onClick={() => setMobileOpen(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-md border border-slate-200 bg-white text-[#1C274C] transition-colors hover:border-accent hover:text-accent"
+                className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-white text-text-primary transition-colors hover:border-accent hover:text-accent"
                 aria-label="Open menu"
+                aria-expanded={mobileOpen}
+                aria-controls="mobile-navigation"
               >
                 <Menu className="h-5 w-5" />
               </button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/Button';
@@ -16,16 +16,54 @@ interface MobileMenuProps {
 
 export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps) {
   const { user, logout } = useAuth();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+  const onCloseRef = useRef(onClose);
 
-  // Prevent body scroll when menu is open
   useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    document.body.style.overflow = 'hidden';
+    closeButtonRef.current?.focus();
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCloseRef.current();
+        return;
+      }
+
+      if (event.key !== 'Tab' || !panelRef.current) return;
+
+      const focusable = Array.from(
+        panelRef.current.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      );
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (!first || !last) return;
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
+      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
+      previousFocusRef.current?.focus();
     };
   }, [isOpen]);
 
@@ -33,39 +71,51 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
 
   return (
     <div className="fixed inset-0 z-[60] md:hidden">
-      <div
+      <button
+        type="button"
         className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
         onClick={onClose}
+        aria-label="Close navigation"
+        tabIndex={-1}
       />
 
-      <div className="absolute right-0 top-0 flex h-full w-[340px] max-w-[90vw] animate-slide-in flex-col border-l border-slate-200 bg-white shadow-2xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+      <div
+        ref={panelRef}
+        id="mobile-navigation"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="mobile-navigation-title"
+        className="absolute right-0 top-0 flex h-full w-[340px] max-w-[88vw] animate-slide-in flex-col border-l border-border bg-white shadow-2xl"
+      >
+        <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <span className="block text-sm font-semibold text-text-primary">ELECTRO SHOP Menu</span>
+            <span id="mobile-navigation-title" className="block text-sm font-semibold text-text-primary">ELECTRO SHOP Menu</span>
             <span className="text-xs text-text-muted">Browse categories and pages</span>
           </div>
           <button
+            ref={closeButtonRef}
+            type="button"
             onClick={onClose}
-            className="flex h-9 w-9 items-center justify-center rounded-md border border-slate-200 text-text-muted transition-colors hover:border-accent hover:text-accent"
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-border text-text-secondary transition-colors hover:border-accent hover:text-accent"
             aria-label="Close menu"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
-        <form action="/store" method="GET" className="border-b border-slate-100 p-5">
+        <form action="/store" method="GET" className="border-b border-border p-4">
           <label className="sr-only" htmlFor="mobile-search">Search products</label>
           <div className="relative">
             <input
               id="mobile-search"
               name="search"
-              className="h-11 w-full rounded-md border border-slate-200 bg-slate-50 px-4 pr-11 text-sm outline-none transition-all placeholder:text-text-muted focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
-              placeholder="I am shopping for..."
+              className="h-11 w-full rounded-lg border border-border bg-slate-50 px-4 pr-12 text-sm outline-none transition-all placeholder:text-text-muted focus:border-accent focus:bg-white focus:ring-2 focus:ring-accent/15"
+              placeholder="Search electronics"
             />
             <button
               type="submit"
               onClick={onClose}
-              className="absolute right-1.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-md bg-accent text-white transition-colors hover:bg-slate-900"
+              className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-r-lg bg-accent text-white transition-colors hover:bg-accent-hover"
               aria-label="Search products"
             >
               <Search className="h-4 w-4" />
@@ -73,7 +123,7 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
           </div>
         </form>
 
-        <nav className="flex-1 space-y-1 overflow-y-auto p-5">
+        <nav className="flex-1 space-y-1 overflow-y-auto p-4 [&_a]:min-h-11">
           <Link
             href="/"
             onClick={onClose}
@@ -217,7 +267,7 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
           </div>
         </nav>
 
-        <div className="border-t border-slate-100 bg-slate-50 p-5">
+        <div className="border-t border-border bg-slate-50 p-4">
           <div className="mb-4 grid grid-cols-2 gap-2 text-xs font-semibold text-text-muted">
             <span className="rounded-lg bg-white px-3 py-2 text-center ring-1 ring-slate-200">
               Cash on Delivery
@@ -238,15 +288,19 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              <Link href="/auth/login" onClick={onClose}>
-                <Button variant="secondary" className="w-full">
-                  Sign in
-                </Button>
+              <Link
+                href="/auth/login"
+                onClick={onClose}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg border border-border bg-white px-4 text-sm font-semibold text-text-primary shadow-sm transition-colors hover:border-border-strong hover:bg-bg-elevated"
+              >
+                Sign in
               </Link>
-              <Link href="/auth/register" onClick={onClose}>
-                <Button variant="primary" className="w-full">
-                  Sign up
-                </Button>
+              <Link
+                href="/auth/register"
+                onClick={onClose}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-accent-hover"
+              >
+                Sign up
               </Link>
             </div>
           )}

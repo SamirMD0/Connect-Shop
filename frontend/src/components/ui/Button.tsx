@@ -9,45 +9,55 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: Variant;
   size?: Size;
   loading?: boolean;
+  iconOnly?: boolean;
 }
 
 const variantStyles: Record<Variant, string> = {
   primary:
-    'bg-accent text-white hover:bg-accent-glow hover:shadow-[0_0_25px_rgba(37,99,235,0.35)] active:scale-[0.97]',
+    'border border-transparent bg-accent text-white shadow-sm hover:bg-accent-hover hover:shadow-md active:bg-accent-hover',
   secondary:
-    'bg-bg-surface border border-slate-200 text-text-primary hover:bg-slate-50 hover:border-slate-300 active:scale-[0.97]',
+    'border border-border bg-bg-surface text-text-primary shadow-sm hover:border-border-strong hover:bg-bg-elevated',
   outline:
-    'border border-accent text-accent hover:bg-accent/5 active:scale-[0.97]',
+    'border border-accent bg-transparent text-accent hover:bg-accent/10',
   ghost:
-    'text-text-muted hover:bg-slate-100 hover:text-text-primary',
+    'border border-transparent bg-transparent text-text-secondary hover:bg-bg-elevated hover:text-text-primary',
   danger:
-    'bg-danger text-white hover:brightness-110 active:scale-[0.97]',
+    'border border-transparent bg-danger text-white shadow-sm hover:brightness-90',
 };
 
 const sizeStyles: Record<Size, string> = {
-  sm: 'px-3 py-1.5 text-xs rounded-lg',
-  md: 'px-4 py-2.5 text-sm rounded-xl',
-  lg: 'px-6 py-3 text-base rounded-xl',
+  sm: 'min-h-9 rounded-md px-3 py-1.5 text-xs',
+  md: 'min-h-11 rounded-lg px-4 py-2.5 text-sm',
+  lg: 'min-h-12 rounded-lg px-6 py-3 text-base',
+};
+
+const iconOnlyStyles: Record<Size, string> = {
+  sm: 'h-9 w-9 rounded-md p-0',
+  md: 'h-11 w-11 rounded-lg p-0',
+  lg: 'h-12 w-12 rounded-lg p-0',
 };
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', loading, className = '', disabled, children, ...props }, ref) => {
+  ({ variant = 'primary', size = 'md', loading = false, iconOnly = false, className = '', disabled, children, ...props }, ref) => {
     return (
       <button
         ref={ref}
         disabled={disabled || loading}
+        aria-busy={loading || undefined}
+        data-loading={loading || undefined}
         className={`
-          inline-flex items-center justify-center gap-2 font-medium
-          transition-all duration-200 cursor-pointer
-          disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
+          inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 font-semibold
+          transition-[background-color,border-color,color,box-shadow,opacity] duration-200
+          focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent
+          disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50
           ${variantStyles[variant]}
-          ${sizeStyles[size]}
+          ${iconOnly ? iconOnlyStyles[size] : sizeStyles[size]}
           ${className}
         `}
         {...props}
       >
         {loading && (
-          <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24" fill="none">
+          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>

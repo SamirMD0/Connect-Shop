@@ -39,12 +39,12 @@ export function ServiceFeatures({ features }: ServiceFeaturesProps) {
 
   return (
     <div className="mx-auto mt-10 w-full max-w-[1060px] px-4 sm:px-8 xl:px-0">
-      <div className="grid gap-7 sm:grid-cols-2 xl:grid-cols-4 xl:gap-12">
+      <div className="flex snap-x snap-mandatory gap-5 overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:grid-cols-2 sm:gap-7 sm:overflow-visible sm:pb-0 xl:grid-cols-4 xl:gap-12">
         {items.map((item) => (
-          <div className="flex items-center gap-4" key={item.title}>
-            <Image src={item.img} alt="" width={40} height={41} />
-            <div>
-              <h3 className="text-lg font-medium text-[#0B1B48]">{item.title}</h3>
+          <div className="flex min-w-[270px] shrink-0 snap-start items-center gap-3 sm:min-w-0 sm:gap-4" key={item.title}>
+            <Image src={item.img} alt="" width={36} height={37} className="sm:h-[41px] sm:w-10" />
+            <div className="min-w-0">
+              <h3 className="whitespace-nowrap text-base font-medium text-[#0B1B48] sm:text-lg">{item.title}</h3>
               <p className="text-sm text-text-muted">{item.description}</p>
             </div>
           </div>

@@ -21,6 +21,13 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
     const start = safePage * CATEGORIES_PER_PAGE;
     return categories.slice(start, start + CATEGORIES_PER_PAGE);
   }, [categories, safePage]);
+  const mobileCategoryPages = useMemo(() => {
+    const pages: Category[][] = [];
+    for (let index = 0; index < categories.length; index += 4) {
+      pages.push(categories.slice(index, index + 4));
+    }
+    return pages;
+  }, [categories]);
 
   const previousPage = () => {
     if (!hasMultiplePages) return;
@@ -96,7 +103,40 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-x-6 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:hidden">
+            {mobileCategoryPages.map((categoryPage, pageIndex) => (
+              <div
+                key={`mobile-category-page-${pageIndex}`}
+                className="grid min-w-full snap-start snap-always grid-cols-2 gap-x-4 gap-y-7"
+              >
+                {categoryPage.map((cat, index) => {
+                  const categoryIndex = pageIndex * 4 + index;
+                  return (
+                    <Link
+                      key={cat.id}
+                      href={`/store?category=${cat.slug}`}
+                      className="group flex min-w-0 flex-col items-center"
+                    >
+                      <div className="mb-3 flex h-24 w-24 items-center justify-center rounded-full border border-slate-200/70 bg-white transition-transform duration-300 group-hover:scale-105">
+                        <Image
+                          src={cat.image_url || fallbackImages[categoryIndex % fallbackImages.length]}
+                          alt={cat.name}
+                          width={64}
+                          height={64}
+                          className="h-16 w-16 object-contain"
+                        />
+                      </div>
+                      <h3 className="line-clamp-2 text-center text-sm font-medium leading-5 text-[#0B1B48] transition-colors group-hover:text-accent">
+                        {cat.name}
+                      </h3>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+
+          <div className="hidden grid-cols-3 gap-x-6 gap-y-8 sm:grid lg:grid-cols-6">
             {visibleCategories.map((cat, index) => (
               <Link
                 key={cat.id}
