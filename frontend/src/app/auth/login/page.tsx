@@ -43,7 +43,7 @@ export default function LoginPage() {
 
   return (
     <Container className="py-12">
-      <div className="grid min-h-[70vh] overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-xl shadow-slate-200/70 lg:grid-cols-[1fr_460px]">
+      <div className="grid min-h-[70vh] overflow-hidden rounded-lg border border-border bg-white shadow-sm lg:grid-cols-[1fr_460px]">
         <div className="hidden bg-slate-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.22em] text-white/50">Connect-Shop account</p>
@@ -73,21 +73,21 @@ export default function LoginPage() {
               <h2 className="text-3xl font-bold text-text-primary">Sign in</h2>
               <p className="text-text-muted mt-1">Access orders, wishlist, and checkout.</p>
             </div>
-            <label className="block">
+            <label className="block" htmlFor="login-email">
               <span className="mb-2 block text-sm font-medium text-text-primary">Email</span>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field !pl-12" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <input id="login-email" name="email" className="input-field !pl-12" type="email" autoComplete="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required aria-invalid={Boolean(error)} aria-describedby={error ? 'login-error' : undefined} />
               </div>
             </label>
-            <label className="block">
+            <label className="block" htmlFor="login-password">
               <span className="mb-2 block text-sm font-medium text-text-primary">Password</span>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field !pl-12" type="password" placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+                <input id="login-password" name="password" className="input-field !pl-12" type="password" autoComplete="current-password" placeholder="Your password" value={password} onChange={(e) => setPassword(e.target.value)} required aria-invalid={Boolean(error)} aria-describedby={error ? 'login-error' : undefined} />
               </div>
             </label>
-            {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
+            {error && <p id="login-error" className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
             <Button type="submit" className="w-full" loading={loading}>Sign in</Button>
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-slate-200" />

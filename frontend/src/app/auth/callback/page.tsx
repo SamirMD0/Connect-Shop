@@ -29,9 +29,9 @@ function CallbackContent() {
   }, [user, loading, router, searchParams]);
 
   return (
-    <div className="min-h-[60vh] flex items-center justify-center animate-fade-in">
+    <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-live="polite">
       <div className="text-center">
-        <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin mx-auto mb-4" />
+        <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-2 border-accent border-t-transparent motion-reduce:animate-none" aria-hidden="true" />
         <p className="text-text-muted text-sm">Completing sign in...</p>
       </div>
     </div>
@@ -42,8 +42,8 @@ export default function AuthCallbackPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="w-12 h-12 rounded-full border-2 border-accent border-t-transparent animate-spin" />
+        <div className="flex min-h-[60vh] items-center justify-center" role="status" aria-label="Completing sign in">
+          <div className="h-12 w-12 animate-spin rounded-full border-2 border-accent border-t-transparent motion-reduce:animate-none" aria-hidden="true" />
         </div>
       }
     >

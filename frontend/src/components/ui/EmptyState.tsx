@@ -1,29 +1,34 @@
 import Link from 'next/link';
-import { Button } from '@/components/ui/Button';
+import type { ReactNode } from 'react';
 
 interface EmptyStateProps {
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   title: string;
   description: string;
   actionLabel?: string;
   actionHref?: string;
+  action?: ReactNode;
 }
 
-export function EmptyState({ icon, title, description, actionLabel, actionHref }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, actionLabel, actionHref, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+    <div className="flex flex-col items-center justify-center py-14 text-center sm:py-20">
       {icon && (
-        <div className="w-24 h-24 rounded-2xl bg-slate-100 flex items-center justify-center mb-6 text-slate-400">
+        <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-lg bg-bg-elevated text-text-muted sm:h-20 sm:w-20">
           {icon}
         </div>
       )}
-      <h3 className="text-xl font-bold text-text-primary mb-2">{title}</h3>
-      <p className="text-sm text-text-muted max-w-md mb-8">{description}</p>
+      <h2 className="text-xl font-bold text-text-primary">{title}</h2>
+      <p className="mb-7 mt-2 max-w-md text-sm leading-6 text-text-muted">{description}</p>
       {actionLabel && actionHref && (
-        <Link href={actionHref}>
-          <Button variant="primary" size="lg">{actionLabel}</Button>
+        <Link
+          href={actionHref}
+          className="inline-flex min-h-12 items-center justify-center rounded-lg bg-accent px-6 py-3 text-base font-semibold text-white shadow-sm transition-colors hover:bg-accent-hover"
+        >
+          {actionLabel}
         </Link>
       )}
+      {action}
     </div>
   );
 }

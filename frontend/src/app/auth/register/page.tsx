@@ -43,35 +43,35 @@ export default function RegisterPage() {
 
   return (
     <Container className="py-12">
-      <div className="grid min-h-[70vh] overflow-hidden rounded-3xl border border-slate-200/70 bg-white shadow-xl shadow-slate-200/70 lg:grid-cols-[460px_1fr]">
+      <div className="grid min-h-[70vh] overflow-hidden rounded-lg border border-border bg-white shadow-sm lg:grid-cols-[460px_1fr]">
         <div className="flex items-center p-6 sm:p-10">
           <form onSubmit={submit} className="w-full space-y-5">
             <div>
               <h1 className="text-3xl font-bold text-text-primary">Create account</h1>
               <p className="text-text-muted mt-1">Save addresses and track orders faster.</p>
             </div>
-            <label className="block">
+            <label className="block" htmlFor="register-name">
               <span className="mb-2 block text-sm font-medium text-text-primary">Full name</span>
               <div className="relative">
                 <User className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field !pl-12" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+                <input id="register-name" name="name" className="input-field !pl-12" autoComplete="name" placeholder="Full name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required aria-invalid={Boolean(error)} aria-describedby={error ? 'register-error' : undefined} />
               </div>
             </label>
-            <label className="block">
+            <label className="block" htmlFor="register-email">
               <span className="mb-2 block text-sm font-medium text-text-primary">Email</span>
               <div className="relative">
                 <Mail className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field !pl-12" type="email" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required />
+                <input id="register-email" name="email" className="input-field !pl-12" type="email" autoComplete="email" placeholder="you@example.com" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} required aria-invalid={Boolean(error)} aria-describedby={error ? 'register-error' : undefined} />
               </div>
             </label>
-            <label className="block">
+            <label className="block" htmlFor="register-password">
               <span className="mb-2 block text-sm font-medium text-text-primary">Password</span>
               <div className="relative">
                 <Lock className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-text-muted" />
-                <input className="input-field !pl-12" type="password" placeholder="At least 8 characters" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required />
+                <input id="register-password" name="password" className="input-field !pl-12" type="password" autoComplete="new-password" placeholder="At least 8 characters" minLength={8} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} required aria-invalid={Boolean(error)} aria-describedby={error ? 'register-error' : undefined} />
               </div>
             </label>
-            {error && <p className="rounded-xl bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
+            {error && <p id="register-error" className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger" role="alert">{error}</p>}
             <Button type="submit" className="w-full" loading={loading}>Create account</Button>
             <div className="flex items-center gap-3">
               <span className="h-px flex-1 bg-slate-200" />

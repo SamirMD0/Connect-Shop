@@ -105,7 +105,7 @@ export function Navbar() {
                 <div className="group relative">
                   <Link
                     href="/store"
-                    className="flex h-[46px] min-w-[160px] items-center justify-between rounded-l-[5px] border border-r-0 border-slate-200 bg-slate-50 px-3.5 text-sm font-medium text-[#1C274C] transition-colors hover:text-accent"
+                    className="flex h-[46px] min-w-[160px] items-center justify-between rounded-l-[5px] border border-r-0 border-border bg-slate-50 px-3.5 text-sm font-medium text-text-primary transition-colors hover:text-accent"
                   >
                     All Categories
                     <ChevronDown className="h-4 w-4" />
@@ -216,7 +216,7 @@ export function Navbar() {
                                 />
                               </div>
                               <div className="min-w-0 flex-1">
-                                <p className="line-clamp-1 text-sm font-semibold text-[#1C274C]">
+                                <p className="line-clamp-1 text-sm font-semibold text-text-primary">
                                   {product.name}
                                 </p>
                                 <p className="mt-0.5 line-clamp-1 text-xs text-text-muted">
@@ -237,7 +237,7 @@ export function Navbar() {
                       <Link
                         href={`/store?search=${encodeURIComponent(searchQuery.trim())}`}
                         onClick={() => setSuggestionsOpen(false)}
-                        className="block border-t border-slate-100 px-4 py-3 text-sm font-semibold text-accent transition-colors hover:bg-slate-50 hover:text-[#0B1B48]"
+                        className="block border-t border-border px-4 py-3 text-sm font-semibold text-accent transition-colors hover:bg-bg-elevated hover:text-text-primary"
                       >
                         View all results for &quot;{searchQuery.trim()}&quot;
                       </Link>
@@ -259,7 +259,7 @@ export function Navbar() {
                 <span className="block text-[10px] font-semibold uppercase leading-4 text-text-muted">
                   For support
                 </span>
-                <p className="text-sm font-medium text-[#1C274C]">Contact us</p>
+                <p className="text-sm font-medium text-text-primary">Contact us</p>
               </div>
             </div>
 
@@ -285,7 +285,7 @@ export function Navbar() {
                       </span>
                       <Link
                         href="/auth/register"
-                        className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-[#0B1B48]"
+                        className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-accent-hover"
                       >
                         Sign up
                       </Link>
@@ -321,23 +321,23 @@ export function Navbar() {
             <nav>
               <ul className="flex items-center gap-6 text-sm">
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <Link href="/" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                  <Link href="/" className="flex py-6 font-medium text-text-primary transition-colors hover:text-accent">
                     Home
                   </Link>
                 </li>
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <Link href="/store" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                  <Link href="/store" className="flex py-6 font-medium text-text-primary transition-colors hover:text-accent">
                     Shop
                   </Link>
                 </li>
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <button className="flex items-center gap-1.5 py-6 text-sm font-medium text-[#1C274C] transition-colors hover:text-accent">
+                  <button type="button" className="flex items-center gap-1.5 py-6 text-sm font-medium text-text-primary transition-colors hover:text-accent" aria-haspopup="true">
                     Categories
                     <ChevronDown className="h-4 w-4" />
                   </button>
-                  <ul className="invisible absolute left-0 top-full z-50 min-w-[230px] translate-y-10 rounded-md border border-slate-200 bg-white py-2.5 opacity-0 shadow-xl shadow-slate-200/70 transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+                  <ul className="invisible absolute left-0 top-full z-50 min-w-[230px] translate-y-4 rounded-lg border border-border bg-white py-2 opacity-0 shadow-xl transition-all duration-200 group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
                     <li>
-                      <Link href="/store" className="block px-4 py-2 text-sm text-text-muted transition-colors hover:bg-slate-50 hover:text-accent">
+                      <Link href="/store" className="flex min-h-11 items-center px-4 py-2 text-sm text-text-muted transition-colors hover:bg-bg-elevated hover:text-accent">
                         All Products
                       </Link>
                     </li>
@@ -345,7 +345,7 @@ export function Navbar() {
                       <li key={category.id}>
                         <Link
                           href={`/store?category=${category.slug}`}
-                          className="block px-4 py-2 text-sm capitalize text-text-muted transition-colors hover:bg-slate-50 hover:text-accent"
+                          className="flex min-h-11 items-center px-4 py-2 text-sm capitalize text-text-muted transition-colors hover:bg-bg-elevated hover:text-accent"
                         >
                           {category.name}
                         </Link>
@@ -354,7 +354,7 @@ export function Navbar() {
                   </ul>
                 </li>
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <Link href="/store?sort=rating" className="flex items-center gap-2 py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                  <Link href="/store?sort=rating" className="flex items-center gap-2 py-6 font-medium text-text-primary transition-colors hover:text-accent">
                     Best Sellers
                     <span className="rounded bg-red-500 px-2 py-0.5 text-[10px] font-bold uppercase leading-4 text-white">
                       Sale
@@ -362,20 +362,20 @@ export function Navbar() {
                   </Link>
                 </li>
                 <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                  <Link href="/contact" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                  <Link href="/contact" className="flex py-6 font-medium text-text-primary transition-colors hover:text-accent">
                     Contact
                   </Link>
                 </li>
                 {user && (
                   <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                    <Link href="/account" className="flex py-6 font-medium text-[#1C274C] transition-colors hover:text-accent">
+                    <Link href="/account" className="flex py-6 font-medium text-text-primary transition-colors hover:text-accent">
                       Account
                     </Link>
                   </li>
                 )}
                 {user && hasAdminAccess(user.role) && (
                   <li className="group relative before:absolute before:left-0 before:top-0 before:h-[3px] before:w-0 before:rounded-b-[3px] before:bg-accent before:transition-all before:duration-200 hover:before:w-full">
-                    <Link href="/admin" className="flex py-6 font-semibold text-accent transition-colors hover:text-[#1C274C]">
+                    <Link href="/admin" className="flex py-6 font-semibold text-accent transition-colors hover:text-text-primary">
                       Dashboard
                     </Link>
                   </li>

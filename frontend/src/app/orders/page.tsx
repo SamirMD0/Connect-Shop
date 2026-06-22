@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Container } from '@/components/layout/Container';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/useToast';
 import { api, getErrorMessage } from '@/lib/api';
@@ -29,6 +30,7 @@ export default function OrdersPage() {
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [expandedOrder, setExpandedOrder] = useState<Order | null>(null);
 
@@ -39,20 +41,23 @@ export default function OrdersPage() {
     }
   }, [user, authLoading, router]);
 
-  useEffect(() => {
+  const loadOrders = useCallback(async () => {
     if (!user) return;
-    async function load() {
-      try {
-        const res = await api.get<{ success: boolean; orders: Order[] }>('/api/orders');
-        setOrders(res.orders);
-      } catch {
-        // fail silently
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    setLoadError(false);
+    try {
+      const res = await api.get<{ success: boolean; orders: Order[] }>('/api/orders');
+      setOrders(res.orders);
+    } catch {
+      setLoadError(true);
+    } finally {
+      setLoading(false);
     }
-    load();
   }, [user]);
+
+  useEffect(() => {
+    void loadOrders();
+  }, [loadOrders]);
 
   const handleExpand = async (orderId: string) => {
     if (expandedId === orderId) {
@@ -116,7 +121,7 @@ export default function OrdersPage() {
 
   const statusSteps = ['confirmed', 'processing', 'shipped', 'delivered'];
 
-  if (authLoading || (!user && authLoading)) {
+  if (authLoading) {
     return (
       <Container className="py-8">
         <Skeleton className="h-8 w-48 mb-8" />
@@ -134,7 +139,7 @@ export default function OrdersPage() {
   return (
     <div className="animate-fade-in">
       <Container className="py-8">
-        <h1 className="text-3xl font-bold text-text-primary mb-8">My Orders</h1>
+        <h1 className="mb-8 text-3xl font-bold text-text-primary">My orders</h1>
 
         {loading ? (
           <div className="space-y-4">
@@ -142,6 +147,12 @@ export default function OrdersPage() {
               <Skeleton key={i} className="h-24 w-full" />
             ))}
           </div>
+        ) : loadError ? (
+          <EmptyState
+            title="Orders could not be loaded"
+            description="Check your connection and try again."
+            action={<Button type="button" onClick={() => void loadOrders()}>Try again</Button>}
+          />
         ) : orders.length === 0 ? (
           <EmptyState
             icon={
@@ -151,7 +162,7 @@ export default function OrdersPage() {
             }
             title="No orders yet"
             description="Your order history will appear here after your first purchase."
-            actionLabel="Start Shopping"
+            actionLabel="Start shopping"
             actionHref="/store"
           />
         ) : (
@@ -160,8 +171,11 @@ export default function OrdersPage() {
               <div key={order.id} className="glass-card overflow-hidden">
                 {/* Order Header */}
                 <button
+                  type="button"
                   onClick={() => handleExpand(order.id)}
-                  className="w-full p-5 flex items-center justify-between text-left hover:bg-white/[0.02] transition-colors"
+                  className="flex min-h-16 w-full items-center justify-between gap-3 p-4 text-left transition-colors hover:bg-bg-elevated sm:p-5"
+                  aria-expanded={expandedId === order.id}
+                  aria-controls={`order-details-${order.id}`}
                 >
                   <div className="flex items-center gap-4 min-w-0">
                     <div>
@@ -197,6 +211,7 @@ export default function OrdersPage() {
                       className={`w-5 h-5 text-text-muted transition-transform duration-200 ${
                         expandedId === order.id ? 'rotate-180' : ''
                       }`}
+                      aria-hidden="true"
                     >
                       <path strokeLinecap="round" strokeLinejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" />
                     </svg>
@@ -205,7 +220,7 @@ export default function OrdersPage() {
 
                 {/* Expanded Detail */}
                 {expandedId === order.id && expandedOrder && (
-                  <div className="border-t border-white/5 p-5 animate-fade-in">
+                  <div id={`order-details-${order.id}`} className="border-t border-border p-4 sm:p-5">
                     <div className="space-y-3">
                       <div className="rounded-xl bg-bg-elevated p-4">
                         <p className="text-xs text-text-muted mb-3">Order progress</p>
@@ -213,7 +228,7 @@ export default function OrdersPage() {
                           {statusSteps.map(step => {
                             const active = statusSteps.indexOf(step) <= statusSteps.indexOf(expandedOrder.status);
                             return (
-                              <div key={step} className={`rounded-lg border px-3 py-2 text-xs font-medium ${active ? 'border-accent/40 bg-accent/10 text-accent' : 'border-white/10 text-text-muted'}`}>
+                              <div key={step} className={`rounded-lg border px-3 py-2 text-xs font-medium ${active ? 'border-accent/40 bg-accent/10 text-accent' : 'border-border text-text-muted'}`}>
                                 {step.charAt(0).toUpperCase() + step.slice(1)}
                               </div>
                             );
@@ -231,10 +246,14 @@ export default function OrdersPage() {
                         </div>
                         <div className="rounded-xl bg-bg-elevated p-4">
                           <p className="text-xs text-text-muted mb-1">Tracking</p>
-                          {expandedOrder.tracking_number ? (
-                            <a href={expandedOrder.tracking_url || '#'} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-accent hover:text-accent-glow">
+                          {expandedOrder.tracking_number && expandedOrder.tracking_url ? (
+                            <a href={expandedOrder.tracking_url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-accent hover:text-accent-hover">
                               {expandedOrder.tracking_carrier || 'Courier'} · {expandedOrder.tracking_number}
                             </a>
+                          ) : expandedOrder.tracking_number ? (
+                            <p className="break-all text-sm font-medium text-text-primary">
+                              {expandedOrder.tracking_carrier || 'Courier'} · {expandedOrder.tracking_number}
+                            </p>
                           ) : (
                             <p className="text-sm text-text-primary">Tracking pending</p>
                           )}
@@ -262,23 +281,23 @@ export default function OrdersPage() {
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
-                      <button onClick={() => openInvoice(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
-                        <FileText className="w-4 h-4" />
+                      <button type="button" onClick={() => openInvoice(expandedOrder.id)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
+                        <FileText className="h-4 w-4" aria-hidden="true" />
                         Invoice PDF
                       </button>
-                      <button onClick={() => void handleReorder(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
-                        <RotateCcw className="w-4 h-4" />
+                      <button type="button" onClick={() => void handleReorder(expandedOrder.id)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
+                        <RotateCcw className="h-4 w-4" aria-hidden="true" />
                         Reorder
                       </button>
                       {['confirmed', 'processing'].includes(expandedOrder.status) && (
-                        <button onClick={() => void handleCancel(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-danger/20 px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10">
-                          <XCircle className="w-4 h-4" />
+                        <button type="button" onClick={() => void handleCancel(expandedOrder.id)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-danger/20 px-3 py-2 text-xs font-medium text-danger hover:bg-danger/10">
+                          <XCircle className="h-4 w-4" aria-hidden="true" />
                           Cancel
                         </button>
                       )}
                       {expandedOrder.status === 'delivered' && (
-                        <button onClick={() => void handleReturn(expandedOrder.id)} className="inline-flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
-                          <Undo2 className="w-4 h-4" />
+                        <button type="button" onClick={() => void handleReturn(expandedOrder.id)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs font-medium text-text-primary hover:border-accent hover:text-accent">
+                          <Undo2 className="h-4 w-4" aria-hidden="true" />
                           Return
                         </button>
                       )}
@@ -286,15 +305,15 @@ export default function OrdersPage() {
                         href={createWhatsAppUrl(`Hello, I need an update on order #${expandedOrder.id.slice(0, 8).toUpperCase()}.`)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-lg border border-[#25D366]/30 px-3 py-2 text-xs font-medium text-[#25D366] hover:bg-[#25D366]/10"
+                        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-success/30 px-3 py-2 text-xs font-medium text-success hover:bg-success/10"
                       >
-                        <MessageCircle className="w-4 h-4" />
+                        <MessageCircle className="h-4 w-4" aria-hidden="true" />
                         WhatsApp update
                       </a>
                     </div>
 
                     {expandedOrder.status_history && expandedOrder.status_history.length > 0 && (
-                      <div className="mt-4 pt-4 border-t border-white/5">
+                      <div className="mt-4 border-t border-border pt-4">
                         <p className="text-xs text-text-muted mb-2">Status timeline</p>
                         <div className="space-y-2">
                           {expandedOrder.status_history.map(entry => (
@@ -315,7 +334,7 @@ export default function OrdersPage() {
 
                     {/* Shipping */}
                     {expandedOrder.shipping_address && (
-                      <div className="mt-4 pt-4 border-t border-white/5">
+                      <div className="mt-4 border-t border-border pt-4">
                         <p className="text-xs text-text-muted mb-1">Shipped to</p>
                         <p className="text-sm text-text-primary">
                           {expandedOrder.shipping_address.fullName}

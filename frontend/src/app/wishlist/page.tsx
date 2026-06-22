@@ -1,26 +1,27 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { Heart } from 'lucide-react';
 import { Container } from '@/components/layout/Container';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { PhantomSkeleton } from '@/components/ui/PhantomSkeleton';
+import { ProductSkeleton } from '@/components/products/ProductSkeleton';
 import { useWishlist } from '@/context/WishlistContext';
 import { Product } from '@/lib/types';
 import { useAuth } from '@/hooks/useAuth';
-import { LoginButton } from '@/components/auth/LoginButton';
 
 export default function WishlistPage() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { items, itemCount, loading } = useWishlist();
-  const [isMounted, setIsMounted] = useState(false);
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) return null;
+  if (authLoading) {
+    return (
+      <Container className="min-h-[60vh] py-8" aria-busy="true" aria-label="Loading wishlist">
+        <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, index) => <ProductSkeleton key={index} />)}
+        </div>
+      </Container>
+    );
+  }
 
   if (!user) {
     return (
@@ -29,16 +30,10 @@ export default function WishlistPage() {
           <EmptyState
             icon={<Heart className="w-12 h-12" />}
             title="Sign in to view wishlist"
-            description="You must be logged in to save and view your wishlist."
+            description="Sign in to save products and access them across devices."
             actionLabel="Sign In"
-            actionHref="/login"
-            // Wait, we don't have actionHref prop working with a component, so let's use a button or LoginButton
-            // The EmptyState takes an action component if needed, let's just use actionHref="/login" if it redirects to Google OAuth, wait, the app uses a LoginButton component.
-            // Let's just render the EmptyState without actionHref and put LoginButton under it.
+            actionHref="/auth/login"
           />
-          <div className="flex justify-center -mt-6">
-            <LoginButton />
-          </div>
         </Container>
       </div>
     );
@@ -74,11 +69,11 @@ export default function WishlistPage() {
     <div className="animate-fade-in">
       <Container className="py-8 min-h-[60vh]">
         <div className="mb-8 flex items-center gap-3">
-          <div className="w-12 h-12 bg-accent/10 text-accent rounded-xl flex items-center justify-center">
-            <Heart className="w-6 h-6" />
+          <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10 text-accent">
+            <Heart className="h-6 w-6" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-text-primary">Your Wishlist</h1>
+            <h1 className="text-3xl font-bold text-text-primary">Your wishlist</h1>
             <p className="text-text-muted">
               {itemCount} {itemCount === 1 ? 'item' : 'items'} saved
             </p>
@@ -86,33 +81,15 @@ export default function WishlistPage() {
         </div>
 
         {loading ? (
-          <PhantomSkeleton loading={true} className="block">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="rounded-2xl bg-bg-surface border border-slate-200/60 overflow-hidden shadow-sm">
-                  <div className="w-full h-52 bg-white" />
-                  <div className="p-4 space-y-3">
-                    <h3 className="text-sm font-semibold text-text-primary line-clamp-2">
-                      Loading wishlist item
-                    </h3>
-                    <p className="text-xs text-text-muted">Loading category</p>
-                    <div className="flex items-center justify-between pt-2">
-                      <span className="text-base font-bold text-accent">$000.00</span>
-                      <span className="h-9 px-3 rounded-lg bg-accent text-white text-sm font-medium flex items-center">
-                        Add to cart
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </PhantomSkeleton>
+          <div className="grid grid-cols-1 gap-4 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-busy="true" aria-label="Loading wishlist products">
+            {Array.from({ length: 4 }).map((_, index) => <ProductSkeleton key={index} />)}
+          </div>
         ) : products.length === 0 ? (
           <EmptyState
             icon={<Heart className="w-12 h-12" />}
             title="Your wishlist is empty"
             description="Save items you like to your wishlist to easily find them later."
-            actionLabel="Browse Store"
+            actionLabel="Browse products"
             actionHref="/store"
           />
         ) : (

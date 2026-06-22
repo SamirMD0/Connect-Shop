@@ -195,4 +195,9 @@
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
+
+  .skeleton-shimmer {
+    animation: none !important;
+    background: var(--color-bg-elevated);
+  }
 }

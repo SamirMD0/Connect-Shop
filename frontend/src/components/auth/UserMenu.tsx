@@ -9,6 +9,7 @@ export function UserMenu() {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -20,6 +21,18 @@ export function UserMenu() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setIsOpen(false);
+      triggerRef.current?.focus();
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [isOpen]);
 
   if (!user) return null;
 
@@ -33,13 +46,16 @@ export function UserMenu() {
   return (
     <div className="relative" ref={menuRef}>
       <button
+        ref={triggerRef}
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 rounded-full ring-2 ring-transparent transition-all hover:ring-accent-glow focus:outline-none focus:ring-accent"
+        className="flex items-center gap-2 rounded-full ring-2 ring-transparent transition-colors hover:ring-accent/40"
         aria-label={`Open account menu for ${user.name}`}
         aria-expanded={isOpen}
         aria-haspopup="true"
+        aria-controls="account-menu"
       >
-        <div className="w-10 h-10 rounded-full overflow-hidden bg-surface border border-white/10 flex items-center justify-center relative">
+        <div className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-border bg-bg-elevated">
           {user.avatarUrl ? (
             <Image
               src={user.avatarUrl}
@@ -55,8 +71,8 @@ export function UserMenu() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-xl bg-surface/90 backdrop-blur-xl border border-white/10 shadow-2xl py-1 z-50 animate-fade-in overflow-hidden origin-top-right">
-          <div className="px-4 py-3 border-b border-white/10">
+        <div id="account-menu" className="absolute right-0 z-50 mt-2 w-52 overflow-hidden rounded-lg border border-border bg-white py-1 shadow-xl origin-top-right">
+          <div className="border-b border-border px-4 py-3">
             <p className="text-sm font-medium text-text-primary truncate">{user.name}</p>
             <p className="text-xs text-text-muted truncate">{user.email}</p>
           </div>
@@ -64,24 +80,25 @@ export function UserMenu() {
           <div className="p-1">
             <Link
               href="/account"
-              className="block px-3 py-2 text-sm text-text-primary hover:bg-white/5 rounded-md transition-colors"
+              className="flex min-h-11 items-center rounded-md px-3 py-2 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
               onClick={() => setIsOpen(false)}
             >
               Account
             </Link>
             <Link
               href="/orders"
-              className="block px-3 py-2 text-sm text-text-primary hover:bg-white/5 rounded-md transition-colors"
+              className="flex min-h-11 items-center rounded-md px-3 py-2 text-sm text-text-primary transition-colors hover:bg-bg-elevated"
               onClick={() => setIsOpen(false)}
             >
               My Orders
             </Link>
             <button
+              type="button"
               onClick={() => {
                 setIsOpen(false);
                 logout();
               }}
-              className="block w-full text-left px-3 py-2 text-sm text-danger hover:bg-danger/10 rounded-md transition-colors mt-1"
+              className="mt-1 flex min-h-11 w-full items-center rounded-md px-3 py-2 text-left text-sm text-danger transition-colors hover:bg-danger/10"
             >
               Sign out
             </button>
