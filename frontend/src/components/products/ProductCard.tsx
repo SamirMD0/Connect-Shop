@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Product } from '@/lib/types';
 import { RatingStars } from './RatingStars';
+import { Button } from '@/components/ui/Button';
 import { useCart } from '@/hooks/useCart';
 import { useWishlist } from '@/context/WishlistContext';
 import { useToast } from '@/hooks/useToast';
 import { SafeImage } from '@/components/ui/SafeImage';
-import { Heart, Scale } from 'lucide-react';
+import { Heart, Scale, ShoppingCart } from 'lucide-react';
 
 interface ProductCardProps {
   product: Product;
@@ -92,105 +93,110 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   return (
-    <article className="group flex h-full flex-col">
-      <Link href={`/store/${product.slug}`} className="block" aria-label={`View ${product.name}`}>
-        <div className="relative mb-4 flex min-h-[220px] items-center justify-center overflow-hidden rounded-lg border border-slate-200/60 bg-white sm:min-h-[270px]">
-          <SafeImage
-            src={product.image_url}
-            alt={product.name}
-            fill
-            className="object-contain p-8 transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            fallback={
-              <div className="flex h-full w-full items-center justify-center">
-                <span className="text-5xl font-bold text-accent/30">
-                  {product.name.charAt(0)}
-                </span>
-              </div>
-            }
-          />
-
-          <div className="absolute left-3 top-3 flex flex-wrap gap-2">
-            {isOutOfStock ? (
-              <span className="rounded-full bg-[#0B1B48] px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                Out of stock
-              </span>
-            ) : hasSale && discountPercent ? (
-              <span className="rounded-full bg-red-600 px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                {discountPercent}% off
-              </span>
-            ) : product.is_featured ? (
-              <span className="rounded-full bg-accent px-3 py-1 text-xs font-semibold text-white shadow-sm">
-                Featured
-              </span>
-            ) : null}
-          </div>
-        </div>
-      </Link>
-
-      <div className="flex min-h-0 flex-1 flex-col">
-        <div className="mb-2 flex min-h-5 items-center gap-2.5">
-          {hasRating && (
-            <RatingStars
-              rating={rating}
-              reviewCount={product.review_count}
+    <article className="group flex h-full min-w-0 flex-col rounded-lg border border-border bg-white p-3 shadow-sm transition-[border-color,box-shadow] duration-200 hover:border-border-strong hover:shadow-md sm:p-4">
+      <div className="relative">
+        <Link href={`/store/${product.slug}`} className="block rounded-lg" aria-label={`View ${product.name}`}>
+          <div className="relative aspect-square overflow-hidden rounded-lg bg-white">
+            <SafeImage
+              src={product.image_url}
+              alt={product.name}
+              fill
+              className="object-contain p-5 transition-transform duration-300 group-hover:scale-[1.03] sm:p-7"
+              sizes="(max-width: 479px) 100vw, (max-width: 1023px) 50vw, 25vw"
+              fallback={
+                <div className="flex h-full w-full items-center justify-center">
+                  <span className="text-5xl font-bold text-accent/30">
+                    {product.name.charAt(0)}
+                  </span>
+                </div>
+              }
             />
+
+            <div className="absolute left-2.5 top-2.5 flex max-w-[calc(100%-4rem)] flex-wrap gap-2">
+              {isOutOfStock ? (
+                <span className="rounded-full bg-text-primary px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                  Out of stock
+                </span>
+              ) : hasSale && discountPercent ? (
+                <span className="rounded-full bg-danger px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                  {discountPercent}% off
+                </span>
+              ) : product.is_featured ? (
+                <span className="rounded-full bg-accent px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                  Featured
+                </span>
+              ) : null}
+            </div>
+          </div>
+        </Link>
+
+        <div className="absolute right-2 top-2 flex flex-col gap-2">
+          <button
+            type="button"
+            onClick={handleWishlist}
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-white/95 text-text-secondary shadow-sm transition-colors hover:border-red-200 hover:text-red-600"
+            aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
+            aria-pressed={wishlisted}
+            title={wishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+          >
+            <Heart className={`h-4 w-4 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} aria-hidden="true" />
+          </button>
+
+          <button
+            type="button"
+            onClick={handleCompare}
+            className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-white/95 text-text-secondary shadow-sm transition-colors hover:border-accent/40 hover:text-accent"
+            aria-label={isCompared ? `Remove ${product.name} from comparison` : `Compare ${product.name}`}
+            aria-pressed={isCompared}
+            title={isCompared ? 'Remove from comparison' : 'Compare product'}
+          >
+            <Scale className={`h-4 w-4 ${isCompared ? 'text-accent' : ''}`} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col pt-4">
+        <div className="mb-2 flex min-h-5 items-center">
+          {hasRating ? (
+            <RatingStars rating={rating} reviewCount={product.review_count} />
+          ) : (
+            <span className="text-xs text-text-muted">No reviews yet</span>
           )}
         </div>
 
-        <Link href={`/store/${product.slug}`} className="block">
-          <h3 className="mb-1.5 line-clamp-2 min-h-10 font-medium leading-5 text-[#0B1B48] transition-colors duration-200 group-hover:text-accent">
+        <Link href={`/store/${product.slug}`} className="rounded-sm">
+          <h3 className="line-clamp-2 min-h-10 break-words text-sm font-semibold leading-5 text-text-primary transition-colors duration-200 group-hover:text-accent sm:text-base">
             {product.name}
           </h3>
         </Link>
 
-        <div className="mb-3">
-          <div className="flex flex-wrap items-baseline gap-2">
-            <span className="text-lg font-semibold text-[#0B1B48]">
+        <div className="mt-3">
+          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+            <span className="text-lg font-bold text-text-primary">
               {Number.isFinite(price) ? formatPrice(price) : product.price}
             </span>
             {hasSale && compareAtPrice && (
-              <span className="text-base text-text-muted line-through">
+              <span className="text-sm text-text-muted line-through">
                 {formatPrice(compareAtPrice)}
               </span>
             )}
           </div>
-          <p className={`mt-1 text-xs ${isOutOfStock ? 'font-medium text-danger' : 'text-text-muted'}`}>
+          <p className={`mt-1.5 text-xs font-medium ${isOutOfStock ? 'text-danger' : product.stock <= 5 ? 'text-warning' : 'text-success'}`}>
             {isOutOfStock ? 'Currently unavailable' : product.stock <= 5 ? `Only ${product.stock} left` : 'In stock'}
           </p>
         </div>
 
-        <div className="mt-auto flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={handleCompare}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[5px] bg-white text-[#0B1B48] shadow-md ring-1 ring-slate-200/70 transition-colors duration-200 hover:text-accent"
-            aria-label={isCompared ? `Remove ${product.name} from comparison` : `Compare ${product.name}`}
-            aria-pressed={isCompared}
-          >
-            <Scale className={`h-4 w-4 ${isCompared ? 'fill-accent text-accent' : ''}`} />
-          </button>
-
-          <button
-            type="button"
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className="inline-flex min-h-9 flex-1 items-center justify-center rounded-[5px] bg-accent px-4 py-[7px] text-sm font-medium text-white transition-colors duration-200 hover:bg-[#0B1B48] disabled:pointer-events-none disabled:bg-slate-200 disabled:text-slate-500"
-            aria-label={isOutOfStock ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
-          >
-            {isOutOfStock ? 'Out of stock' : 'Add to cart'}
-          </button>
-
-          <button
-            type="button"
-            onClick={handleWishlist}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[5px] bg-white text-[#0B1B48] shadow-md ring-1 ring-slate-200/70 transition-colors duration-200 hover:text-red-500"
-            aria-label={wishlisted ? `Remove ${product.name} from wishlist` : `Add ${product.name} to wishlist`}
-            aria-pressed={wishlisted}
-          >
-            <Heart className={`h-4 w-4 ${wishlisted ? 'fill-red-500 text-red-500' : ''}`} />
-          </button>
-        </div>
+        <Button
+          type="button"
+          variant="primary"
+          onClick={handleAddToCart}
+          disabled={isOutOfStock}
+          className="mt-4 w-full min-w-0 px-3"
+          aria-label={isOutOfStock ? `${product.name} is out of stock` : `Add ${product.name} to cart`}
+        >
+          <ShoppingCart className="h-4 w-4" aria-hidden="true" />
+          <span className="truncate">{isOutOfStock ? 'Out of stock' : 'Add to cart'}</span>
+        </Button>
       </div>
     </article>
   );

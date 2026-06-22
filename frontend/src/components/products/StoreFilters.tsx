@@ -173,10 +173,10 @@ export function StoreFilters({
   ].filter(Boolean) as Array<{ key: string; label: string; value: string; clear: () => void }>;
 
   return (
-    <div className="rounded-2xl border border-slate-200/70 bg-white p-4 shadow-sm sm:p-5 lg:sticky lg:top-24">
+    <div className="rounded-lg border border-border bg-white p-4 shadow-sm lg:sticky lg:top-24">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold text-text-primary">Filters</h2>
+          <h2 className="text-base font-bold text-text-primary">Filter products</h2>
           <p className="mt-1 text-xs text-text-muted">
             {activeFilters.length > 0 ? `${activeFilters.length} active` : 'Refine the catalog'}
           </p>
@@ -184,7 +184,7 @@ export function StoreFilters({
         <button
           type="button"
           onClick={() => setFiltersOpen(open => !open)}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-bg-surface px-4 py-3 text-sm font-semibold text-text-primary transition-colors hover:border-accent hover:text-accent lg:hidden"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-bg-surface px-4 py-2.5 text-sm font-semibold text-text-primary transition-colors hover:border-accent hover:text-accent lg:hidden"
           aria-expanded={filtersOpen}
           aria-controls="store-advanced-filters"
         >
@@ -199,14 +199,14 @@ export function StoreFilters({
       </div>
 
       {activeFilters.length > 0 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
-          <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Active</span>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-4" aria-label="Active filters">
+          <span className="text-xs font-semibold uppercase tracking-wide text-text-muted">Applied</span>
           {activeFilters.map(filter => (
             <button
               key={filter.key}
               type="button"
               onClick={filter.clear}
-              className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-accent/20 bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent hover:text-white"
+              className="inline-flex min-h-9 max-w-full items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent transition-colors hover:bg-accent hover:text-white"
               aria-label={`Remove ${filter.label} filter`}
             >
               <span className="truncate">
@@ -218,7 +218,7 @@ export function StoreFilters({
           <button
             type="button"
             onClick={clearAllFilters}
-            className="ml-auto inline-flex min-h-8 items-center rounded-full px-3 py-1.5 text-xs font-semibold text-text-muted transition-colors hover:text-accent"
+            className="ml-auto inline-flex min-h-9 items-center rounded-lg px-3 py-1.5 text-xs font-semibold text-text-secondary transition-colors hover:bg-bg-elevated hover:text-accent"
           >
             Clear all
           </button>
@@ -227,7 +227,7 @@ export function StoreFilters({
 
       <div
         id="store-advanced-filters"
-        className={`${filtersOpen ? 'block' : 'hidden'} mt-5 border-t border-slate-100 pt-5 lg:block`}
+        className={`${filtersOpen ? 'block' : 'hidden'} mt-5 border-t border-border pt-5 lg:block`}
       >
         <div className="grid gap-6">
           <section aria-labelledby="search-sort-filter-label" className="space-y-4">
@@ -255,7 +255,7 @@ export function StoreFilters({
                   id="store-sort"
                   value={currentSort}
                   onChange={(e) => updateParams({ sort: e.target.value })}
-                  className="w-full appearance-none rounded-xl border border-slate-200 bg-bg-surface px-4 py-3 pr-10 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="min-h-11 w-full appearance-none rounded-lg border border-border bg-bg-surface px-4 py-2.5 pr-10 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 >
                   <option value="">Default</option>
                   <option value="price_asc">Price: Low to High</option>
@@ -278,7 +278,7 @@ export function StoreFilters({
                 <button
                   type="button"
                   onClick={() => updateParams({ category: null })}
-                  className="text-xs font-semibold text-accent hover:text-[#0B1B48]"
+                  className="min-h-9 rounded-md px-2 text-xs font-semibold text-accent hover:bg-accent/10"
                 >
                   Clear category
                 </button>
@@ -308,7 +308,7 @@ export function StoreFilters({
                 onChange={(e) => setBrandDraft(e.target.value)}
                 onBlur={applyBrand}
                 onKeyDown={(e) => applyOnEnter(e, applyBrand)}
-                className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-4 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                className="min-h-11 w-full rounded-lg border border-border bg-bg-surface px-4 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
               <p className="text-xs leading-5 text-text-muted">Use the brand name or slug. Press Enter or leave the field to apply.</p>
             </div>
@@ -329,7 +329,7 @@ export function StoreFilters({
                   onBlur={applyPriceRange}
                   onKeyDown={(e) => applyOnEnter(e, applyPriceRange)}
                   aria-label="Minimum price"
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="min-h-11 w-full rounded-lg border border-border bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
                 <span className="text-text-muted">-</span>
                 <input
@@ -341,13 +341,13 @@ export function StoreFilters({
                   onBlur={applyPriceRange}
                   onKeyDown={(e) => applyOnEnter(e, applyPriceRange)}
                   aria-label="Maximum price"
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="min-h-11 w-full rounded-lg border border-border bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
               </div>
               <button
                 type="button"
                 onClick={applyPriceRange}
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-accent hover:text-accent"
+                className="min-h-11 w-full rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:border-accent hover:text-accent"
               >
                 Apply price
               </button>
@@ -363,7 +363,7 @@ export function StoreFilters({
                   id="store-rating"
                   value={minRating}
                   onChange={(e) => updateParams({ min_rating: e.target.value })}
-                  className="min-h-11 w-full appearance-none rounded-xl border border-slate-200 bg-bg-surface px-4 py-2.5 pr-10 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="min-h-11 w-full appearance-none rounded-lg border border-border bg-bg-surface px-4 py-2.5 pr-10 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 >
                   <option value="">Any rating</option>
                   <option value="4">4+ stars</option>
@@ -374,7 +374,7 @@ export function StoreFilters({
             </div>
           </section>
 
-          <section aria-labelledby="spec-filter-label" className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+          <section aria-labelledby="spec-filter-label" className="rounded-lg border border-border bg-bg-elevated p-3">
             <button
               type="button"
               onClick={() => setAdvancedSpecsOpen(open => !open)}
@@ -404,7 +404,7 @@ export function StoreFilters({
                   onBlur={applySpecs}
                   onKeyDown={(e) => applyOnEnter(e, applySpecs)}
                   aria-label="Specification name"
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="min-h-11 w-full rounded-lg border border-border bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
                 <input
                   type="text"
@@ -414,12 +414,12 @@ export function StoreFilters({
                   onBlur={applySpecs}
                   onKeyDown={(e) => applyOnEnter(e, applySpecs)}
                   aria-label="Specification value"
-                  className="min-h-11 w-full rounded-xl border border-slate-200 bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+                  className="min-h-11 w-full rounded-lg border border-border bg-bg-surface px-3 py-2.5 text-sm text-text-primary transition-all focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 />
                 <button
                   type="button"
                   onClick={applySpecs}
-                  className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-accent hover:text-accent"
+                  className="min-h-11 rounded-lg border border-border bg-white px-4 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:border-accent hover:text-accent"
                 >
                   Apply specs
                 </button>

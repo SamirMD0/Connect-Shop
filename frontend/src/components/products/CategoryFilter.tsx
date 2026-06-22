@@ -16,8 +16,8 @@ export function CategoryFilter({ categories, selected, onSelect, layout = 'rail'
     ? 'grid gap-2'
     : 'flex gap-2 overflow-x-auto pb-2 scrollbar-hide';
   const buttonClasses = isStack
-    ? 'flex w-full items-center gap-2 rounded-xl border px-4 py-2.5 text-left text-sm font-medium transition-all duration-200'
-    : 'flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-200';
+    ? 'flex min-h-11 w-full items-center gap-2 rounded-lg border px-3.5 py-2.5 text-left text-sm font-medium transition-colors duration-200'
+    : 'flex min-h-11 shrink-0 items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium transition-colors duration-200';
 
   return (
     <div className={containerClasses}>
@@ -28,8 +28,8 @@ export function CategoryFilter({ categories, selected, onSelect, layout = 'rail'
         aria-pressed={selected === null}
         className={`${buttonClasses} ${
           selected === null
-            ? 'bg-accent text-white border-accent shadow-lg shadow-accent/25'
-            : 'bg-bg-surface text-text-muted border-slate-200 hover:border-slate-300 hover:text-text-primary'
+            ? 'border-accent bg-accent/10 font-semibold text-accent'
+            : 'border-border bg-bg-surface text-text-secondary hover:border-border-strong hover:text-text-primary'
         }`}
       >
         All
@@ -43,8 +43,8 @@ export function CategoryFilter({ categories, selected, onSelect, layout = 'rail'
           aria-pressed={selected === cat.slug}
           className={`${buttonClasses} ${
             selected === cat.slug
-              ? 'bg-accent text-white border-accent shadow-lg shadow-accent/25'
-              : 'bg-bg-surface text-text-muted border-slate-200 hover:border-slate-300 hover:text-text-primary'
+              ? 'border-accent bg-accent/10 font-semibold text-accent'
+              : 'border-border bg-bg-surface text-text-secondary hover:border-border-strong hover:text-text-primary'
           }`}
         >
           {cat.image_url && (

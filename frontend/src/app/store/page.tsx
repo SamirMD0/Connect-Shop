@@ -5,7 +5,6 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { StoreFilters } from '@/components/products/StoreFilters';
 import { StorePagination } from '@/components/products/StorePagination';
 import { ProductComparison } from '@/components/products/ProductComparison';
-import { SectionTitle } from '@/components/ui/SectionTitle';
 import { api } from '@/lib/api';
 import { APP_NAME } from '@/lib/constants';
 import { logServerRenderTiming } from '@/lib/perf';
@@ -105,6 +104,23 @@ export default async function StorePage({ searchParams }: Props) {
   return (
     <div className="animate-fade-in">
       <Container className="py-8">
+        <header className="mb-7 border-b border-border pb-6">
+          <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Catalog</p>
+          <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-text-primary sm:text-4xl">
+                {currentSearch ? `Results for "${currentSearch}"` : 'Shop electronics'}
+              </h1>
+              <p className="mt-2 text-sm text-text-muted">
+                Browse products and narrow the catalog by category, brand, price, rating, or specifications.
+              </p>
+            </div>
+            <p className="shrink-0 text-sm font-semibold text-text-secondary" aria-live="polite">
+              {total} {total === 1 ? 'product' : 'products'}
+            </p>
+          </div>
+        </header>
+
         <div className="grid gap-8 lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)]">
           <aside className="lg:self-start">
             <StoreFilters
@@ -122,17 +138,6 @@ export default async function StorePage({ searchParams }: Props) {
           </aside>
 
           <section className="min-w-0">
-            <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <SectionTitle
-                eyebrow="Catalog"
-                title={currentSearch ? `Results for "${currentSearch}"` : 'All products'}
-                description={`${total} ${total === 1 ? 'product' : 'products'} available`}
-              />
-              <div className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-text-primary shadow-sm">
-                {total} {total === 1 ? 'result' : 'results'}
-              </div>
-            </div>
-
             {products.length === 0 ? (
               <EmptyState
                 icon={<Search className="w-12 h-12" />}

@@ -133,17 +133,17 @@ export default async function ProductDetailPage({ params }: Props) {
       <script type="application/ld+json">{safeJsonLd}</script>
       <Container className="py-8">
         {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm text-text-muted mb-8">
-          <Link href="/store" className="hover:text-accent transition-colors">Store</Link>
-          <ChevronRight className="w-4 h-4" />
+        <nav className="mb-8 flex min-w-0 items-center gap-2 overflow-hidden text-sm text-text-muted" aria-label="Breadcrumb">
+          <Link href="/store" className="shrink-0 transition-colors hover:text-accent">Store</Link>
+          <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
           {product.category_slug ? (
-            <Link href={`/store?category=${product.category_slug}`} className="hover:text-accent transition-colors">
+            <Link href={`/store?category=${product.category_slug}`} className="shrink-0 transition-colors hover:text-accent">
               {product.category_name}
             </Link>
           ) : (
             <span>{product.category_name || 'Product'}</span>
           )}
-          <ChevronRight className="w-4 h-4" />
+          <ChevronRight className="h-4 w-4 shrink-0" aria-hidden="true" />
           <span className="text-text-primary truncate">{product.name}</span>
         </nav>
 
@@ -158,8 +158,8 @@ export default async function ProductDetailPage({ params }: Props) {
 
         {/* Related Products */}
         {related.length > 0 && (
-          <section className="mt-20">
-            <h2 className="text-2xl font-bold text-text-primary mb-8">You Might Also Like</h2>
+          <section className="mt-16 border-t border-border pt-12">
+            <h2 className="mb-7 text-2xl font-bold text-text-primary">You might also like</h2>
             <ProductGrid products={related} />
           </section>
         )}
