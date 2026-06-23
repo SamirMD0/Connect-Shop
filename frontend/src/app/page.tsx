@@ -201,7 +201,7 @@ function renderHeroBlock(slides: CarouselSlide[], homepage: HomepageContent, her
     <section key="hero_carousel" className="overflow-hidden bg-white pb-8 pt-3 sm:pt-4">
       <Container className="max-w-[1440px]">
         <div className={`grid gap-5 ${hasHeroSidePromos ? 'xl:grid-cols-[minmax(0,1fr)_459px]' : ''}`}>
-          <div className="w-full">
+          <div className="-mx-4 w-[calc(100%+2rem)] overflow-hidden sm:mx-0 sm:w-full">
             <HeroCarousel slides={slides} />
           </div>
 

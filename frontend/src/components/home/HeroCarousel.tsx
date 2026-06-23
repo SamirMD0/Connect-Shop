@@ -49,7 +49,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
 
   return (
     <div
-      className="group relative min-h-[430px] w-full overflow-hidden rounded-lg bg-slate-950 sm:min-h-[520px] lg:min-h-[600px]"
+      className="group relative min-h-[430px] w-full max-w-full overflow-hidden rounded-none bg-slate-950 sm:min-h-[520px] sm:rounded-lg lg:min-h-[600px]"
       role="region"
       aria-label="Featured electronics"
       tabIndex={slides.length > 1 ? 0 : undefined}
@@ -69,7 +69,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
       }}
     >
       <div
-        className="flex min-h-[430px] transition-transform duration-700 ease-out motion-reduce:transition-none sm:min-h-[520px] lg:min-h-[600px]"
+        className="flex min-h-[430px] w-full transition-transform duration-700 ease-out motion-reduce:transition-none sm:min-h-[520px] lg:min-h-[600px]"
         style={{ transform: `translateX(-${currentIndex * 100}%)` }}
       >
         {slides.map((slide, index) => {
@@ -79,7 +79,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
           return (
             <div
               key={slide.id}
-              className="relative min-h-[430px] w-full shrink-0 sm:min-h-[520px] lg:min-h-[600px]"
+              className="relative min-h-[430px] min-w-full max-w-full shrink-0 sm:min-h-[520px] lg:min-h-[600px]"
               aria-hidden={index !== currentIndex}
             >
               <Image
