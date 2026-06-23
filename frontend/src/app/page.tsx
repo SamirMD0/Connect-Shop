@@ -186,13 +186,17 @@ function promotionToHomepageItem(promotion: HomepagePromotion): HomepageSectionI
   };
 }
 
-function renderHeroBlock(slides: CarouselSlide[], homepage: HomepageContent, hasHeroSidePromos: boolean, heroSidePromos: Array<{
+type HeroSidePromo = {
   id: string;
   title: string;
   image: string | null;
   className: string;
   href: string;
-}>) {
+};
+
+function renderHeroBlock(slides: CarouselSlide[], homepage: HomepageContent, heroSidePromos: HeroSidePromo[]) {
+  const hasHeroSidePromos = heroSidePromos.length > 0;
+
   return (
     <section key="hero_carousel" className="overflow-hidden bg-white pb-8 pt-3 sm:pt-4">
       <Container className="max-w-[1440px]">
@@ -202,7 +206,7 @@ function renderHeroBlock(slides: CarouselSlide[], homepage: HomepageContent, has
           </div>
 
           {hasHeroSidePromos && (
-            <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
+            <div className="hidden gap-5 sm:grid sm:grid-cols-2 xl:grid-cols-1">
               {heroSidePromos.map((promo) => (
                 <Link
                   key={promo.id}
@@ -226,6 +230,37 @@ function renderHeroBlock(slides: CarouselSlide[], homepage: HomepageContent, has
         </div>
 
         <ServiceFeatures features={homepage.service_features} />
+      </Container>
+    </section>
+  );
+}
+
+function renderHeroSidePromos(heroSidePromos: HeroSidePromo[]) {
+  if (heroSidePromos.length === 0) return null;
+
+  return (
+    <section key="hero_side_promo" className="bg-white pb-8 sm:hidden">
+      <Container className="max-w-[1170px]">
+        <div className="grid gap-4 sm:grid-cols-2">
+          {heroSidePromos.map((promo) => (
+            <Link
+              key={promo.id}
+              href={promo.href}
+              aria-label={promo.title || 'Top promotion'}
+              className={`group relative block min-h-[190px] overflow-hidden rounded-lg transition-shadow hover:shadow-xl hover:shadow-slate-200/80 sm:min-h-[230px] ${promo.className}`}
+            >
+              {promo.image && (
+                <Image
+                  src={promo.image}
+                  alt={promo.title || 'Promotion'}
+                  fill
+                  sizes="(min-width: 640px) 50vw, 100vw"
+                  className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              )}
+            </Link>
+          ))}
+        </div>
       </Container>
     </section>
   );
@@ -330,14 +365,7 @@ function renderHomepageBlock(
   context: {
     homepage: HomepageContent;
     slides: CarouselSlide[];
-    hasHeroSidePromos: boolean;
-    heroSidePromos: Array<{
-      id: string;
-      title: string;
-      image: string | null;
-      className: string;
-      href: string;
-    }>;
+    heroSidePromos: HeroSidePromo[];
     featured: Product[];
     bestSellerProducts: Product[];
     categories: Category[];
@@ -351,12 +379,7 @@ function renderHomepageBlock(
 
   switch (block.block_type) {
     case 'hero_carousel':
-      return renderHeroBlock(
-        context.slides,
-        context.homepage,
-        context.hasHeroSidePromos,
-        context.heroSidePromos
-      );
+      return renderHeroBlock(context.slides, context.homepage, context.heroSidePromos);
 
     case 'brand_showcase':
       return <BrandShowcase key={block.id} brands={context.brands} />;
@@ -513,7 +536,6 @@ export default async function HomePage() {
         className: index % 2 === 0 ? 'bg-[#DDEFF6]' : 'bg-[#ECE8DE]',
         href: getSafeLink(promo.button_link, '/store'),
       }));
-  const hasHeroSidePromos = heroSidePromos.length > 0;
   const homepageBlocks = [...(homepage.homepage_blocks || [])]
     .filter((block) => block.is_active)
     .sort((a, b) => {
@@ -528,7 +550,6 @@ export default async function HomePage() {
     const blockContext = {
       homepage,
       slides,
-      hasHeroSidePromos,
       heroSidePromos,
       featured,
       bestSellerProducts,
@@ -567,8 +588,9 @@ export default async function HomePage() {
 
     return (
       <div className="animate-fade-in bg-white">
-        {renderHeroBlock(slides, homepage, hasHeroSidePromos, heroSidePromos)}
+        {renderHeroBlock(slides, homepage, heroSidePromos)}
         <BrandShowcase brands={brands} />
+        {renderHeroSidePromos(heroSidePromos)}
         <BrowseCategories categories={categories} fallbackImages={categoryImages} />
         {movableHomepageSections}
       </div>
@@ -583,42 +605,11 @@ export default async function HomePage() {
 
   return (
     <div className="animate-fade-in bg-white">
-      <section className="overflow-hidden bg-white pb-8 pt-3 sm:pt-4">
-        <Container className="max-w-[1440px]">
-          <div className={`grid gap-5 ${hasHeroSidePromos ? 'xl:grid-cols-[minmax(0,1fr)_459px]' : ''}`}>
-            <div className="w-full">
-              <HeroCarousel slides={slides} />
-            </div>
-
-            {hasHeroSidePromos && (
-              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-1">
-                {heroSidePromos.map((promo) => (
-                  <Link
-                    key={promo.id}
-                    href={promo.href}
-                    aria-label={promo.title || 'Top promotion'}
-                    className={`group relative block min-h-[250px] overflow-hidden rounded-[10px] transition-shadow hover:shadow-xl hover:shadow-slate-200/80 lg:min-h-[290px] ${promo.className}`}
-                  >
-                    {promo.image && (
-                      <Image
-                        src={promo.image}
-                        alt={promo.title || 'Promotion'}
-                        fill
-                        sizes="(min-width: 1280px) 459px, (min-width: 640px) 50vw, 100vw"
-                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      />
-                    )}
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <ServiceFeatures features={homepage.service_features} />
-        </Container>
-      </section>
+      {renderHeroBlock(slides, homepage, heroSidePromos)}
 
       <BrandShowcase brands={brands} />
+
+      {renderHeroSidePromos(heroSidePromos)}
 
       <BrowseCategories categories={categories} fallbackImages={categoryImages} />
 

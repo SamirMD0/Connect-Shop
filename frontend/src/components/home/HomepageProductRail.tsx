@@ -60,24 +60,6 @@ export function HomepageProductRail({ products, label }: HomepageProductRailProp
         </button>
       </div>
 
-      <div className="mt-5 flex justify-center gap-3 sm:hidden">
-        <button
-          type="button"
-          onClick={() => scrollRail('left')}
-          className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-white text-text-primary shadow-sm transition-colors hover:border-accent hover:text-accent"
-          aria-label={`Scroll ${label} left`}
-        >
-          <ChevronLeft className="h-5 w-5" />
-        </button>
-        <button
-          type="button"
-          onClick={() => scrollRail('right')}
-          className="flex h-11 w-11 items-center justify-center rounded-lg border border-border bg-white text-text-primary shadow-sm transition-colors hover:border-accent hover:text-accent"
-          aria-label={`Scroll ${label} right`}
-        >
-          <ChevronRight className="h-5 w-5" />
-        </button>
-      </div>
     </div>
   );
 }
