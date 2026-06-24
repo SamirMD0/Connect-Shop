@@ -9,33 +9,35 @@ Sources inspected include backend app/routes/controllers/services/middleware/con
 This diagram shows the main runtime components: public storefront, admin dashboard, Next.js frontend, Express API, PostgreSQL, Redis-backed cache/rate limiting, ImageKit/CDN, Resend email, COD/manual checkout, and the clearly future online payment webhook path.
 
 ```eraser
-title ElecSHOP System Architecture
+cloud-architecture-diagram
 
-User Browser [icon: user]
-Admin Browser [icon: shield]
-ImageKit CDN [icon: image]
-Resend Email [icon: mail]
+// title ElecSHOP System Architecture
+
+User Browser 
+Admin Browser 
+ImageKit CDN 
+Resend Email 
 
 Vercel Frontend [icon: vercel] {
-  Next.js App Router [icon: nextdotjs]
-  Public Storefront [icon: shopping-bag]
-  Admin Dashboard [icon: layout-dashboard]
-  Auth UI [icon: log-in]
-  Cart Context [icon: shopping-cart]
-  Wishlist Context [icon: heart]
-  API Client [icon: code]
+  Next.js App Router 
+  Public Storefront 
+  Admin Dashboard 
+  Auth UI 
+  Cart Context 
+  Wishlist Context 
+  API Client 
 }
 
-Render Backend API [icon: server] {
-  Express App [icon: nodejs]
-  Helmet CORS CSRF Sanitizers [icon: lock]
-  Auth Middleware [icon: key]
-  Admin Role Middleware [icon: shield-check]
-  Rate Limiters [icon: gauge]
-  Public Read Limiter Buckets [icon: list-filter]
-  Controllers [icon: route]
-  Services [icon: boxes]
-  Cache Layer [icon: database-zap]
+Render Backend API  {
+  Express App [icon: node-js]
+  Helmet CORS CSRF Sanitizers 
+  Auth Middleware 
+  Admin Role Middleware 
+  Rate Limiters 
+  Public Read Limiter Buckets 
+  Controllers 
+  Services 
+  Cache Layer 
 }
 
 Managed PostgreSQL [icon: postgresql] {
@@ -53,8 +55,8 @@ Managed Redis [icon: redis] {
   SSR Bucket
 }
 
-Future Payment Provider [icon: credit-card, color: gray]
-Future Webhook Endpoint [icon: webhook, color: gray]
+Future Payment Provider [color: gray]
+Future Webhook Endpoint [color: gray]
 
 User Browser > Vercel Frontend: Public browsing HTTPS
 User Browser > ImageKit CDN: Product and carousel images
@@ -92,336 +94,338 @@ Notes:
 This ERD includes the real table names and important fields from `backend/src/db/schema.sql` and migrations. It is grouped to stay readable while still showing relationships.
 
 ```eraser
-title ElecSHOP Database ERD
+entity-relationship-diagram
 
-users [icon: users] {
+// title ElecSHOP Database ERD
+
+users  {
   id uuid pk
-  google_id varchar unique nullable
-  email varchar unique
-  name varchar
-  avatar_url text
-  role customer|support|manager|admin|super_admin
-  phone varchar nullable
-  password_hash text nullable
-  email_verified_at timestamptz nullable
+  google_id string
+  email string
+  name string
+  avatar_url string
+  role string
+  phone string
+  password_hash string
+  email_verified_at datetime
   mfa_enabled boolean
-  mfa_secret text nullable
-  mfa_confirmed_at timestamptz nullable
-  deleted_at timestamptz nullable
+  mfa_secret string
+  mfa_confirmed_at datetime
+  deleted_at datetime
 }
 
-sessions [icon: key] {
+sessions  {
   id uuid pk
   user_id uuid fk
-  token varchar unique
-  expires_at timestamptz
-  revoked_at timestamptz nullable
-  mfa_verified_at timestamptz nullable
+  token string
+  expires_at datetime
+  revoked_at datetime
+  mfa_verified_at datetime
 }
 
-auth_tokens [icon: ticket] {
+auth_tokens  {
   id uuid pk
   user_id uuid fk
-  token_hash text unique
-  purpose email_verification|password_reset
-  expires_at timestamptz
-  used_at timestamptz nullable
+  token_hash string
+  purpose string
+  expires_at datetime
+  used_at datetime
 }
 
-oauth_states [icon: shield] {
+oauth_states  {
   id uuid pk
-  state_hash varchar unique
-  expires_at timestamptz
-  used_at timestamptz nullable
+  state_hash string
+  expires_at datetime
+  used_at datetime
 }
 
-user_addresses [icon: map-pin] {
+user_addresses  {
   id uuid pk
   user_id uuid fk
-  recipient_name varchar
-  phone varchar
-  address_line1 text
-  city varchar
-  country varchar
+  recipient_name string
+  phone string
+  address_line1 string
+  city string
+  country string
   is_default boolean
 }
 
-categories [icon: grid] {
-  id serial pk
-  name varchar unique
-  slug varchar unique
-  image_url text
-  parent_id integer fk nullable
+categories  {
+  id integer
+  name string
+  slug string
+  image_url string
+  parent_id integer
   depth integer
 }
 
-brands [icon: tag] {
-  id serial pk
-  name varchar unique
-  slug varchar unique
-  logo_url text
+brands  {
+  id integer
+  name string
+  slug string
+  logo_url string
   is_active boolean
 }
 
-products [icon: package] {
+products  {
   id uuid pk
-  name varchar
-  slug varchar unique
-  price decimal
-  compare_at_price decimal nullable
-  image_url text
-  category_id integer fk
-  brand_id integer fk nullable
-  sku varchar unique nullable
+  name string
+  slug string
+  price float
+  compare_at_price float
+  image_url string
+  category_id integer
+  brand_id integer
+  sku string
   stock integer
-  rating decimal
+  rating float
   review_count integer
   is_featured boolean
-  specs jsonb
+  specs json
 }
 
-product_images [icon: image] {
-  id serial pk
+product_images  {
+  id integer
   product_id uuid fk
-  image_url text
-  alt_text varchar
+  image_url string
+  alt_text string
   sort_order integer
   is_primary boolean
 }
 
-product_variants [icon: boxes] {
+product_variants  {
   id uuid pk
   product_id uuid fk
-  sku varchar unique
-  name varchar
-  price decimal
+  sku string
+  name string
+  price float
   stock integer
-  attributes jsonb
-  image_url text
+  attributes json
+  image_url string
 }
 
-product_questions [icon: message-circle] {
+product_questions  {
   id uuid pk
   product_id uuid fk
   user_id uuid fk nullable
-  question text
-  answer text nullable
-  answered_at timestamptz nullable
+  question string
+  answer string
+  answered_at datetime
 }
 
-cart_items [icon: shopping-cart] {
-  id serial pk
+cart_items  {
+  id integer
   user_id uuid fk
   product_id uuid fk
   variant_id uuid fk nullable
   quantity integer
-  expires_at timestamptz
+  expires_at datetime
 }
 
-orders [icon: receipt] {
+orders  {
   id uuid pk
   user_id uuid fk nullable
-  guest_email varchar nullable
-  status confirmed|processing|shipped|delivered|cancelled
-  subtotal decimal
-  tax_amount decimal
-  shipping_cost decimal
-  discount_amount decimal
-  coupon_code varchar nullable
-  total decimal
-  shipping_address jsonb
-  payment_method varchar default cash_on_delivery
-  payment_status varchar default pending
-  delivery_slot varchar nullable
-  tracking_number varchar nullable
-  cancelled_at timestamptz nullable
+  guest_email string
+  status string
+  subtotal float
+  tax_amount float
+  shipping_cost float
+  discount_amount float
+  coupon_code string
+  total float
+  shipping_address json
+  payment_method string
+  payment_status string
+  delivery_slot string
+  tracking_number string
+  cancelled_at datetime
 }
 
-order_items [icon: list] {
-  id serial pk
+order_items  {
+  id integer
   order_id uuid fk
   product_id uuid fk
   variant_id uuid fk nullable
   quantity integer
-  price_at_purchase decimal
-  variant_name varchar nullable
+  price_at_purchase float
+  variant_name string
 }
 
-order_status_history [icon: history] {
-  id serial pk
+order_status_history  {
+  id integer
   order_id uuid fk
-  status varchar
-  note text nullable
+  status string
+  note string
   created_by uuid fk nullable
 }
 
-return_requests [icon: undo] {
+return_requests  {
   id uuid pk
   order_id uuid fk
   user_id uuid fk nullable
-  reason text
-  status requested|approved|rejected|refunded
+  reason string
+  status string
 }
 
-wishlists [icon: heart] {
-  user_id uuid pk fk
-  product_id uuid pk fk
+wishlists  {
+  user_id uuid [pk, fk]
+  product_id uuid [pk, fk]
 }
 
-reviews [icon: star] {
+reviews  {
   id uuid pk
   product_id uuid fk
   user_id uuid fk
   rating integer
-  status pending|published|hidden|rejected
+  status string
   moderated_by uuid fk nullable
 }
 
-carousel_slides [icon: images] {
-  id serial pk
-  title varchar
-  subtitle text
-  image_url text
-  link_url text
+carousel_slides  {
+  id integer
+  title string
+  subtitle string
+  image_url string
+  link_url string
   display_order integer
   is_active boolean
 }
 
-homepage_brand_product_sections [icon: layout] {
+homepage_brand_product_sections  {
   id uuid pk
-  brand_id integer fk
-  title varchar
+  brand_id integer
+  title string
   product_limit 4|8|12
   sort_key newest|rating|price_asc|price_desc
   layout grid|rail
   is_active boolean
 }
 
-homepage_category_product_sections [icon: layout] {
+homepage_category_product_sections  {
   id uuid pk
-  category_id integer fk
-  title varchar
+  category_id integer
+  title string
   product_limit 4|8|12
   sort_key newest|rating|price_asc|price_desc
   layout grid|rail
   is_active boolean
 }
 
-promotions [icon: megaphone] {
-  id serial pk
-  title varchar
-  image_url text
-  link_url text
-  starts_at timestamptz nullable
-  ends_at timestamptz nullable
+promotions  {
+  id integer
+  title string
+  image_url string
+  link_url string
+  starts_at datetime
+  ends_at datetime
   is_active boolean
 }
 
-homepage_blocks [icon: panel-top] {
+homepage_blocks  {
   id uuid pk
-  block_type varchar
+  block_type string
   brand_product_section_id uuid fk nullable
   category_product_section_id uuid fk nullable
-  promotion_id integer fk nullable
+  promotion_id integer
   display_order integer
   is_active boolean
 }
 
-coupons [icon: badge-percent] {
-  id serial pk
-  code varchar unique
-  type percent|fixed
-  value decimal
-  usage_limit integer nullable
+coupons  {
+  id integer
+  code string
+  type string
+  value float
+  usage_limit integer
   used_count integer
   is_active boolean
 }
 
-coupon_usage [icon: ticket-check] {
-  id serial pk
-  coupon_id integer fk
+coupon_usage  {
+  id integer
+  coupon_id integer
   order_id uuid fk
   user_id uuid fk nullable
-  guest_email varchar nullable
+  guest_email string
 }
 
-abandoned_cart_recovery [icon: clock] {
-  id serial pk
+abandoned_cart_recovery  {
+  id integer
   user_id uuid fk unique
-  cart_total decimal
+  cart_total float
   item_count integer
-  status pending|sent|dismissed
+  status string
 }
 
-notifications [icon: bell] {
+notifications  {
   id uuid pk
   user_id uuid fk nullable
-  type varchar
-  title varchar
-  read_at timestamptz nullable
+  type string
+  title string
+  read_at datetime
 }
 
-newsletter_subscribers [icon: mail] {
+newsletter_subscribers  {
   id uuid pk
-  email varchar unique
-  status subscribed|unsubscribed
+  email string
+  status string
 }
 
-admin_audit_logs [icon: file-clock] {
+admin_audit_logs  {
   id uuid pk
   actor_id uuid fk nullable
-  action varchar
-  target_type varchar
-  target_id text
+  action string
+  target_type string
+  target_id string
   status_code integer
-  payload jsonb
+  payload json
 }
 
-security_events [icon: shield-alert] {
+security_events  {
   id uuid pk
-  event_type varchar
-  severity info|warning|high|critical
+  event_type string
+  severity string
   user_id uuid fk nullable
   session_id uuid nullable
-  metadata jsonb
+  metadata json
 }
 
-users.id < sessions.user_id
-users.id < auth_tokens.user_id
-users.id < user_addresses.user_id
-users.id < cart_items.user_id
-users.id < orders.user_id
-users.id < order_status_history.created_by
-users.id < return_requests.user_id
-users.id < wishlists.user_id
-users.id < reviews.user_id
-users.id < reviews.moderated_by
-users.id < notifications.user_id
-users.id < admin_audit_logs.actor_id
-users.id < security_events.user_id
+sessions.user_id > users.id
+auth_tokens.user_id > users.id
+user_addresses.user_id > users.id
+cart_items.user_id > users.id
+orders.user_id > users.id
+order_status_history.created_by > users.id
+return_requests.user_id > users.id
+wishlists.user_id > users.id
+reviews.user_id > users.id
+reviews.moderated_by > users.id
+notifications.user_id > users.id
+admin_audit_logs.actor_id > users.id
+security_events.user_id > users.id
 
-categories.id < products.category_id
-categories.id < categories.parent_id
-brands.id < products.brand_id
-products.id < product_images.product_id
-products.id < product_variants.product_id
-products.id < product_questions.product_id
-products.id < cart_items.product_id
-products.id < order_items.product_id
-products.id < wishlists.product_id
-products.id < reviews.product_id
-product_variants.id < cart_items.variant_id
-product_variants.id < order_items.variant_id
-orders.id < order_items.order_id
-orders.id < order_status_history.order_id
-orders.id < return_requests.order_id
-orders.id < coupon_usage.order_id
-brands.id < homepage_brand_product_sections.brand_id
-categories.id < homepage_category_product_sections.category_id
-homepage_brand_product_sections.id < homepage_blocks.brand_product_section_id
-homepage_category_product_sections.id < homepage_blocks.category_product_section_id
-promotions.id < homepage_blocks.promotion_id
-coupons.id < coupon_usage.coupon_id
+products.category_id > categories.id
+categories.parent_id > categories.id
+products.brand_id > brands.id
+product_images.product_id > products.id
+product_variants.product_id > products.id
+product_questions.product_id > products.id
+cart_items.product_id > products.id
+order_items.product_id > products.id
+wishlists.product_id > products.id
+reviews.product_id > products.id
+cart_items.variant_id > product_variants.id
+order_items.variant_id > product_variants.id
+order_items.order_id > orders.id
+order_status_history.order_id > orders.id
+return_requests.order_id > orders.id
+coupon_usage.order_id > orders.id
+homepage_brand_product_sections.brand_id > brands.id
+homepage_category_product_sections.category_id > categories.id
+homepage_blocks.brand_product_section_id > homepage_brand_product_sections.id
+homepage_blocks.category_product_section_id > homepage_category_product_sections.id
+homepage_blocks.promotion_id > promotions.id
+coupon_usage.coupon_id > coupons.id
 ```
 
 Notes:
@@ -435,119 +439,130 @@ Notes:
 This diagram shows email/password auth, Google OAuth, email verification, password reset, session cookies, MFA for admin access, and role-based admin permissions.
 
 ```eraser
-title Auth and Role Flow
+cloud-architecture-diagram
 
-Public User [icon: user]
-Frontend Auth Pages [icon: monitor] {
-  Register Page /auth/register
-  Login Page /auth/login
-  Verify Email Page /auth/verify-email
-  Forgot Password Page /auth/forgot-password
-  Reset Password Page /auth/reset-password
-  Google Callback Page /auth/callback
+// title Auth and Role Flow
+
+Public User 
+Frontend Auth Pages  {
+  Register Page 
+  Login Page 
+  Verify Email Page 
+  Forgot Password Page 
+  Reset Password Page 
+  Google Callback Page 
 }
 
-Auth API [icon: key] {
-  POST /api/v1/auth/register
-  POST /api/v1/auth/login
-  POST /api/v1/auth/verify-email
-  POST /api/v1/auth/forgot-password
-  POST /api/v1/auth/reset-password
-  GET /api/v1/auth/google
-  GET /api/v1/auth/google/callback
-  GET /api/v1/auth/me
-  POST /api/v1/auth/logout
-  GET DELETE /api/v1/auth/sessions
+Auth API  {
+  Register Endpoint 
+  Login Endpoint 
+  Verify Email Endpoint 
+  Forgot Password Endpoint 
+  Reset Password Endpoint 
+  Google Start Endpoint 
+  Google Callback Endpoint 
+  Current User Endpoint 
+  Logout Endpoint 
+  Sessions Endpoint 
 }
 
-Auth Services [icon: boxes] {
-  registerWithPassword
-  loginWithPassword
-  createSession
-  validateSession
-  verifyEmailToken
-  requestPasswordReset
-  resetPassword
-  OAuth State
+Auth Services  {
+  Register With Password 
+  Login With Password 
+  Create Session 
+  Validate Session 
+  Verify Email Token 
+  Request Password Reset 
+  Reset Password 
+  OAuth State Service 
 }
 
-Security Controls [icon: shield] {
-  authLimiter
-  CSRF for unsafe cookie requests
-  Progressive Login Cooldown
-  MFA Setup Verify
-  Session Revocation
-  Security Events
+Security Controls  {
+  Auth Limiter 
+  CSRF Protection 
+  Progressive Login Cooldown 
+  MFA Setup Verify 
+  Session Revocation 
+  Security Events 
 }
 
 Database [icon: postgresql] {
-  users
-  sessions
-  auth_tokens
-  oauth_states
-  security_events
+  users 
+  sessions 
+  auth_tokens 
+  oauth_states 
+  security_events 
 }
 
-Admin Route Guard [icon: shield-check] {
-  requireAuth
-  isAdmin
-  requireAdminMfa
-  requireAdminPermission
-  requireFreshAdminMfa for role changes
+Admin Route Guard  {
+  Require Auth 
+  Is Admin 
+  Require Admin MFA 
+  Require Admin Permission 
+  Require Fresh Admin MFA 
 }
 
-Roles [icon: users] {
-  customer
-  support
-  manager
-  admin
-  super_admin
+Roles  {
+  Customer 
+  Support 
+  Manager 
+  Admin 
+  Super Admin 
 }
 
-Public User > Register Page /auth/register: email name password phone
-Register Page /auth/register > POST /api/v1/auth/register: create account
-POST /api/v1/auth/register > registerWithPassword: hash password
-registerWithPassword > users: insert customer
-registerWithPassword > auth_tokens: email_verification token
-registerWithPassword > createSession: signed elecshop_session cookie
-registerWithPassword > Security Events: none unless failure
+Google OAuth Provider 
+Email Provider 
+Protected API 
+Admin Dashboard 
+Protected Admin Routes 
+Unauthorized 
+Forbidden 
+Admin Role Change 
 
-Public User > Login Page /auth/login: email password
-Login Page /auth/login > POST /api/v1/auth/login: credentials
-POST /api/v1/auth/login > authLimiter: brute-force limit
-POST /api/v1/auth/login > loginWithPassword: verify password_hash
-loginWithPassword > createSession: revoke old sessions then create session
-loginWithPassword > sessions: token hash expires_at
-loginWithPassword > Public User: signed httpOnly cookie
-loginWithPassword > Unauthorized: invalid credentials or cooldown
+Public User > Register Page: Open /auth/register
+Register Page > Register Endpoint: POST /api/v1/auth/register
+Register Endpoint > Register With Password: Hash password
+Register With Password > users: Insert customer
+Register With Password > auth_tokens: Email verification token
+Register With Password > Create Session: Signed elecshop_session cookie
+Register With Password > Security Events: Log failures only
 
-Public User > GET /api/v1/auth/google: start OAuth
-GET /api/v1/auth/google > oauth_states: store state hash
-GET /api/v1/auth/google > Google OAuth [icon: google]: redirect
-Google OAuth > GET /api/v1/auth/google/callback: code and state
-GET /api/v1/auth/google/callback > OAuth State: consume signed state
-GET /api/v1/auth/google/callback > users: upsert google_id email profile
-GET /api/v1/auth/google/callback > createSession: signed cookie
+Public User > Login Page: Open /auth/login
+Login Page > Login Endpoint: POST /api/v1/auth/login
+Login Endpoint > Auth Limiter: Brute force limit
+Login Endpoint > Login With Password: Verify password hash
+Login With Password > Create Session: Revoke old sessions and create session
+Login With Password > sessions: Store token hash and expiry
+Login With Password > Public User: Return signed httpOnly cookie
+Login With Password > Unauthorized: Invalid credentials or cooldown
 
-Forgot Password Page /auth/forgot-password > POST /api/v1/auth/forgot-password: email
-POST /api/v1/auth/forgot-password > auth_tokens: password_reset token
-POST /api/v1/auth/forgot-password > Resend or mock email [icon: mail]: reset link
-Reset Password Page /auth/reset-password > POST /api/v1/auth/reset-password: token password
-POST /api/v1/auth/reset-password > users: update password_hash
-POST /api/v1/auth/reset-password > sessions: revoke all sessions
+Public User > Google Start Endpoint: GET /api/v1/auth/google
+Google Start Endpoint > oauth_states: Store state hash
+Google Start Endpoint > Google OAuth Provider: Redirect
+Google OAuth Provider > Google Callback Endpoint: Code and state
+Google Callback Endpoint > OAuth State Service: Consume signed state
+Google Callback Endpoint > users: Upsert google_id email profile
+Google Callback Endpoint > Create Session: Signed cookie
 
-Protected API [icon: lock] > requireAuth: signed cookie
-requireAuth > validateSession: token hash lookup
-validateSession > sessions: not expired not revoked
-validateSession > users: attach req.user
-requireAuth > Unauthorized: missing invalid expired session
+Forgot Password Page > Forgot Password Endpoint: POST /api/v1/auth/forgot-password
+Forgot Password Endpoint > auth_tokens: Password reset token
+Forgot Password Endpoint > Email Provider: Reset link
+Reset Password Page > Reset Password Endpoint: POST /api/v1/auth/reset-password
+Reset Password Endpoint > users: Update password hash
+Reset Password Endpoint > sessions: Revoke all sessions
 
-Admin Dashboard /admin [icon: layout-dashboard] > Admin Route Guard: admin UI access
-Admin Route Guard > Roles: role permission lookup
+Protected API > Require Auth: Signed cookie
+Require Auth > Validate Session: Token hash lookup
+Validate Session > sessions: Not expired and not revoked
+Validate Session > users: Attach req.user
+Require Auth > Unauthorized: Missing invalid expired session
+
+Admin Dashboard > Admin Route Guard: Admin UI access
+Admin Route Guard > Roles: Role permission lookup
 Roles > Protected Admin Routes: support manager admin super_admin
-Roles > Forbidden: customer or insufficient permission
-Admin Route Guard > MFA Setup Verify: require admin MFA
-Admin Role Change > requireFreshAdminMfa: fresh code within configured minutes
+Roles > Forbidden: Customer or insufficient permission
+Admin Route Guard > MFA Setup Verify: Require admin MFA
+Admin Role Change > Require Fresh Admin MFA: Fresh code within configured minutes
 ```
 
 Notes:
@@ -561,105 +576,109 @@ Notes:
 This diagram focuses on catalog data, purchasable variants, images, category/brand relationships, and how cart/order rows can point at a selected variant.
 
 ```eraser
-title Product and Variant Model
+entity-relationship-diagram
 
-Catalog Admin [icon: shield]
-Public Storefront [icon: shopping-bag]
+// title Product and Variant Model
 
-Product [icon: package] {
-  products.id uuid pk
-  name
-  slug unique
-  description
-  price
-  compare_at_price
-  image_url
-  category_id fk
-  brand_id fk nullable
-  brand legacy text nullable
-  sku unique nullable
-  stock
-  rating
-  review_count
-  is_featured
+CatalogAdmin 
+PublicStorefront 
+
+Product  {
+  id uuid [pk]
+  name string
+  slug string
+  description string
+  price float
+  compare_at_price float
+  image_url string
+  category_id integer [fk]
+  brand_id integer [fk]
+  legacy_brand string
+  sku string
+  stock integer
+  rating float
+  review_count integer
+  is_featured boolean
   specs jsonb
-  meta_title
-  meta_description
+  meta_title string
+  meta_description string
 }
 
-Category [icon: grid] {
-  categories.id serial pk
-  name unique
-  slug unique
-  image_url
-  parent_id nullable
-  depth
+Category  {
+  id integer [pk]
+  name string
+  slug string
+  image_url string
+  parent_id integer [fk]
+  depth integer
 }
 
-Brand [icon: tag] {
-  brands.id serial pk
-  name unique
-  slug unique
-  logo_url
-  description
-  is_active
+Brand  {
+  id integer [pk]
+  name string
+  slug string
+  logo_url string
+  description string
+  is_active boolean
 }
 
-Product Images [icon: image] {
-  product_images.id serial pk
-  product_id fk
-  image_url
-  alt_text
-  sort_order
-  is_primary
+ProductImages  {
+  id integer [pk]
+  product_id uuid [fk]
+  image_url string
+  alt_text string
+  sort_order integer
+  is_primary boolean
 }
 
-Product Variants [icon: boxes] {
-  product_variants.id uuid pk
-  product_id fk
-  sku unique
-  name
-  price
-  stock
+ProductVariants  {
+  id uuid [pk]
+  product_id uuid [fk]
+  sku string
+  name string
+  price float
+  stock integer
   attributes jsonb
-  image_url
+  image_url string
 }
 
-Cart Item [icon: shopping-cart] {
-  cart_items.product_id fk
-  cart_items.variant_id nullable fk
-  quantity
+CartItem  {
+  product_id uuid [fk]
+  variant_id uuid [fk]
+  quantity integer
 }
 
-Order Item [icon: receipt] {
-  order_items.product_id fk
-  order_items.variant_id nullable fk
-  quantity
-  price_at_purchase
-  variant_name
+OrderItem  {
+  product_id uuid [fk]
+  variant_id uuid [fk]
+  quantity integer
+  price_at_purchase float
+  variant_name string
 }
 
-Product Questions [icon: message-circle]
-Reviews [icon: star]
-Wishlists [icon: heart]
+ProductQuestions 
+Reviews 
+Wishlists 
 
-Catalog Admin > Product: create update delete
-Catalog Admin > Product Images: upload via /api/v1/admin/uploads/image
-Product > Category: belongs to
-Product > Brand: belongs to optional brand_id
-Product > Product Images: has many gallery images
-Product > Product Variants: has many variants
-Product > Product Questions: has many questions
-Product > Reviews: has many reviews
-Product > Wishlists: many users via wishlists table
+CatalogAdmin > Product
+CatalogAdmin > ProductImages
+PublicStorefront > Product
+PublicStorefront > ProductVariants
 
-Public Storefront > Product: list, filter, sort, search
-Public Storefront > Product Variants: select variant when present
-Cart Item > Product: product_id required
-Cart Item > Product Variants: variant_id optional
-Order Item > Product: product_id required
-Order Item > Product Variants: variant_id optional snapshot
-Product Variants > Order Item: variant_name captured at purchase
+Product > Category
+Product > Brand
+Category > Category
+Product > ProductImages
+Product > ProductVariants
+Product > ProductQuestions
+Product > Reviews
+Product > Wishlists
+
+CartItem > Product
+CartItem > ProductVariants
+OrderItem > Product
+OrderItem > ProductVariants
+ProductVariants > OrderItem
 ```
 
 Notes:
@@ -673,48 +692,58 @@ Notes:
 This diagram shows both guest and authenticated carts, stock checks, duplicate item handling, COD checkout, abuse protection, order creation, and failure states.
 
 ```eraser
-title Cart and Checkout Flow
+cloud-architecture-diagram
 
-Guest Browser [icon: user]
-Logged In User [icon: user-check]
-Frontend Cart Context [icon: shopping-cart] {
-  Guest localStorage cart
-  Auth cart sync
-  Add update remove clear
+// title Cart and Checkout Flow
+
+GuestBrowser 
+LoggedInUser 
+
+FrontendCartContext  {
+  GuestLocalStorageCart
+  AuthCartSync
+  AddItem
+  UpdateQuantity
+  RemoveItem
+  ClearCart
 }
 
-Backend Cart API [icon: server] {
-  GET /api/v1/cart
-  POST /api/v1/cart
-  PATCH /api/v1/cart/:itemId
-  DELETE /api/v1/cart/:itemId
+BackendCartAPI  {
+  GetCartRoute
+  AddCartItemRoute
+  UpdateCartItemRoute
+  DeleteCartItemRoute
+  RequireAuth
+  CartMutationLimiter
 }
 
-Checkout Page [icon: credit-card] {
-  Delivery address
+CheckoutPage  {
+  ContactInfo
+  DeliveryAddress
   Phone
-  Coupon code
-  Delivery slot
-  Payment method cash_on_delivery
+  CouponCode
+  DeliverySlot
+  CashOnDelivery
 }
 
-Orders API [icon: receipt] {
-  POST /api/v1/orders optionalAuth
-  checkoutLimiter
-  placeOrder
-  placeGuestOrder
+OrdersAPI  {
+  CreateOrderRoute
+  OptionalAuth
+  CheckoutLimiter
+  PlaceOrder
+  PlaceGuestOrder
 }
 
-Checkout Transaction [icon: database] {
-  pg_advisory_xact_lock for COD actor
-  SELECT products or variants FOR UPDATE
-  stock validation
-  coupon validation FOR UPDATE
-  INSERT orders status confirmed
-  INSERT order_items
-  decrement product or variant stock
-  INSERT order_status_history
-  clear authenticated cart
+CheckoutTransaction  {
+  AdvisoryLock
+  ProductRowLock
+  StockValidation
+  CouponValidation
+  InsertOrder
+  InsertOrderItems
+  DecrementStock
+  InsertStatusHistory
+  ClearAuthCart
 }
 
 Database [icon: postgresql] {
@@ -728,42 +757,45 @@ Database [icon: postgresql] {
   order_status_history
 }
 
-Failure States [icon: alert-triangle] {
-  cart empty
-  invalid quantity
-  insufficient stock
-  invalid expired coupon
-  active COD order limit
-  unauthenticated cart API
+FailureStates  {
+  EmptyCart
+  InvalidQuantity
+  InsufficientStock
+  InvalidCoupon
+  ActiveCodOrderLimit
+  UnauthenticatedCartAPI
 }
 
-Guest Browser > Frontend Cart Context: add item
-Frontend Cart Context > Guest localStorage cart: store product_id variant_id quantity expires_at
-Guest localStorage cart > Checkout Page: hydrate items from public product APIs
-Checkout Page > POST /api/v1/orders optionalAuth: guestEmail items shippingAddress COD
+EmailProvider 
 
-Logged In User > Frontend Cart Context: add item
-Frontend Cart Context > POST /api/v1/cart: productId quantity variantId
-POST /api/v1/cart > requireAuth [icon: lock]: required
-POST /api/v1/cart > cartMutationLimiter [icon: gauge]
-POST /api/v1/cart > products: stock lookup
-POST /api/v1/cart > product_variants: variant stock lookup if variant_id
-POST /api/v1/cart > cart_items: insert or increment duplicate row
-Logged In User > Checkout Page: use server cart
-Checkout Page > POST /api/v1/orders optionalAuth: shippingAddress COD coupon deliverySlot
+GuestBrowser > FrontendCartContext
+FrontendCartContext > GuestLocalStorageCart
+GuestLocalStorageCart > CheckoutPage
+CheckoutPage > CreateOrderRoute
 
-POST /api/v1/orders optionalAuth > checkoutLimiter
-checkoutLimiter > Checkout Transaction
-Checkout Transaction > Failure States: business rule failure
-Checkout Transaction > orders: create status confirmed payment_status pending
-Checkout Transaction > order_items: snapshot price variant_name
-Checkout Transaction > products: decrement stock when no variant
-Checkout Transaction > product_variants: decrement stock when variant selected
-Checkout Transaction > coupons: increment used_count
-Checkout Transaction > coupon_usage: record coupon use
-Checkout Transaction > order_status_history: confirmed Order placed
-Checkout Transaction > cart_items: clear auth user cart
-Orders API > Resend or mock email [icon: mail]: async order confirmation
+LoggedInUser > FrontendCartContext
+FrontendCartContext > AddCartItemRoute
+AddCartItemRoute > RequireAuth
+AddCartItemRoute > CartMutationLimiter
+AddCartItemRoute > products
+AddCartItemRoute > product_variants
+AddCartItemRoute > cart_items
+LoggedInUser > CheckoutPage
+CheckoutPage > CreateOrderRoute
+
+CreateOrderRoute > OptionalAuth
+CreateOrderRoute > CheckoutLimiter
+CheckoutLimiter > CheckoutTransaction
+CheckoutTransaction > FailureStates
+CheckoutTransaction > orders
+CheckoutTransaction > order_items
+CheckoutTransaction > products
+CheckoutTransaction > product_variants
+CheckoutTransaction > coupons
+CheckoutTransaction > coupon_usage
+CheckoutTransaction > order_status_history
+CheckoutTransaction > cart_items
+OrdersAPI > EmailProvider
 ```
 
 Notes:
@@ -778,45 +810,45 @@ Notes:
 The current implemented path is COD/manual payment only. The future online payment webhook path is included only as a clearly marked planned/future extension.
 
 ```eraser
-title Payment Flow: Current COD and Future Webhook
+cloud-architecture-diagram
 
-Current Implemented COD Path [color: green] {
-  Customer [icon: user]
-  Checkout Page [icon: shopping-cart]
-  POST /api/v1/orders [icon: server]
-  Orders Service [icon: boxes]
-  orders table [icon: postgresql]
-  order_items table [icon: list]
-  Admin Orders Page [icon: layout-dashboard]
-  Manual Fulfillment [icon: truck]
-}
+// title Payment Flow Current COD and Future Webhook
 
-Planned Future Online Payment Path [color: gray] {
-  Payment Provider [icon: credit-card]
-  Webhook Endpoint [icon: webhook]
-  Signature Verification [icon: shield-check]
-  Idempotency Check [icon: fingerprint]
-  Payment Event Log [icon: file-clock]
-  Update Payment Status [icon: receipt]
-  Send Confirmation Email [icon: mail]
-}
+CurrentCODPath [color: green]
+Customer 
+CheckoutPage 
+CreateOrderRoute 
+OrdersService 
+OrdersTable [icon: postgresql]
+OrderItemsTable 
+AdminOrdersPage 
+ManualFulfillment 
 
-Customer > Checkout Page: choose cash_on_delivery
-Checkout Page > POST /api/v1/orders: paymentMethod cash_on_delivery
-POST /api/v1/orders > Orders Service: normalizePaymentMethod
-Orders Service > orders table: payment_method cash_on_delivery
-Orders Service > orders table: payment_status pending
-Orders Service > orders table: status confirmed
-Orders Service > order_items table: item snapshot
-Orders Service > Admin Orders Page: order visible to admin
-Admin Orders Page > Manual Fulfillment: update status confirmed processing shipped delivered cancelled
+PlannedFutureOnlinePaymentPath [color: gray]
+PaymentProvider 
+WebhookEndpoint 
+SignatureVerification 
+IdempotencyCheck 
+PaymentEventLog 
+UpdatePaymentStatus 
+SendConfirmationEmail 
 
-Payment Provider > Webhook Endpoint: Planned/Future only
-Webhook Endpoint > Signature Verification: Not implemented
-Signature Verification > Idempotency Check: Not implemented
-Idempotency Check > Payment Event Log: Not implemented
-Payment Event Log > Update Payment Status: Not implemented
-Update Payment Status > Send Confirmation Email: Not implemented
+CurrentCODPath > Customer
+Customer > CheckoutPage
+CheckoutPage > CreateOrderRoute
+CreateOrderRoute > OrdersService
+OrdersService > OrdersTable
+OrdersService > OrderItemsTable
+OrdersService > AdminOrdersPage
+AdminOrdersPage > ManualFulfillment
+
+PlannedFutureOnlinePaymentPath > PaymentProvider
+PaymentProvider > WebhookEndpoint
+WebhookEndpoint > SignatureVerification
+SignatureVerification > IdempotencyCheck
+IdempotencyCheck > PaymentEventLog
+PaymentEventLog > UpdatePaymentStatus
+UpdatePaymentStatus > SendConfirmationEmail
 ```
 
 Notes:
@@ -831,7 +863,9 @@ Notes:
 This diagram uses the actual constrained order statuses and implemented transitions. Admin status updates are broad within the allowed set; customer cancellation is restricted to confirmed/processing.
 
 ```eraser
-title Order State Machine
+flow-chart
+
+// title Order State Machine
 
 Start [shape: circle]
 Confirmed [color: blue] {
@@ -873,7 +907,7 @@ Refunded [color: gray] {
   order_status_history status refunded
 }
 
-Order History [icon: history] {
+Order History  {
   order_status_history
   status
   note
@@ -913,71 +947,73 @@ Notes:
 This diagram shows product/variant stock, admin management, low-stock alerts, cart checks, checkout locks, order-time decrement, and the production improvement around reservation/locking.
 
 ```eraser
-title Inventory Flow
+cloud-architecture-diagram
 
-Admin Inventory UI [icon: alert-triangle] {
-  /admin/inventory
-  low stock alerts
+// title Inventory Flow
+
+AdminInventoryUI [label: "Admin Inventory UI"] {
+  admin_inventory_route [label: "/admin/inventory"]
+  low_stock_alerts [label: "low stock alerts"]
 }
 
-Admin Product UI [icon: package] {
-  /admin/products
-  create product
-  update product
-  CSV import export
+AdminProductUI [label: "Admin Product UI"] {
+  admin_products_route [label: "/admin/products"]
+  create_product [label: "create product"]
+  update_product [label: "update product"]
+  csv_import_export [label: "CSV import export"]
 }
 
-Inventory Data [icon: postgresql] {
-  products.stock
-  product_variants.stock
+InventoryData [icon: postgresql, label: "Inventory Data"] {
+  products_stock [label: "products.stock"]
+  product_variants_stock [label: "product_variants.stock"]
 }
 
-Public Product UI [icon: shopping-bag] {
+PublicProductUI [label: "Public Product UI"] {
   ProductCard
   ProductDisplay
   StockBadge
   AddToCartClient
 }
 
-Cart Stock Check [icon: shopping-cart] {
+CartStockCheck [label: "Cart Stock Check"] {
   addToCart
   updateCartItemQuantity
   getAvailableStock
 }
 
-Checkout Stock Lock [icon: lock] {
+CheckoutStockLock [label: "Checkout Stock Lock"] {
   resolveOrderItems
-  SELECT product FOR UPDATE
-  SELECT variant FOR UPDATE OF pv
-  item.stock >= quantity
+  select_product_for_update [label: "SELECT product FOR UPDATE"]
+  select_variant_for_update [label: "SELECT variant FOR UPDATE OF pv"]
+  item_stock_gt_quantity [label: "item.stock >= quantity"]
 }
 
-Order Stock Decrement [icon: database-zap] {
-  UPDATE products stock = stock - quantity
-  UPDATE product_variants stock = stock - quantity
+OrderStockDecrement [label: "Order Stock Decrement"] {
+  update_products_stock [label: "UPDATE products stock = stock - quantity"]
+  update_variants_stock [label: "UPDATE product_variants stock = stock - quantity"]
   invalidateProductCaches
 }
 
-Failure Outcomes [icon: x-circle] {
-  insufficient stock
-  selected variant unavailable
-  invalid quantity
+FailureOutcomes [label: "Failure Outcomes"] {
+  insufficient_stock [label: "insufficient stock"]
+  selected_variant_unavailable [label: "selected variant unavailable"]
+  invalid_quantity [label: "invalid quantity"]
 }
 
-Admin Product UI > Inventory Data: set product stock and variant stock
-Admin Inventory UI > Inventory Data: read low stock threshold
-Inventory Data > Public Product UI: show stock availability
-Public Product UI > Cart Stock Check: add/update quantity
-Cart Stock Check > Inventory Data: read product or variant stock
-Cart Stock Check > Failure Outcomes: insufficient stock at cart time
-Cart Stock Check > cart_items [icon: shopping-cart]: insert or update quantity
+AdminProductUI > InventoryData: set product stock and variant stock
+AdminInventoryUI > InventoryData: read low stock threshold
+InventoryData > PublicProductUI: show stock availability
+PublicProductUI > CartStockCheck: add/update quantity
+CartStockCheck > InventoryData: read product or variant stock
+CartStockCheck > FailureOutcomes: insufficient stock at cart time
+CartStockCheck > cart_items : insert or update quantity
 
-Checkout Page [icon: credit-card] > Checkout Stock Lock: submit COD order
-Checkout Stock Lock > Inventory Data: row-level lock for selected items
-Checkout Stock Lock > Failure Outcomes: out of stock at checkout
-Checkout Stock Lock > Order Stock Decrement: order creation succeeds
-Order Stock Decrement > Inventory Data: decrement product or variant stock
-Order Stock Decrement > Redis Cache [icon: redis]: invalidate product caches
+CheckoutPage [label: "Checkout Page"] > CheckoutStockLock: submit COD order
+CheckoutStockLock > InventoryData: row-level lock for selected items
+CheckoutStockLock > FailureOutcomes: out of stock at checkout
+CheckoutStockLock > OrderStockDecrement: order creation succeeds
+OrderStockDecrement > InventoryData: decrement product or variant stock
+OrderStockDecrement > RedisCache [icon: redis, label: "Redis Cache"]: invalidate product caches
 ```
 
 Notes:
@@ -992,16 +1028,18 @@ Notes:
 This diagram maps actual frontend admin routes to backend admin route groups, permissions, and managed DB entities.
 
 ```eraser
-title Admin Dashboard Structure
+cloud-architecture-diagram
 
-Admin Layout [icon: layout-dashboard] {
-  /admin
+// title Admin Dashboard Structure
+
+AdminLayout [label: "Admin Layout"] {
+  admin_overview [label: "/admin"]
   AdminSidebar
   AuthContext
-  MFA gate
+  mfa_gate [label: "MFA gate"]
 }
 
-Admin Route Protection [icon: shield-check] {
+AdminRouteProtection [label: "Admin Route Protection"] {
   requireAuth
   isAdmin
   requireAdminMfa
@@ -1011,41 +1049,41 @@ Admin Route Protection [icon: shield-check] {
   requireAdminPermission
 }
 
-Admin Pages [icon: monitor] {
-  Overview /admin
-  Homepage /admin/homepage
-  Carousel /admin/carousel
-  Products /admin/products
-  Categories /admin/categories
-  Brands /admin/brands
-  Customers /admin/customers
-  Orders /admin/orders
-  Reviews /admin/reviews
-  Inventory /admin/inventory
-  Promotions /admin/promotions
-  Coupons /admin/coupons
-  Search /admin/search
-  Security /admin/security
+AdminPages [label: "Admin Pages"] {
+  page_overview [label: "Overview /admin"]
+  page_homepage [label: "Homepage /admin/homepage"]
+  page_carousel [label: "Carousel /admin/carousel"]
+  page_products [label: "Products /admin/products"]
+  page_categories [label: "Categories /admin/categories"]
+  page_brands [label: "Brands /admin/brands"]
+  page_customers [label: "Customers /admin/customers"]
+  page_orders [label: "Orders /admin/orders"]
+  page_reviews [label: "Reviews /admin/reviews"]
+  page_inventory [label: "Inventory /admin/inventory"]
+  page_promotions [label: "Promotions /admin/promotions"]
+  page_coupons [label: "Coupons /admin/coupons"]
+  page_search [label: "Search /admin/search"]
+  page_security [label: "Security /admin/security"]
 }
 
-Admin API Groups [icon: server] {
-  GET /api/v1/admin/analytics/monthly-revenue
-  /api/v1/admin/products
-  /api/v1/admin/categories
-  /api/v1/admin/brands
-  /api/v1/admin/users
-  /api/v1/admin/orders
-  /api/v1/admin/returns
-  /api/v1/admin/reviews
-  /api/v1/admin/homepage
-  /api/v1/admin/promotions
-  /api/v1/admin/coupons
-  /api/v1/admin/search
-  /api/v1/admin/security/*
-  POST /api/v1/admin/uploads/image
+AdminAPIGroups [label: "Admin API Groups"] {
+  api_analytics [label: "GET /api/v1/admin/analytics/monthly-revenue"]
+  api_products [label: "/api/v1/admin/products"]
+  api_categories [label: "/api/v1/admin/categories"]
+  api_brands [label: "/api/v1/admin/brands"]
+  api_users [label: "/api/v1/admin/users"]
+  api_orders [label: "/api/v1/admin/orders"]
+  api_returns [label: "/api/v1/admin/returns"]
+  api_reviews [label: "/api/v1/admin/reviews"]
+  api_homepage [label: "/api/v1/admin/homepage"]
+  api_promotions [label: "/api/v1/admin/promotions"]
+  api_coupons [label: "/api/v1/admin/coupons"]
+  api_search [label: "/api/v1/admin/search"]
+  api_security [label: "/api/v1/admin/security/*"]
+  api_uploads [label: "POST /api/v1/admin/uploads/image"]
 }
 
-Permissions [icon: key] {
+Permissions  {
   analytics
   products
   orders
@@ -1059,7 +1097,7 @@ Permissions [icon: key] {
   settings
 }
 
-Managed Entities [icon: postgresql] {
+ManagedEntities [icon: postgresql, label: "Managed Entities"] {
   users
   products
   categories
@@ -1070,40 +1108,40 @@ Managed Entities [icon: postgresql] {
   reviews
   carousel_slides
   homepage_blocks
-  homepage sections
+  homepage_sections [label: "homepage sections"]
   promotions
   coupons
   security_events
   admin_audit_logs
 }
 
-Admin Layout > Admin Route Protection: page access requires admin role and MFA
-Admin Route Protection > Permissions: role permission map
-Permissions > Forbidden [icon: ban]: insufficient role permission
+AdminLayout > AdminRouteProtection: page access requires admin role and MFA
+AdminRouteProtection > Permissions: role permission map
+Permissions > Forbidden : insufficient role permission
 
-Overview /admin > GET /api/v1/admin/analytics/monthly-revenue: analytics
-Products /admin/products > /api/v1/admin/products: products permission
-Products /admin/products > POST /api/v1/admin/uploads/image: uploadLimiter + ImageKit/local fallback
-Categories /admin/categories > /api/v1/admin/categories: products permission
-Brands /admin/brands > /api/v1/admin/brands: products permission
-Customers /admin/customers > /api/v1/admin/users: customers permission
-Customers /admin/customers > /api/v1/admin/users/:id/role: admin_roles + fresh MFA
-Orders /admin/orders > /api/v1/admin/orders: orders permission
-Orders /admin/orders > /api/v1/admin/orders/:id/status: update status
-Orders /admin/orders > /api/v1/admin/orders/:id/tracking: update tracking
-Orders /admin/orders > /api/v1/admin/returns/:id/status: returns
-Reviews /admin/reviews > /api/v1/admin/reviews: reviews permission
-Homepage /admin/homepage > /api/v1/admin/homepage: homepage permission
-Carousel /admin/carousel > /api/v1/carousel admin routes: content permission
-Inventory /admin/inventory > /api/v1/admin/inventory/alerts: products permission
-Promotions /admin/promotions > /api/v1/admin/promotions: marketing permission
-Coupons /admin/coupons > /api/v1/admin/coupons: marketing permission
-Search /admin/search > /api/v1/admin/search: analytics permission
-Security /admin/security > /api/v1/admin/security/*: security permission
+page_overview > api_analytics: analytics
+page_products > api_products: products permission
+page_products > api_uploads: uploadLimiter + ImageKit/local fallback
+page_categories > api_categories: products permission
+page_brands > api_brands: products permission
+page_customers > api_users: customers permission
+page_customers > admin_roles_mfa [label: "/api/v1/admin/users/:id/role"]: admin_roles + fresh MFA
+page_orders > api_orders: orders permission
+page_orders > api_orders_status [label: "/api/v1/admin/orders/:id/status"]: update status
+page_orders > api_orders_tracking [label: "/api/v1/admin/orders/:id/tracking"]: update tracking
+page_orders > api_returns_status [label: "/api/v1/admin/returns/:id/status"]: returns
+page_reviews > api_reviews: reviews permission
+page_homepage > api_homepage: homepage permission
+page_carousel > api_carousel_routes [label: "/api/v1/carousel admin routes"]: content permission
+page_inventory > api_inventory_alerts [label: "/api/v1/admin/inventory/alerts"]: products permission
+page_promotions > api_promotions: marketing permission
+page_coupons > api_coupons: marketing permission
+page_search > api_search: analytics permission
+page_security > api_security: security permission
 
-Admin API Groups > Managed Entities: CRUD, moderation, analytics, audit
-Admin Route Protection > admin_audit_logs: record admin actions
-Security /admin/security > security_events: health events alerts
+AdminAPIGroups > ManagedEntities: CRUD, moderation, analytics, audit
+AdminRouteProtection > admin_audit_logs: record admin actions
+page_security > security_events: health events alerts
 ```
 
 Notes:
@@ -1117,122 +1155,124 @@ Notes:
 This diagram shows the planned deployment stack from the repo docs: Vercel frontend, Render backend, managed PostgreSQL, paid/higher-capacity Redis, ImageKit/CDN, Resend, Sentry/logs, health checks, smoke tests, local Docker Redis for k6, and security constraints.
 
 ```eraser
-title Deployment Architecture
+cloud-architecture-diagram
 
-Developer [icon: user-cog]
-GitHub Repo [icon: github]
-CI Build Checks [icon: githubactions] {
-  backend build and tests
-  frontend lint typecheck build
-  security scans
+// title Deployment Architecture
+
+Developer 
+GitHubRepo [icon: github, label: "GitHub Repo"]
+CIBuildChecks [icon: github, label: "CI Build Checks"] {
+  ci_backend [label: "backend build and tests"]
+  ci_frontend [label: "frontend lint typecheck build"]
+  ci_security [label: "security scans"]
 }
 
-Production Edge [icon: globe] {
-  Custom Domain yourdomain.com
-  API Domain api.yourdomain.com
+ProductionEdge [label: "Production Edge"] {
+  custom_domain [label: "Custom Domain yourdomain.com"]
+  api_domain [label: "API Domain api.yourdomain.com"]
 }
 
-Vercel Frontend [icon: vercel] {
-  Next.js App Router
-  Public Storefront
-  Admin UI
-  Server-side API fetches
-  NEXT_PUBLIC_API_URL
-  INTERNAL_API_URL
-  INTERNAL_SSR_API_SECRET server-only
+VercelFrontend [icon: vercel, label: "Vercel Frontend"] {
+  nextjs_router [label: "Next.js App Router"]
+  PublicStorefront [label: "Public Storefront"]
+  AdminUI [label: "Admin UI"]
+  server_side_api_fetches [label: "Server-side API fetches"]
+  env_public_api [label: "NEXT_PUBLIC_API_URL"]
+  env_internal_api [label: "INTERNAL_API_URL"]
+  env_ssr_secret [label: "INTERNAL_SSR_API_SECRET server-only"]
 }
 
-Render Backend [icon: server] {
-  Express API
-  /api/health
-  CORS FRONTEND_URL
+RenderBackend [label: "Render Backend"] {
+  ExpressAPI [label: "Express API"]
+  api_health [label: "/api/health"]
+  cors_frontend [label: "CORS FRONTEND_URL"]
   publicReadLimiter
-  strict sensitive limiters
-  controllers services
+  strict_sensitive_limiters [label: "strict sensitive limiters"]
+  controllers_services [label: "controllers services"]
 }
 
-Managed PostgreSQL [icon: postgresql] {
-  DATABASE_URL backend-only
+ManagedPostgreSQL [icon: postgresql, label: "Managed PostgreSQL"] {
+  env_database_url [label: "DATABASE_URL backend-only"]
   migrations
-  backups PITR
-  connection pool max 20 per process
+  backups_pitr [label: "backups PITR"]
+  conn_pool [label: "connection pool max 20 per process"]
 }
 
-Managed Redis Paid Tier [icon: redis] {
-  REDIS_URL backend-only
-  cache keys
-  rate-limit buckets
-  monitor quota latency errors
+ManagedRedis [icon: redis, label: "Managed Redis Paid Tier"] {
+  env_redis_url [label: "REDIS_URL backend-only"]
+  cache_keys [label: "cache keys"]
+  rate_limit_buckets [label: "rate-limit buckets"]
+  monitor_quota [label: "monitor quota latency errors"]
 }
 
-ImageKit CDN [icon: image] {
-  public image delivery
-  backend upload API keys
-  browser safe URL endpoint
+ImageKitCDN [label: "ImageKit CDN"] {
+  public_image_delivery [label: "public image delivery"]
+  backend_upload_keys [label: "backend upload API keys"]
+  browser_safe_url [label: "browser safe URL endpoint"]
 }
 
-Resend Email [icon: mail] {
-  optional RESEND_API_KEY backend-only
-  verification reset order emails
+ResendEmail [label: "Resend Email"] {
+  env_resend_key [label: "optional RESEND_API_KEY backend-only"]
+  email_types [label: "verification reset order emails"]
 }
 
-Sentry and Provider Logs [icon: activity] {
-  frontend Sentry optional
-  backend Sentry optional
-  Render logs
-  Vercel logs
+LogsAlerts [label: "Sentry and Provider Logs"] {
+  frontend_sentry [label: "frontend Sentry optional"]
+  backend_sentry [label: "backend Sentry optional"]
+  render_logs [label: "Render logs"]
+  vercel_logs [label: "Vercel logs"]
 }
 
-Local Load Test Environment [icon: laptop] {
-  k6 local
-  Docker Redis redis:7-alpine
-  local Postgres
-  no free Redis medium tests
+LocalTestEnv [label: "Local Load Test Environment"] {
+  k6_local [label: "k6 local"]
+  docker_redis [label: "Docker Redis redis:7-alpine"]
+  local_postgres [label: "local Postgres"]
+  no_free_redis_tests [label: "no free Redis medium tests"]
 }
 
-Post Deploy Validation [icon: check-circle] {
-  backend health check
-  API public smoke
-  website smoke
-  COD test order
-  admin order review
+PostDeployValidation [label: "Post Deploy Validation"] {
+  val_health [label: "backend health check"]
+  val_api_smoke [label: "API public smoke"]
+  val_web_smoke [label: "website smoke"]
+  val_cod_order [label: "COD test order"]
+  val_admin_review [label: "admin order review"]
 }
 
-Developer > GitHub Repo: push code
-GitHub Repo > CI Build Checks: validate
-GitHub Repo > Vercel Frontend: deploy frontend
-GitHub Repo > Render Backend: deploy backend
+Developer > GitHubRepo: push code
+GitHubRepo > CIBuildChecks: validate
+GitHubRepo > VercelFrontend: deploy frontend
+GitHubRepo > RenderBackend: deploy backend
 
-Custom Domain yourdomain.com > Vercel Frontend: browser HTTPS
-API Domain api.yourdomain.com > Render Backend: API HTTPS
-Vercel Frontend > Render Backend: SSR and browser API calls
-Render Backend > Managed PostgreSQL: SQL and migrations
-Render Backend > Managed Redis Paid Tier: cache and rate limits
-Render Backend > ImageKit CDN: admin image uploads
-Vercel Frontend > ImageKit CDN: public image loads
-Render Backend > Resend Email: optional email sends
-Vercel Frontend > Sentry and Provider Logs: optional frontend errors
-Render Backend > Sentry and Provider Logs: backend errors and request logs
+custom_domain > VercelFrontend: browser HTTPS
+api_domain > RenderBackend: API HTTPS
+VercelFrontend > RenderBackend: SSR and browser API calls
+RenderBackend > ManagedPostgreSQL: SQL and migrations
+RenderBackend > ManagedRedis: cache and rate limits
+RenderBackend > ImageKitCDN: admin image uploads
+VercelFrontend > ImageKitCDN: public image loads
+RenderBackend > ResendEmail: optional email sends
+VercelFrontend > LogsAlerts: optional frontend errors
+RenderBackend > LogsAlerts: backend errors and request logs
 
-k6 local > Docker Redis redis:7-alpine: local medium validation support
-k6 local > Render Backend: smoke or approved small tests only
-k6 local > Vercel Frontend: website smoke
-Post Deploy Validation > Render Backend: GET /api/health and public APIs
-Post Deploy Validation > Vercel Frontend: homepage store product cart checkout
-Post Deploy Validation > Admin UI: confirm COD order in admin
+k6_local > docker_redis: local medium validation support
+k6_local > RenderBackend: smoke or approved small tests only
+k6_local > VercelFrontend: website smoke
+PostDeployValidation > RenderBackend: GET /api/health and public APIs
+PostDeployValidation > VercelFrontend: homepage store product cart checkout
+PostDeployValidation > AdminUI: confirm COD order in admin
 
-Security Notes [icon: lock] {
-  INTERNAL_SSR_API_SECRET must not be NEXT_PUBLIC
-  DATABASE_URL and REDIS_URL backend-only
-  do not trust X-Forwarded-For blindly
-  do not IP-whitelist frontend server
-  keep auth checkout cart admin upload review limits strict
-  COD manual payment separate from future webhook
+SecurityNotes [label: "Security Notes"] {
+  sec_ssr_secret [label: "INTERNAL_SSR_API_SECRET must not be NEXT_PUBLIC"]
+  sec_db_url [label: "DATABASE_URL and REDIS_URL backend-only"]
+  sec_proxy [label: "do not trust X-Forwarded-For blindly"]
+  sec_whitelist [label: "do not IP-whitelist frontend server"]
+  sec_limits [label: "keep auth checkout cart admin upload review limits strict"]
+  sec_cod [label: "COD manual payment separate from future webhook"]
 }
 
-Security Notes > Vercel Frontend: only browser-safe NEXT_PUBLIC values
-Security Notes > Render Backend: private secrets in provider env store
-Security Notes > Managed Redis Paid Tier: paid/higher-capacity for staging production
+SecurityNotes > VercelFrontend: only browser-safe NEXT_PUBLIC values
+SecurityNotes > RenderBackend: private secrets in provider env store
+SecurityNotes > ManagedRedis: paid/higher-capacity for staging production
 ```
 
 Notes:
