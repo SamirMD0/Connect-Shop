@@ -29,6 +29,7 @@ import {
   maskEmail,
   requestSecurityContext,
 } from '../services/securityEvent.service';
+import { logger } from '../utils/logger';
 import {
   getLoginIdentifierHash,
   isLoginCooldownActive,
@@ -69,14 +70,52 @@ function getSessionCookieOptions(): CookieOptions {
   };
 }
 
+function getOAuthStateCookieSecurityOptions(): Pick<CookieOptions, 'secure' | 'sameSite'> {
+  const callbackUrl = new URL(env.GOOGLE_CALLBACK_URL);
+  const isHttpsCallback = callbackUrl.protocol === 'https:';
+
+  return isHttpsCallback
+    ? { secure: true, sameSite: 'none' }
+    : getCrossSiteCookieSecurityOptions(env.NODE_ENV);
+}
+
 function getOAuthStateCookieOptions(): CookieOptions {
   return {
     httpOnly: true,
-    ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
+    ...getOAuthStateCookieSecurityOptions(),
     maxAge: OAUTH_STATE_MAX_AGE,
     path: '/',
     signed: true,
   };
+}
+
+function clearOAuthStateCookie(res: Response): void {
+  res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
+    httpOnly: true,
+    ...getOAuthStateCookieSecurityOptions(),
+    path: '/',
+  });
+}
+
+function rejectOAuthState(req: Request, res: Response, reason: string): never {
+  clearOAuthStateCookie(res);
+
+  logger.warn({
+    reason,
+    hasStateParam: typeof req.query.state === 'string',
+    hasRawStateCookie: Boolean(req.cookies?.[OAUTH_STATE_COOKIE_NAME]),
+    hasSignedStateCookie: typeof req.signedCookies?.[OAUTH_STATE_COOKIE_NAME] === 'string',
+    signedStateCookieRejected: req.signedCookies?.[OAUTH_STATE_COOKIE_NAME] === false,
+  }, 'Invalid OAuth state');
+
+  void logSecurityEvent({
+    ...requestSecurityContext(req),
+    eventType: 'auth.oauth_state_invalid',
+    severity: 'warning',
+    metadata: { reason },
+  });
+
+  throw new AppError('Invalid OAuth state', 400);
 }
 
 function isAdminMfaUser(req: Request): boolean {
@@ -167,29 +206,27 @@ export async function googleCallback(
       throw new AppError('Missing authorization code', 400);
     }
 
-    if (!state || typeof state !== 'string' || !expectedState || state !== expectedState) {
-      res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
-        httpOnly: true,
-        ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
-        path: '/',
-      });
-      throw new AppError('Invalid OAuth state', 400);
+    if (!state || typeof state !== 'string') {
+      rejectOAuthState(req, res, 'missing_state_param');
+    }
+
+    if (expectedState === false) {
+      rejectOAuthState(req, res, 'invalid_state_cookie_signature');
+    }
+
+    if (!expectedState || typeof expectedState !== 'string') {
+      rejectOAuthState(req, res, 'missing_state_cookie');
+    }
+
+    if (state !== expectedState) {
+      rejectOAuthState(req, res, 'state_cookie_mismatch');
     }
 
     if (!(await consumeOAuthState(state))) {
-      res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
-        httpOnly: true,
-        ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
-        path: '/',
-      });
-      throw new AppError('Invalid OAuth state', 400);
+      rejectOAuthState(req, res, 'state_not_found_expired_or_consumed');
     }
 
-    res.clearCookie(OAUTH_STATE_COOKIE_NAME, {
-      httpOnly: true,
-      ...getCrossSiteCookieSecurityOptions(env.NODE_ENV),
-      path: '/',
-    });
+    clearOAuthStateCookie(res);
 
     // Exchange authorization code for tokens
     const { tokens } = await oauthClient.getToken(code);
