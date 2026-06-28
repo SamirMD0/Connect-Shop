@@ -84,7 +84,18 @@ export default function AdminInventory() {
           No low stock items found.
         </div>
       ) : (
-        <DataTable data={alerts} columns={columns} keyExtractor={(item) => `${item.item_type}-${item.id}`} loading={loading} emptyMessage="No inventory alerts found" />
+        <DataTable data={alerts} columns={columns} keyExtractor={(item) => `${item.item_type}-${item.id}`} loading={loading} emptyMessage="No inventory alerts found" renderMobileCard={(item) => (
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold text-[#0B1B48] truncate">{item.name}</p>
+              <p className="text-xs text-slate-500 uppercase">{item.item_type}</p>
+              <p className="font-mono text-xs text-slate-500 mt-0.5">{item.sku || '-'}</p>
+            </div>
+            <span className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-semibold ${item.stock === 0 ? 'bg-danger/10 text-danger' : 'bg-warning/15 text-warning'}`}>
+              {item.stock}
+            </span>
+          </div>
+        )} />
       )}
     </div>
   );

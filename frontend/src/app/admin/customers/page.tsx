@@ -200,7 +200,19 @@ export default function AdminCustomers() {
           <p className="mt-1 text-sm text-slate-500">Review customer profiles, roles, addresses, and recent orders.</p>
         </div>
       </div>
-      <DataTable data={users} columns={columns} keyExtractor={(u) => u.id} emptyMessage="No customers found" />
+      <DataTable data={users} columns={columns} keyExtractor={(u) => u.id} emptyMessage="No customers found" renderMobileCard={(u) => (
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-medium text-[#0B1B48] truncate">{u.name || u.email}</p>
+            <p className="text-xs text-slate-500 truncate">{u.email}</p>
+            <span className="mt-1 inline-block rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium capitalize text-slate-600">{u.role}</span>
+          </div>
+          <button onClick={() => void openDetail(u)} className="inline-flex items-center gap-2 shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-accent/10 hover:text-accent">
+            <Eye className="h-4 w-4" />
+            View
+          </button>
+        </div>
+      )} />
 
       <Modal isOpen={Boolean(pendingRoleChange)} onClose={closeFreshMfaModal} title="Verify MFA to continue">
         <form onSubmit={submitFreshMfa} className="space-y-5">
@@ -231,7 +243,7 @@ export default function AdminCustomers() {
                 setMfaCode(event.target.value.replace(/\D/g, '').slice(0, 6));
                 setMfaError('');
               }}
-              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-3 font-mono text-[#0B1B48] outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
+              className="w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 sm:py-3 font-mono text-[#0B1B48] outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
               placeholder="000000"
             />
             <p className="mt-2 text-xs text-slate-500">

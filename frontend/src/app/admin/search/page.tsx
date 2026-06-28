@@ -68,7 +68,7 @@ export default function AdminSearch() {
         />
         <button
           type="submit"
-          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2 text-slate-400 transition-colors hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
+          className="absolute right-3 top-1/2 -translate-y-1/2 rounded-lg p-2.5 text-slate-400 transition-colors hover:text-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
           disabled={loading}
           aria-label="Search admin records"
         >

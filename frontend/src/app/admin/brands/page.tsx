@@ -33,7 +33,7 @@ export default function AdminBrands() {
   const [formError, setFormError] = useState('');
   const [uploadingLogo, setUploadingLogo] = useState(false);
 
-  const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15';
+  const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 sm:py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15';
 
   async function fetchBrands() {
     try {
@@ -196,10 +196,10 @@ export default function AdminBrands() {
                 <div className="flex items-center justify-between border-t border-slate-200 pt-3">
                   <span className="text-xs text-slate-500">{brand.product_count ?? 0} products</span>
                   <div className="flex gap-1">
-                    <button onClick={() => openBrandModal(brand)} className="rounded-lg p-2 text-slate-400 hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${brand.name}`}>
+                    <button onClick={() => openBrandModal(brand)} className="rounded-lg p-2.5 text-slate-400 hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${brand.name}`}>
                       <Edit2 className="h-4 w-4" />
                     </button>
-                    <button onClick={() => void deleteBrand(brand)} className="rounded-lg p-2 text-slate-400 hover:bg-red-400/10 hover:text-red-400" aria-label={`Delete ${brand.name}`}>
+                    <button onClick={() => void deleteBrand(brand)} className="rounded-lg p-2.5 text-slate-400 hover:bg-red-400/10 hover:text-red-400" aria-label={`Delete ${brand.name}`}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -303,17 +303,17 @@ export default function AdminBrands() {
             />
             Active
           </label>
-          <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-4">
+          <div className="mt-8 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-200 pt-4">
             <button
               type="button"
               onClick={() => setIsBrandModalOpen(false)}
-              className="rounded-lg px-4 py-2.5 text-slate-600 transition-colors hover:text-[#0B1B48]"
+              className="w-full sm:w-auto rounded-lg px-4 py-2.5 text-slate-600 transition-colors hover:text-[#0B1B48]"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="rounded-xl bg-accent px-6 py-2.5 font-medium text-white shadow-lg shadow-accent/25 transition-all hover:bg-accent-glow"
+              className="w-full sm:w-auto rounded-xl bg-accent px-6 py-2.5 font-medium text-white shadow-lg shadow-accent/25 transition-all hover:bg-accent-glow"
             >
               Save Brand
             </button>

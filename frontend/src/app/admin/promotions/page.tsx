@@ -378,7 +378,7 @@ export default function AdminPromotions() {
     }
   }
 
-  const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
+  const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 sm:py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
   const renderPromotionImage = (promotion: Promotion, size: 'table' | 'grid' = 'table') => {
     const frameClasses = size === 'grid'
       ? 'relative aspect-[16/9] overflow-hidden rounded-lg border border-slate-200 bg-white'
@@ -482,14 +482,14 @@ export default function AdminPromotions() {
     <div className="flex gap-1">
       <button
         onClick={() => openModal(promotion)}
-        className="rounded-lg p-2 text-slate-400 hover:bg-accent/10 hover:text-accent"
+        className="rounded-lg p-2.5 text-slate-400 hover:bg-accent/10 hover:text-accent"
         aria-label={`Edit ${promotion.title}`}
       >
         <Edit2 className="h-4 w-4" />
       </button>
       <button
         onClick={() => void deletePromotion(promotion.id)}
-        className="rounded-lg p-2 text-slate-400 hover:bg-red-400/10 hover:text-red-400"
+        className="rounded-lg p-2.5 text-slate-400 hover:bg-red-400/10 hover:text-red-400"
         aria-label={`Delete ${promotion.title}`}
       >
         <Trash2 className="h-4 w-4" />
@@ -579,7 +579,7 @@ export default function AdminPromotions() {
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/80">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[#0B1B48]">Top promo</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-[#0B1B48]">Top promo</h2>
             <p className="text-sm text-slate-500">The two promo cards beside the homepage carousel.</p>
           </div>
           <button
@@ -614,10 +614,10 @@ export default function AdminPromotions() {
                   <div className="flex items-center justify-between border-t border-slate-200 pt-3">
                     <span className="text-xs text-slate-500">Order {promo.sort_order}</span>
                     <div className="flex gap-1">
-                      <button onClick={() => openTopPromoModal(promo)} className="rounded-lg p-2 text-slate-400 hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${promo.title || 'top promo'}`}>
+                      <button onClick={() => openTopPromoModal(promo)} className="rounded-lg p-2.5 text-slate-400 hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${promo.title || 'top promo'}`}>
                         <Edit2 className="h-4 w-4" />
                       </button>
-                      <button onClick={() => void deleteTopPromo(promo.id)} className="rounded-lg p-2 text-slate-400 hover:bg-red-400/10 hover:text-red-400" aria-label={`Delete ${promo.title || 'top promo'}`}>
+                      <button onClick={() => void deleteTopPromo(promo.id)} className="rounded-lg p-2.5 text-slate-400 hover:bg-red-400/10 hover:text-red-400" aria-label={`Delete ${promo.title || 'top promo'}`}>
                         <Trash2 className="h-4 w-4" />
                       </button>
                     </div>
@@ -636,7 +636,7 @@ export default function AdminPromotions() {
       <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-200/80">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-[#0B1B48]">Countdown promo</h2>
+            <h2 className="text-base sm:text-lg font-semibold text-[#0B1B48]">Countdown promo</h2>
             <p className="text-sm text-slate-500">The countdown promotion section below best sellers.</p>
           </div>
           <button
@@ -683,12 +683,35 @@ export default function AdminPromotions() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-semibold text-[#0B1B48]">Middle promo</h2>
+          <h2 className="text-base sm:text-lg font-semibold text-[#0B1B48]">Middle promo</h2>
           <p className="text-sm text-slate-500">The two image banners below the New Arrivals section.</p>
         </div>
 
       {viewMode === 'table' ? (
-        <DataTable data={promotions} columns={columns} keyExtractor={(promotion) => promotion.id} emptyMessage="No promotions found" />
+        <DataTable data={promotions} columns={columns} keyExtractor={(promotion) => promotion.id} emptyMessage="No promotions found" renderMobileCard={(promotion) => (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="relative h-10 w-16 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                {promotion.image_url && <Image src={promotion.image_url} alt={promotion.title} fill className="object-cover" />}
+              </div>
+              <div className="min-w-0">
+                <p className="font-medium text-[#0B1B48] truncate">{promotion.title}</p>
+                <p className="text-xs text-slate-500">Order {promotion.display_order}</p>
+                <span className={`mt-1 inline-block rounded-lg px-2 py-0.5 text-xs font-semibold ${promotion.is_active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                  {promotion.is_active ? 'Active' : 'Inactive'}
+                </span>
+              </div>
+            </div>
+            <div className="flex gap-1 shrink-0">
+              <button onClick={() => openModal(promotion)} className="rounded-lg p-2.5 text-slate-400 hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${promotion.title}`}>
+                <Edit2 className="h-4 w-4" />
+              </button>
+              <button onClick={() => void deletePromotion(promotion.id)} className="rounded-lg p-2.5 text-slate-400 hover:bg-red-400/10 hover:text-red-400" aria-label={`Delete ${promotion.title}`}>
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )} />
       ) : promotions.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {promotions.map((promotion) => (

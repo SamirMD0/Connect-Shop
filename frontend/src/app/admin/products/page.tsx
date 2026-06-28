@@ -447,7 +447,7 @@ export default function AdminProducts() {
     });
   };
 
-  const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
+  const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 sm:py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
 
   const renderProductImage = (product: Product, size: 'table' | 'grid' = 'table') => {
     const frameClasses = size === 'grid'
@@ -482,14 +482,14 @@ export default function AdminProducts() {
     <div className="flex gap-1">
       <button
         onClick={() => void handleOpenModal(product)}
-        className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+        className="p-2.5 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
         aria-label={`Edit ${product.name}`}
       >
         <Edit2 className="w-4 h-4" />
       </button>
       <button
         onClick={() => void handleDelete(product.id)}
-        className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+        className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
         aria-label={`Delete ${product.name}`}
       >
         <Trash2 className="w-4 h-4" />
@@ -607,7 +607,25 @@ export default function AdminProducts() {
       </div>
 
       {viewMode === 'table' ? (
-        <DataTable data={products} columns={columns} keyExtractor={(p) => p.id} emptyMessage="No products found" />
+        <DataTable data={products} columns={columns} keyExtractor={(p) => p.id} emptyMessage="No products found" renderMobileCard={(p) => (
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              {renderProductImage(p)}
+              <div className="min-w-0">
+                <p className="font-medium text-[#0B1B48] truncate">{p.name}</p>
+                <p className="text-xs text-accent">${p.price}</p>
+                <div className="flex flex-wrap gap-1.5 mt-1">
+                  <span className="text-xs text-slate-500">{p.category_name || 'No category'}</span>
+                  {p.brand && <span className="text-xs text-slate-500">· {p.brand}</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <span className={`inline-flex px-2 py-0.5 rounded-lg text-xs font-medium ${getStockBadgeClass(p.stock)}`}>{p.stock}</span>
+              {renderProductActions(p)}
+            </div>
+          </div>
+        )} />
       ) : products.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {products.map((product) => (
@@ -662,7 +680,7 @@ export default function AdminProducts() {
             disabled={page === 1}
             className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-blue-50 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
-            <ChevronLeft className="w-4 h-4" /> Previous
+            <ChevronLeft className="w-4 h-4" /> <span className="hidden sm:inline">Previous</span>
           </button>
           <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
           <button
@@ -670,7 +688,7 @@ export default function AdminProducts() {
             disabled={page === totalPages}
             className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-blue-50 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
-            Next <ChevronRight className="w-4 h-4" />
+            <span className="hidden sm:inline">Next</span> <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       )}
@@ -780,7 +798,7 @@ export default function AdminProducts() {
               {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
                 <label className="block text-sm font-medium text-[#0B1B48]">Specifications</label>
@@ -877,7 +895,7 @@ export default function AdminProducts() {
               onChange={e => setFormData({...formData, description: e.target.value})} 
             />
           </div>
-          <details className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <details className="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
             <summary className="cursor-pointer text-sm font-medium text-[#0B1B48]">Advanced product details</summary>
             <div className="mt-4 space-y-5">
               <div>
@@ -932,7 +950,7 @@ export default function AdminProducts() {
                   </button>
                 </div>
                 {formData.variants.map((variant, index) => (
-                  <div key={index} className="space-y-3 rounded-lg border border-slate-200 bg-white p-4">
+                  <div key={index} className="space-y-3 rounded-lg border border-slate-200 bg-white p-3 sm:p-4">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <input
                         type="text"
@@ -1024,18 +1042,18 @@ export default function AdminProducts() {
             />
             <label htmlFor="featured" className="text-sm font-medium text-[#0B1B48]">Featured Product</label>
           </div>
-          <div className="mt-8 flex justify-end gap-3 border-t border-slate-200 pt-4">
+          <div className="mt-8 flex flex-col-reverse sm:flex-row justify-end gap-3 border-t border-slate-200 pt-4">
             <button 
               type="button" 
               onClick={() => setIsModalOpen(false)} 
-              className="rounded-lg px-4 py-2.5 text-slate-600 transition-colors hover:text-[#0B1B48]"
+              className="w-full sm:w-auto rounded-lg px-4 py-2.5 text-slate-600 transition-colors hover:text-[#0B1B48]"
             >
               Cancel
             </button>
             <button 
               type="submit" 
               disabled={submitting}
-              className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all disabled:opacity-60"
+              className="w-full sm:w-auto bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all disabled:opacity-60"
             >
               {submitting ? 'Saving...' : 'Save'}
             </button>

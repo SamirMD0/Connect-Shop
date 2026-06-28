@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { AdminSidebar } from '../../components/admin/AdminSidebar';
 import { useAuth } from '../../hooks/useAuth';
 import { api, ApiError } from '../../lib/api';
@@ -28,6 +28,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const secretInputRef = useRef<HTMLInputElement | null>(null);
   const canAccessAdmin = hasAdminAccess(user?.role);
 
+  const pathname = usePathname();
+
   useEffect(() => {
     if (!loading) {
       if (!user || !hasAdminAccess(user.role)) {
@@ -39,9 +41,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // Close sidebar on route change for mobile
   useEffect(() => {
     setIsSidebarOpen(false);
-  }, []); // We actually just want to close it, maybe not on every render.
-  
-  // A better way is to pass onClose to AdminSidebar and have the sidebar close it on nav.
+  }, [pathname]);
 
   useEffect(() => {
     let cancelled = false;
@@ -155,6 +155,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     }
   }
 
+  const getPageTitle = () => {
+    if (!pathname || pathname === '/admin') return 'Overview';
+    const path = pathname.split('/').pop();
+    return path ? path.charAt(0).toUpperCase() + path.slice(1).replace(/-/g, ' ') : 'AdminPanel';
+  };
+
   if (needsMfa) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
@@ -186,7 +192,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                           alt="Authenticator setup QR code"
                           width={192}
                           height={192}
-                          className="h-48 w-48"
+                          className="h-40 w-40 sm:h-48 sm:w-48"
                         />
                       </div>
                     </div>
@@ -200,21 +206,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                       readOnly
                       value={mfaSetup.secret}
                       onFocus={(event) => event.currentTarget.select()}
-                      className="block w-full rounded border border-slate-200 bg-white px-3 py-2 font-mono text-sm text-[#0B1B48] outline-none"
+                      className="block w-full rounded border border-slate-200 bg-white px-3 py-2.5 sm:py-3 font-mono text-sm text-[#0B1B48] outline-none"
                     />
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <button
                       type="button"
                       onClick={() => void copyMfaSetup(mfaSetup.secret, 'Secret')}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition-colors hover:border-accent hover:text-accent"
+                      className="w-full sm:w-auto min-h-[44px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition-colors hover:border-accent hover:text-accent"
                     >
                       Copy secret
                     </button>
                     <button
                       type="button"
                       onClick={() => void copyMfaSetup(mfaSetup.otpauthUrl, 'Setup URI')}
-                      className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition-colors hover:border-accent hover:text-accent"
+                      className="w-full sm:w-auto min-h-[44px] rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 transition-colors hover:border-accent hover:text-accent"
                     >
                       Copy setup URI
                     </button>
@@ -225,8 +231,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                   {mfaCopyMessage && <p className="text-xs text-accent">{mfaCopyMessage}</p>}
                 </div>
               ) : (
-                <Button type="button" variant="outline" onClick={startMfaSetup} loading={mfaLoading} className="w-full">
-                  <KeyRound className="w-4 h-4" />
+                <Button type="button" variant="outline" onClick={startMfaSetup} loading={mfaLoading} className="w-full min-h-[44px]">
+                  <KeyRound className="w-4 h-4 mr-2" />
                   Generate MFA secret
                 </Button>
               )}
@@ -252,7 +258,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
           {mfaError && <p className="mt-3 text-sm text-danger">{mfaError}</p>}
 
-          <Button type="submit" variant="primary" loading={mfaLoading} className="w-full mt-5" disabled={mfaCode.length !== 6}>
+          <Button type="submit" variant="primary" loading={mfaLoading} className="w-full mt-5 min-h-[44px]" disabled={mfaCode.length !== 6}>
             Verify
           </Button>
         </form>
@@ -264,34 +270,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex min-h-screen bg-slate-50">
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
-        <div 
-          className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden" 
+        <div
+          className="fixed inset-0 z-40 bg-slate-950/35 md:hidden"
           onClick={() => setIsSidebarOpen(false)}
         />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <AdminSidebar onClose={() => setIsSidebarOpen(false)} />
+      <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <AdminSidebar onClose={() => setIsSidebarOpen(false)} isOpen={isSidebarOpen} />
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 md:ml-64 flex flex-col min-h-screen w-full">
         {/* Mobile Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white p-4 lg:hidden">
-          <span className="text-lg font-bold tracking-tight text-[#0B1B48]">
-            Admin<span className="text-accent">Panel</span>
-          </span>
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-sm p-3 sm:p-4 shadow-sm md:hidden">
+          <div className="flex flex-col">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+              Admin
+            </span>
+            <span className="text-lg font-bold tracking-tight text-[#0B1B48]">
+              {getPageTitle()}
+            </span>
+          </div>
           <button 
             onClick={() => setIsSidebarOpen(true)}
-            className="rounded-lg bg-slate-100 p-2 text-slate-600 hover:text-[#0B1B48]"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:text-[#0B1B48] transition-colors"
+            aria-label="Open sidebar"
+            aria-expanded={isSidebarOpen}
+            aria-controls="admin-sidebar"
           >
             <Menu className="w-6 h-6" />
           </button>
         </header>
 
         <main className="flex-1 overflow-y-auto">
-          <div className="mx-auto w-full max-w-7xl p-4 lg:p-8">
+          <div className="mx-auto w-full max-w-7xl p-3 sm:p-4 md:p-8">
             {children}
           </div>
         </main>

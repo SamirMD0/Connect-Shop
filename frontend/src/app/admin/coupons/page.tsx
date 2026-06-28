@@ -110,7 +110,7 @@ export default function AdminCoupons() {
     }
   }
 
-  const inputClasses = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
+  const inputClasses = 'w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 sm:py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
   const columns = [
     { header: 'Code', cell: (coupon: Coupon) => (
       <div>
@@ -127,10 +127,10 @@ export default function AdminCoupons() {
     ) },
     { header: 'Actions', cell: (coupon: Coupon) => (
       <div className="flex gap-1">
-        <button onClick={() => openModal(coupon)} className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${coupon.code}`}>
+        <button onClick={() => openModal(coupon)} className="rounded-lg p-2.5 text-slate-500 transition-colors hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${coupon.code}`}>
           <Edit2 className="h-4 w-4" />
         </button>
-        <button onClick={() => setCouponToDelete(coupon)} className="rounded-lg p-2 text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger" aria-label={`Delete ${coupon.code}`}>
+        <button onClick={() => setCouponToDelete(coupon)} className="rounded-lg p-2.5 text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger" aria-label={`Delete ${coupon.code}`}>
           <Trash2 className="h-4 w-4" />
         </button>
       </div>
@@ -150,7 +150,32 @@ export default function AdminCoupons() {
         </button>
       </div>
 
-      <DataTable data={coupons} columns={columns} keyExtractor={(coupon) => coupon.id} emptyMessage="No coupons found" />
+      <DataTable data={coupons} columns={columns} keyExtractor={(coupon) => coupon.id} emptyMessage="No coupons found" renderMobileCard={(coupon) => (
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <p className="font-mono font-semibold text-[#0B1B48]">{coupon.code}</p>
+              <span className={`rounded-lg px-2 py-0.5 text-xs font-semibold ${coupon.is_active ? 'bg-success/10 text-success' : 'bg-slate-100 text-slate-500'}`}>
+                {coupon.is_active ? 'Active' : 'Inactive'}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 truncate">{coupon.description || 'No description'}</p>
+            <div className="flex gap-2 mt-1 text-xs text-slate-600">
+              <span>{coupon.type === 'percent' ? `${coupon.value}%` : `$${coupon.value}`}</span>
+              <span>·</span>
+              <span>{coupon.used_count}{coupon.usage_limit ? ` / ${coupon.usage_limit}` : ''} used</span>
+            </div>
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <button onClick={() => openModal(coupon)} className="rounded-lg p-2.5 text-slate-500 transition-colors hover:bg-accent/10 hover:text-accent" aria-label={`Edit ${coupon.code}`}>
+              <Edit2 className="h-4 w-4" />
+            </button>
+            <button onClick={() => setCouponToDelete(coupon)} className="rounded-lg p-2.5 text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger" aria-label={`Delete ${coupon.code}`}>
+              <Trash2 className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )} />
 
       <Modal isOpen={open} onClose={() => setOpen(false)} title={editing ? 'Edit Coupon' : 'Add Coupon'}>
         <form onSubmit={saveCoupon} className="space-y-4">

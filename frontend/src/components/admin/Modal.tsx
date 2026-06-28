@@ -39,13 +39,13 @@ export function Modal({ isOpen, onClose, title, children, size = 'default' }: Mo
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4">
       <div 
         className="fixed inset-0 bg-slate-950/35 backdrop-blur-sm transition-opacity" 
         onClick={onClose} 
       />
       <div
-        className={`relative z-10 flex max-h-[90vh] w-full animate-scale-in flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-300/60 sm:my-8 ${size === 'wide' ? 'max-w-5xl' : 'max-w-lg'}`}
+        className={`relative z-10 flex max-h-[85vh] sm:max-h-[90vh] w-full animate-scale-in flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl shadow-slate-300/60 sm:my-8 m-2 sm:m-0 ${size === 'wide' ? 'max-w-5xl' : 'max-w-lg'}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -54,13 +54,13 @@ export function Modal({ isOpen, onClose, title, children, size = 'default' }: Mo
           <h3 id={titleId} className="text-lg font-semibold text-[#0B1B48]">{title}</h3>
           <button 
             onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-all hover:bg-slate-100 hover:text-[#0B1B48] focus:outline-none focus:ring-2 focus:ring-accent/20"
+            className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-lg text-slate-500 transition-all hover:bg-slate-100 hover:text-[#0B1B48] focus:outline-none focus:ring-2 focus:ring-accent/20"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto">
+        <div className="p-4 sm:p-6 overflow-y-auto">
           {children}
         </div>
       </div>

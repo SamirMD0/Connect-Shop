@@ -1,6 +1,6 @@
 'use client';
 
-import type { ComponentType } from 'react';
+import { type ComponentType, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { LayoutDashboard, Package, Grid, Users, ShoppingCart, LogOut, Image as ImageIcon, Zap, X, AlertTriangle, BadgePercent, Megaphone, Search, MessageSquare, Tags, Home, Shield } from 'lucide-react';
@@ -26,15 +26,57 @@ const navItems = [
 
 interface AdminSidebarProps {
   onClose?: () => void;
+  isOpen?: boolean;
 }
 
-export function AdminSidebar({ onClose }: AdminSidebarProps) {
+export function AdminSidebar({ onClose, isOpen }: AdminSidebarProps) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const visibleNavItems = navItems.filter(item => hasAdminPermission(user?.role, item.permission));
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const aside = document.getElementById('admin-sidebar');
+    if (!aside) return;
+
+    const focusableSelectors = 'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])';
+    const focusableElements = aside.querySelectorAll<HTMLElement>(focusableSelectors);
+    const firstFocusable = focusableElements[0];
+    const lastFocusable = focusableElements[focusableElements.length - 1];
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== 'Tab') return;
+      if (e.shiftKey && document.activeElement === firstFocusable) {
+        e.preventDefault();
+        lastFocusable?.focus();
+      } else if (!e.shiftKey && document.activeElement === lastFocusable) {
+        e.preventDefault();
+        firstFocusable?.focus();
+      }
+    };
+
+    document.addEventListener('keydown', handleTab);
+    firstFocusable?.focus();
+
+    return () => {
+      document.removeEventListener('keydown', handleTab);
+    };
+  }, [isOpen]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape' && isOpen && onClose) {
+      onClose();
+    }
+  };
 
   return (
-    <aside className="fixed flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm">
+    <aside
+      className="fixed flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm"
+      onKeyDown={handleKeyDown}
+      id="admin-sidebar"
+    >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-slate-200 px-6">
         <Link href="/" className="flex items-center gap-2.5 group">
@@ -46,7 +88,13 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
           </span>
         </Link>
         {onClose && (
-          <button onClick={onClose} className="text-slate-500 hover:text-[#0B1B48] lg:hidden" title="Close sidebar" aria-label="Close sidebar">
+          <button
+            ref={closeButtonRef}
+            onClick={onClose}
+            className="md:hidden flex items-center justify-center p-2.5 min-h-[44px] min-w-[44px] rounded-lg text-slate-500 hover:bg-slate-100 hover:text-[#0B1B48] transition-colors"
+            title="Close sidebar"
+            aria-label="Close sidebar"
+          >
             <X className="w-5 h-5" />
           </button>
         )}
@@ -63,7 +111,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
               key={item.name}
               href={item.href}
               onClick={onClose}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl min-h-[44px] text-sm font-medium transition-all duration-200 ${
                 isActive 
                   ? 'bg-accent text-white shadow-sm shadow-blue-200' 
                   : 'text-slate-600 hover:bg-blue-50 hover:text-accent'
@@ -80,7 +128,7 @@ export function AdminSidebar({ onClose }: AdminSidebarProps) {
       <div className="border-t border-slate-200 p-4">
         <button
           onClick={() => logout()}
-          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
+          className="flex w-full items-center gap-3 rounded-xl px-4 py-3 min-h-[44px] text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
         >
           <LogOut className="w-5 h-5" />
           Sign out

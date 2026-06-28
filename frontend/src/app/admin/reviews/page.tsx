@@ -184,7 +184,41 @@ export default function AdminReviewsPage() {
         </select>
       </div>
 
-      <DataTable data={reviews} columns={columns} keyExtractor={review => review.id} emptyMessage="No reviews found" />
+      <DataTable data={reviews} columns={columns} keyExtractor={review => review.id} emptyMessage="No reviews found" renderMobileCard={(review) => (
+        <div className="space-y-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold text-[#0B1B48]">{review.title || 'Untitled review'}</p>
+              {review.body && <p className="text-xs text-slate-500 line-clamp-2 mt-0.5">{review.body}</p>}
+              <div className="flex items-center gap-2 mt-1 text-xs text-slate-500">
+                <span>{review.user_name}</span>
+                <span>·</span>
+                <span>{review.rating}/5</span>
+                <span>·</span>
+                <span>{new Date(review.created_at).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <select
+                value={review.status}
+                disabled={updatingId === review.id}
+                onChange={event => void updateReviewStatus(review.id, event.target.value as Exclude<ReviewStatus, 'all'>)}
+                className={`rounded-full border border-transparent px-2 py-0.5 text-xs font-semibold outline-none ${statusClasses[review.status] || 'bg-slate-100 text-slate-600'}`}
+              >
+                <option value="pending">Pending</option>
+                <option value="published">Published</option>
+                <option value="hidden">Hidden</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <button onClick={() => setReviewToDelete(review)} disabled={updatingId === review.id} className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50">
+                <Trash2 className="h-3.5 w-3.5" />
+                Delete
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-slate-500">{review.product_name}</p>
+        </div>
+      )} />
 
       {totalPages > 1 && (
         <div className="mt-6 flex items-center justify-between border-t border-slate-200 pt-4">
@@ -194,7 +228,7 @@ export default function AdminReviewsPage() {
             className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-[#0B1B48] disabled:pointer-events-none disabled:opacity-50"
           >
             <ChevronLeft className="h-4 w-4" />
-            Previous
+            <span className="hidden sm:inline">Previous</span>
           </button>
           <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
           <button
@@ -202,7 +236,7 @@ export default function AdminReviewsPage() {
             disabled={page === totalPages}
             className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-[#0B1B48] disabled:pointer-events-none disabled:opacity-50"
           >
-            Next
+            <span className="hidden sm:inline">Next</span>
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

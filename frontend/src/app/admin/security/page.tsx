@@ -255,10 +255,10 @@ export default function AdminSecurityPage() {
   }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0B1B48]">Security &amp; Monitoring</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0B1B48]">Security &amp; Monitoring</h1>
           <p className="mt-2 text-sm text-slate-500">System health, alerts, and security events.</p>
         </div>
         <button
@@ -276,7 +276,7 @@ export default function AdminSecurityPage() {
 
       <section className="space-y-4">
         <div>
-          <h2 className="text-lg font-bold text-[#0B1B48]">System Health</h2>
+          <h2 className="text-base sm:text-lg font-bold text-[#0B1B48]">System Health</h2>
           <p className="mt-1 text-sm text-slate-500">Current API, database, and cache status.</p>
         </div>
 
@@ -284,7 +284,7 @@ export default function AdminSecurityPage() {
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{healthError}</div>
         )}
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-2 xl:grid-cols-5">
           <HealthCard
             title="API"
             status={health?.api.status || (healthLoading ? undefined : 'down')}
@@ -319,7 +319,7 @@ export default function AdminSecurityPage() {
       <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-200/80">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-[#0B1B48]">Active Alerts</h2>
+            <h2 className="text-base sm:text-lg font-bold text-[#0B1B48]">Active Alerts</h2>
             <p className="mt-1 text-sm text-slate-500">Aggregated from recent sanitized security events.</p>
           </div>
           <label className="flex flex-col gap-1 text-sm font-medium text-slate-600">
@@ -383,7 +383,7 @@ export default function AdminSecurityPage() {
       <section className="space-y-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="text-lg font-bold text-[#0B1B48]">Recent Security Events</h2>
+            <h2 className="text-base sm:text-lg font-bold text-[#0B1B48]">Recent Security Events</h2>
             <p className="mt-1 text-sm text-slate-500">Sanitized event summaries for review and correlation.</p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 lg:w-auto">
@@ -444,6 +444,29 @@ export default function AdminSecurityPage() {
           keyExtractor={(event) => event.id}
           loading={eventsLoading}
           emptyMessage="No security events found"
+          renderMobileCard={(event) => (
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-slate-500">{formatDate(event.createdAt)}</span>
+                <SeverityBadge severity={event.severity} />
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="font-mono text-xs font-semibold text-[#0B1B48]">{event.eventType}</span>
+                <span className="text-xs text-slate-500">
+                  <span className="font-semibold">{event.method || '-'}</span> {event.route || '-'}
+                </span>
+              </div>
+              {event.metadataSummary && Object.entries(event.metadataSummary).length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {Object.entries(event.metadataSummary).map(([key, value]) => (
+                    <span key={key} className="rounded-lg border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs text-slate-600">
+                      <span className="font-semibold text-slate-700">{key}:</span> {formatMetadataValue(value)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         />
 
         <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600 shadow-sm shadow-slate-200/80 sm:flex-row sm:items-center sm:justify-between">
@@ -456,14 +479,14 @@ export default function AdminSecurityPage() {
               disabled={eventsPagination.page <= 1 || eventsLoading}
               className="rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-600 transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Previous
+              <span className="hidden sm:inline">Previous</span>
             </button>
             <button
               onClick={() => setEventsPage((current) => Math.min(eventsPagination.totalPages, current + 1))}
               disabled={eventsPagination.page >= eventsPagination.totalPages || eventsLoading}
               className="rounded-lg border border-slate-200 px-3 py-2 font-semibold text-slate-600 transition-colors hover:border-accent hover:text-accent disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Next
+              <span className="hidden sm:inline">Next</span>
             </button>
           </div>
         </div>

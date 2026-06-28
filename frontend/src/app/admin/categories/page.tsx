@@ -138,7 +138,7 @@ export default function AdminCategories() {
     }
   };
 
-  const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
+  const inputClasses = "w-full rounded-lg border border-slate-200 bg-white px-4 py-2.5 sm:py-3 text-[#0B1B48] placeholder-slate-400 outline-none transition-all focus:border-accent focus:ring-2 focus:ring-accent/15";
 
   const columns = [
     { header: 'Image', cell: (c: Category) => (
@@ -171,7 +171,7 @@ export default function AdminCategories() {
           onClick={() => handleOpenModal(c)} 
           title="Edit category"
           aria-label="Edit category"
-          className="p-2 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
+          className="p-2.5 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all"
         >
           <Edit2 className="w-4 h-4" />
         </button>
@@ -179,7 +179,7 @@ export default function AdminCategories() {
           onClick={() => handleDelete(c.id)} 
           title="Delete category"
           aria-label="Delete category"
-          className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+          className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -202,7 +202,36 @@ export default function AdminCategories() {
         </button>
       </div>
 
-      <DataTable data={categories} columns={columns} keyExtractor={(c) => c.id} loading={loading} />
+      <DataTable data={categories} columns={columns} keyExtractor={(c) => c.id} loading={loading} renderMobileCard={(c) => (
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
+              {c.image_url ? (
+                <SafeImage src={c.image_url} alt={c.name} width={24} height={24} className="object-contain" fallback={<Grid className="w-5 h-5 text-slate-500" />} />
+              ) : (
+                <Grid className="w-5 h-5 text-slate-500" />
+              )}
+            </div>
+            <div className="min-w-0">
+              <p className="font-medium text-[#0B1B48] truncate">{c.name}</p>
+              <p className="text-xs text-slate-500">/{c.slug}</p>
+              <div className="flex gap-2 mt-1">
+                <span className="text-xs text-slate-500">Depth: {c.depth}</span>
+                <span className="text-xs text-slate-500">·</span>
+                <span className="text-xs font-medium text-slate-600">{c.product_count || 0} products</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-1 shrink-0">
+            <button onClick={() => handleOpenModal(c)} title="Edit category" aria-label="Edit category" className="p-2.5 text-slate-400 hover:text-accent hover:bg-accent/10 rounded-lg transition-all">
+              <Edit2 className="w-4 h-4" />
+            </button>
+            <button onClick={() => handleDelete(c.id)} title="Delete category" aria-label="Delete category" className="p-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-all">
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )} />
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingCategory ? 'Edit Category' : 'Add Category'}>
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -297,18 +326,18 @@ export default function AdminCategories() {
                 .map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
-          <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-slate-200">
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-8 pt-4 border-t border-slate-200">
             <button 
               type="button" 
               onClick={() => setIsModalOpen(false)} 
-              className="px-4 py-2.5 text-slate-600 hover:text-[#0B1B48] transition-colors rounded-xl"
+              className="w-full sm:w-auto px-4 py-2.5 text-slate-600 hover:text-[#0B1B48] transition-colors rounded-xl"
             >
               Cancel
             </button>
             <button 
               type="submit" 
               disabled={submitting}
-              className="bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all disabled:opacity-60"
+              className="w-full sm:w-auto bg-accent text-white px-6 py-2.5 rounded-xl font-medium hover:bg-accent-glow shadow-lg shadow-accent/25 transition-all disabled:opacity-60"
             >
               {submitting ? 'Saving...' : 'Save'}
             </button>

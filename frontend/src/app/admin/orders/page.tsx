@@ -211,7 +211,7 @@ export default function AdminOrders() {
       cell: (order: AdminOrder) => (
         <button
           onClick={() => void openOrderDetail(order.id)}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent"
+          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent"
         >
           <Eye className="h-4 w-4" />
           View
@@ -272,6 +272,40 @@ export default function AdminOrders() {
         keyExtractor={(order) => order.id}
         loading={loading}
         emptyMessage="No orders found."
+        renderMobileCard={(order) => (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="font-mono text-xs font-semibold text-[#0B1B48]">#{order.id.slice(0, 8).toUpperCase()}</p>
+                <p className="text-xs text-slate-500">{formatDate(order.created_at)}</p>
+                <p className="font-medium text-[#0B1B48] mt-1 truncate">{order.customer_name || order.shipping_address?.fullName || 'Guest customer'}</p>
+              </div>
+              <div className="text-right shrink-0">
+                <p className="font-semibold">{formatMoney(order.total)}</p>
+                <p className="text-xs text-slate-500">{order.item_count || 0} items</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-xs font-semibold text-slate-700">
+                  {formatPaymentMethod(order.payment_method)}
+                </span>
+                <select
+                  className={`rounded-full border px-2 py-0.5 text-xs font-semibold outline-none ${statusClasses[order.status as OrderStatus] || 'border-slate-200 bg-slate-50 text-slate-700'}`}
+                  value={order.status}
+                  onChange={(event) => void updateOrderStatus(order.id, event.target.value as OrderStatus)}
+                  disabled={updatingId === order.id}
+                >
+                  {orderStatuses.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
+                </select>
+              </div>
+              <button onClick={() => void openOrderDetail(order.id)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent">
+                <Eye className="h-3.5 w-3.5" />
+                View
+              </button>
+            </div>
+          </div>
+        )}
       />
 
       {totalPages > 1 && (
@@ -282,7 +316,7 @@ export default function AdminOrders() {
             className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
             <ChevronLeft className="h-4 w-4" />
-            Previous
+            <span className="hidden sm:inline">Previous</span>
           </button>
           <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
           <button
@@ -290,7 +324,7 @@ export default function AdminOrders() {
             disabled={page === totalPages}
             className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-accent hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
-            Next
+            <span className="hidden sm:inline">Next</span>
             <ChevronRight className="h-4 w-4" />
           </button>
         </div>

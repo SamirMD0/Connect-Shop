@@ -184,7 +184,7 @@ export default function CarouselManagementPage() {
     }
   };
 
-  const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
+  const inputClasses = 'w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 sm:py-3 text-[#0B1B48] outline-none transition-colors placeholder:text-slate-400 focus:border-accent focus:ring-2 focus:ring-accent/15';
   const filteredProducts = products
     .filter(product => {
       const term = productSearch.trim().toLowerCase();
@@ -206,10 +206,10 @@ export default function CarouselManagementPage() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6 sm:space-y-8">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-primary tracking-tight">Carousel Management</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-primary tracking-tight">Carousel Management</h1>
           <p className="text-muted mt-2">Manage the homepage hero carousel slides.</p>
         </div>
         <Button variant="primary" onClick={() => handleOpenModal()}>
@@ -224,13 +224,13 @@ export default function CarouselManagementPage() {
           ))}
         </div>
       ) : slides.length === 0 ? (
-        <div className="rounded-lg border border-slate-200 bg-white p-12 text-center shadow-sm shadow-slate-200/80">
+        <div className="rounded-lg border border-slate-200 bg-white p-8 sm:p-12 text-center shadow-sm shadow-slate-200/80">
           <p className="text-muted">No slides found.</p>
         </div>
       ) : (
         <div className="space-y-4">
           {slides.map((slide) => (
-            <div key={slide.id} className="flex flex-col items-start gap-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80 sm:flex-row sm:items-center">
+            <div key={slide.id} className="flex flex-col items-start gap-4 sm:gap-6 rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80 sm:flex-row sm:items-center">
               <div className="relative h-24 w-full shrink-0 overflow-hidden rounded-lg border border-slate-200/60 bg-white sm:w-48">
                 {slide.image_url && (
                   <Image src={slide.image_url} alt={slide.title} fill className="object-cover" />
@@ -308,7 +308,7 @@ export default function CarouselManagementPage() {
             )}
           </div>
 
-          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4">
             <label className="mb-3 block text-sm font-medium text-[#0B1B48]">Slide click target</label>
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {([
@@ -416,9 +416,9 @@ export default function CarouselManagementPage() {
                 <span className="text-sm font-medium text-muted">Is Active</span>
               </label>
           </div>
-          <div className="flex justify-end gap-3 mt-6">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-muted transition-colors hover:text-[#0B1B48]">Cancel</button>
-            <button type="submit" className="bg-accent text-white px-4 py-2 rounded-lg hover:bg-accent-glow transition-colors">Save Slide</button>
+          <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 mt-6">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="w-full sm:w-auto px-4 py-2.5 text-muted transition-colors hover:text-[#0B1B48]">Cancel</button>
+            <button type="submit" className="w-full sm:w-auto bg-accent text-white px-4 py-2.5 rounded-lg hover:bg-accent-glow transition-colors">Save Slide</button>
           </div>
         </form>
       </Modal>

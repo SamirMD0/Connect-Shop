@@ -15,6 +15,7 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   loading?: boolean;
   loadingRows?: number;
+  renderMobileCard?: (item: T) => React.ReactNode;
 }
 
 export function DataTable<T>({
@@ -24,6 +25,7 @@ export function DataTable<T>({
   emptyMessage = 'No data available',
   loading = false,
   loadingRows = 5,
+  renderMobileCard,
 }: DataTableProps<T>) {
   if (loading) {
     const rows = Array.from({ length: loadingRows });
@@ -76,7 +78,16 @@ export function DataTable<T>({
 
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-200/80">
-      <div className="overflow-x-auto">
+      {renderMobileCard && (
+        <div className="divide-y divide-slate-200 md:hidden">
+          {data.map((item) => (
+            <div key={keyExtractor(item)} className="p-4">
+              {renderMobileCard(item)}
+            </div>
+          ))}
+        </div>
+      )}
+      <div className={`overflow-x-auto ${renderMobileCard ? 'hidden md:block' : ''}`}>
       <table className="w-full whitespace-nowrap text-left text-sm">
         <thead className="border-b border-slate-200 bg-slate-50 text-slate-500">
           <tr>

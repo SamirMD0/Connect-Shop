@@ -14,6 +14,15 @@ export default function AdminOverview() {
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 640);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
   useEffect(() => {
     async function fetchAnalytics() {
       try {
@@ -33,14 +42,14 @@ export default function AdminOverview() {
 
   if (loading) {
     return (
-      <div className="space-y-8">
+      <div className="space-y-6 sm:space-y-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-[#0B1B48]">Dashboard Overview</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0B1B48]">Dashboard Overview</h1>
           <p className="mt-2 text-slate-500">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
         </div>
 
         <PhantomSkeleton loading={loading} className="block">
-          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
             <AdminStatCard
               title="Total Revenue"
               value="$0"
@@ -76,7 +85,7 @@ export default function AdminOverview() {
 
   if (!data) {
     return (
-      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-12 text-center shadow-sm shadow-slate-200/80">
+      <div className="mt-8 rounded-lg border border-slate-200 bg-white p-8 sm:p-12 text-center shadow-sm shadow-slate-200/80">
         <p className="text-slate-500">Failed to load analytics data. Please try again later.</p>
       </div>
     );
@@ -89,15 +98,15 @@ export default function AdminOverview() {
   }));
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight text-[#0B1B48]">Dashboard Overview</h1>
+      <div className="space-y-6 sm:space-y-8">
+        {/* Header */}
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-[#0B1B48]">Dashboard Overview</h1>
         <p className="mt-2 text-slate-500">Welcome back! Here&apos;s what&apos;s happening with your store.</p>
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
         <AdminStatCard 
           title="Total Revenue" 
           value={`$${parseFloat(data.totalRevenue).toLocaleString()}`}
@@ -127,10 +136,10 @@ export default function AdminOverview() {
 
       {/* Monthly Revenue Chart */}
       <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
-        <h3 className="mb-6 text-lg font-semibold text-[#0B1B48]">Monthly Revenue</h3>
-        <div className="h-80">
+        <h3 className="mb-6 text-base sm:text-lg font-semibold text-[#0B1B48]">Monthly Revenue</h3>
+        <div className="h-64 sm:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <BarChart data={chartData} margin={isMobile ? { top: 5, right: 10, left: 10, bottom: 5 } : { top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
               <XAxis 
                 dataKey="name" 
@@ -139,13 +148,17 @@ export default function AdminOverview() {
                 axisLine={false} 
                 tickLine={false} 
               />
-              <YAxis 
-                stroke="#64748b" 
-                tick={{ fill: '#64748b', fontSize: 12 }} 
-                axisLine={false} 
-                tickLine={false} 
-                tickFormatter={(val) => `$${val}`} 
-              />
+              {isMobile ? (
+                <YAxis hide />
+              ) : (
+                <YAxis
+                  stroke="#64748b"
+                  tick={{ fill: '#64748b', fontSize: 12 }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(val) => `$${val}`}
+                />
+              )}
               <Tooltip 
                 cursor={{ fill: '#eff6ff' }} 
                 contentStyle={{ 
@@ -158,7 +171,7 @@ export default function AdminOverview() {
                 labelStyle={{ color: '#64748b' }}
                 formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']}
               />
-              <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={50} />
+              <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={isMobile ? 30 : 50} />
             </BarChart>
           </ResponsiveContainer>
         </div>
@@ -169,7 +182,7 @@ export default function AdminOverview() {
         {/* Recent Categories */}
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold text-[#0B1B48]">Recent Categories</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-[#0B1B48]">Recent Categories</h3>
             <Link href="/admin/categories" className="text-sm text-accent hover:text-accent-glow transition-colors">
               View All
             </Link>
@@ -179,7 +192,7 @@ export default function AdminOverview() {
           ) : (
             <div className="space-y-3">
               {data.recentCategories.map(cat => (
-                <div key={cat.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-slate-300">
+                <div key={cat.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4 transition-colors hover:border-slate-300">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
                       {cat.image_url ? (
@@ -205,7 +218,7 @@ export default function AdminOverview() {
         {/* Recent Products */}
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
           <div className="flex justify-between items-center mb-6">
-            <h3 className="text-lg font-semibold text-[#0B1B48]">Recent Products</h3>
+            <h3 className="text-base sm:text-lg font-semibold text-[#0B1B48]">Recent Products</h3>
             <Link href="/admin/products" className="text-sm text-accent hover:text-accent-glow transition-colors">
               View All
             </Link>
@@ -215,7 +228,7 @@ export default function AdminOverview() {
           ) : (
             <div className="space-y-3">
               {data.recentProducts.map(prod => (
-                <div key={prod.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4 transition-colors hover:border-slate-300">
+                <div key={prod.id} className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-3 sm:p-4 transition-colors hover:border-slate-300">
                   <div className="flex items-center gap-3">
                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-white ring-1 ring-slate-200">
                       {prod.image_url ? (
