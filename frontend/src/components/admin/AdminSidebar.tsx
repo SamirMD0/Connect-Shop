@@ -73,9 +73,8 @@ export function AdminSidebar({ onClose, isOpen }: AdminSidebarProps) {
 
   return (
     <aside
-      className="fixed flex h-screen w-64 flex-col border-r border-slate-200 bg-white shadow-sm"
+      className="flex h-full w-64 flex-col border-r border-slate-200 bg-white shadow-sm"
       onKeyDown={handleKeyDown}
-      id="admin-sidebar"
     >
       {/* Logo */}
       <div className="flex h-16 items-center justify-between border-b border-slate-200 px-6">
@@ -90,8 +89,9 @@ export function AdminSidebar({ onClose, isOpen }: AdminSidebarProps) {
         {onClose && (
           <button
             ref={closeButtonRef}
+            type="button"
             onClick={onClose}
-            className="md:hidden flex items-center justify-center p-2.5 min-h-[44px] min-w-[44px] rounded-lg text-slate-500 hover:bg-slate-100 hover:text-[#0B1B48] transition-colors"
+            className="lg:hidden flex items-center justify-center p-2.5 min-h-[44px] min-w-[44px] rounded-lg text-slate-500 hover:bg-slate-100 hover:text-[#0B1B48] transition-colors"
             title="Close sidebar"
             aria-label="Close sidebar"
           >

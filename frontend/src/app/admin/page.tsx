@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { DollarSign, ShoppingCart, Users, Package, Grid } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { api } from '../../lib/api';
 import { AnalyticsSummary } from '../../lib/types';
 import { AdminStatCard } from '../../components/admin/AdminStatCard';
@@ -15,6 +15,8 @@ export default function AdminOverview() {
   const [loading, setLoading] = useState(true);
 
   const [isMobile, setIsMobile] = useState(false);
+  const chartContainerRef = useRef<HTMLDivElement | null>(null);
+  const [chartSize, setChartSize] = useState<{ width: number; height: number } | null>(null);
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 640);
@@ -39,6 +41,28 @@ export default function AdminOverview() {
 
     fetchAnalytics();
   }, []);
+
+  useEffect(() => {
+    if (loading || !data) return;
+
+    const element = chartContainerRef.current;
+    if (!element) return;
+
+    const updateChartSize = () => {
+      const rect = element.getBoundingClientRect();
+      setChartSize({
+        width: Math.max(0, Math.floor(rect.width)),
+        height: Math.max(0, Math.floor(rect.height)),
+      });
+    };
+
+    updateChartSize();
+
+    const observer = new ResizeObserver(updateChartSize);
+    observer.observe(element);
+
+    return () => observer.disconnect();
+  }, [data, loading]);
 
   if (loading) {
     return (
@@ -135,18 +159,18 @@ export default function AdminOverview() {
       </div>
 
       {/* Monthly Revenue Chart */}
-      <div className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
+      <div className="min-w-0 rounded-lg border border-slate-200 bg-white p-6 shadow-sm shadow-slate-200/80">
         <h3 className="mb-6 text-base sm:text-lg font-semibold text-[#0B1B48]">Monthly Revenue</h3>
-        <div className="h-64 sm:h-80">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={chartData} margin={isMobile ? { top: 5, right: 10, left: 10, bottom: 5 } : { top: 5, right: 30, left: 20, bottom: 5 }}>
+        <div ref={chartContainerRef} className="h-64 min-w-0 sm:h-80">
+          {chartSize ? (
+            <BarChart width={chartSize.width} height={chartSize.height} data={chartData} margin={isMobile ? { top: 5, right: 10, left: 10, bottom: 5 } : { top: 5, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
-              <XAxis 
-                dataKey="name" 
-                stroke="#64748b" 
-                tick={{ fill: '#64748b', fontSize: 12 }} 
-                axisLine={false} 
-                tickLine={false} 
+              <XAxis
+                dataKey="name"
+                stroke="#64748b"
+                tick={{ fill: '#64748b', fontSize: 12 }}
+                axisLine={false}
+                tickLine={false}
               />
               {isMobile ? (
                 <YAxis hide />
@@ -159,11 +183,11 @@ export default function AdminOverview() {
                   tickFormatter={(val) => `$${val}`}
                 />
               )}
-              <Tooltip 
-                cursor={{ fill: '#eff6ff' }} 
-                contentStyle={{ 
-                  backgroundColor: '#ffffff', 
-                  borderColor: '#e2e8f0', 
+              <Tooltip
+                cursor={{ fill: '#eff6ff' }}
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  borderColor: '#e2e8f0',
                   borderRadius: '8px',
                   boxShadow: '0 10px 25px rgba(15,23,42,0.12)'
                 }}
@@ -173,7 +197,9 @@ export default function AdminOverview() {
               />
               <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={isMobile ? 30 : 50} />
             </BarChart>
-          </ResponsiveContainer>
+          ) : (
+            <div className="h-full w-full" aria-hidden="true" />
+          )}
         </div>
       </div>
 

@@ -29,6 +29,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const canAccessAdmin = hasAdminAccess(user?.role);
 
   const pathname = usePathname();
+  const openSidebar = () => setIsSidebarOpen(true);
+  const closeSidebar = () => setIsSidebarOpen(false);
 
   useEffect(() => {
     if (!loading) {
@@ -40,7 +42,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   // Close sidebar on route change for mobile
   useEffect(() => {
-    setIsSidebarOpen(false);
+    closeSidebar();
   }, [pathname]);
 
   useEffect(() => {
@@ -271,20 +273,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Mobile Sidebar Overlay */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 z-40 bg-slate-950/35 md:hidden"
-          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-40 bg-slate-950/35 lg:hidden"
+          onClick={closeSidebar}
         />
       )}
 
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 transform transition-transform duration-300 md:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <AdminSidebar onClose={() => setIsSidebarOpen(false)} isOpen={isSidebarOpen} />
+      <div
+        id="admin-sidebar"
+        className={`fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 lg:translate-x-0 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
+      >
+        <AdminSidebar onClose={closeSidebar} isOpen={isSidebarOpen} />
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 md:ml-64 flex flex-col min-h-screen w-full">
+      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen w-full">
         {/* Mobile Header */}
-        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-sm p-3 sm:p-4 shadow-sm md:hidden">
+        <header className="sticky top-0 z-30 flex items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur-sm p-3 sm:p-4 shadow-sm lg:hidden">
           <div className="flex flex-col">
             <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
               Admin
@@ -293,11 +298,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               {getPageTitle()}
             </span>
           </div>
-          <button 
-            onClick={() => setIsSidebarOpen(true)}
+          <button
+            onClick={openSidebar}
             className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg bg-slate-100 text-slate-600 hover:text-[#0B1B48] transition-colors"
             aria-label="Open sidebar"
-            aria-expanded={isSidebarOpen}
+            aria-expanded={isSidebarOpen ? 'true' : 'false'}
             aria-controls="admin-sidebar"
           >
             <Menu className="w-6 h-6" />
