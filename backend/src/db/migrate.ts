@@ -23,7 +23,11 @@ async function listMigrationFiles(): Promise<MigrationFile[]> {
     }));
 }
 
-async function ensureMigrationsTable(client: PoolClient): Promise<void> {
+/**
+ * Create the migration ledger if absent. Safe to call repeatedly, and required
+ * before reading or writing any ledger row (including the base-schema sentinel).
+ */
+export async function ensureMigrationsTable(client: PoolClient): Promise<void> {
   await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id VARCHAR(255) PRIMARY KEY,
