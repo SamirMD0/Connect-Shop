@@ -14,6 +14,7 @@ ENV NODE_ENV=development
 COPY --from=deps /app/node_modules ./node_modules
 COPY package*.json ./
 COPY tsconfig.json ./
+COPY scripts ./scripts
 COPY src ./src
 RUN npm run build
 
@@ -29,10 +30,10 @@ RUN apt-get update \
 COPY package*.json ./
 RUN npm ci --omit=dev && npm cache clean --force
 
+# dist/db already contains schema.sql, seed.sql and migrations/, copied by the build.
 COPY --from=builder /app/dist ./dist
-COPY src/db ./src/db
 
 USER node
 EXPOSE 5000
 
-CMD ["sh", "-c", "npm run db:schema && node dist/db/migrate.js && node dist/server.js"]
+CMD ["sh", "-c", "node dist/db/deploy.js && node dist/server.js"]

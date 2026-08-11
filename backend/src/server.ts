@@ -5,27 +5,20 @@ import { env } from './config/env';
 import { connectDB, pool } from './config/db';
 import { logger } from './utils/logger';
 import { startMaintenanceScheduler } from './services/maintenance.service';
+import { resolveDbAssetPath } from './db/paths';
 import fs from 'fs';
-import path from 'path';
 
 /**
  * Initialize the database schema by running schema.sql and seed.sql.
  * Idempotent — all statements use IF NOT EXISTS / ON CONFLICT.
+ *
+ * Local/development convenience only. Production uses `npm run migrate:prod`,
+ * which runs the schema and migrations in order before the server starts.
  */
 async function initializeDatabase(): Promise<void> {
   try {
-    const schemaPath = path.join(__dirname, '..', 'src', 'db', 'schema.sql');
-    const seedPath = path.join(__dirname, '..', 'src', 'db', 'seed.sql');
-
-    // In dev mode with tsx, __dirname is the src folder directly
-    const schemaPathAlt = path.join(__dirname, 'db', 'schema.sql');
-    const seedPathAlt = path.join(__dirname, 'db', 'seed.sql');
-
-    const schemaFile = fs.existsSync(schemaPath) ? schemaPath : schemaPathAlt;
-    const seedFile = fs.existsSync(seedPath) ? seedPath : seedPathAlt;
-
-    const schemaSql = fs.readFileSync(schemaFile, 'utf-8');
-    const seedSql = fs.readFileSync(seedFile, 'utf-8');
+    const schemaSql = fs.readFileSync(resolveDbAssetPath('schema.sql'), 'utf-8');
+    const seedSql = fs.readFileSync(resolveDbAssetPath('seed.sql'), 'utf-8');
 
     logger.info('📦 Running database schema initialization...');
     await pool.query(schemaSql);

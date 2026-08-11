@@ -47,6 +47,19 @@ const envSchema = z.object({
     .refine((url) => url.startsWith('postgresql://') || url.startsWith('postgres://'), {
       message: 'DATABASE_URL must be a valid PostgreSQL connection string',
     }),
+  // Optional direct (non-pooled) connection string. Used only by the deploy/migration
+  // runner, which needs session-scoped advisory locks and unbounded DDL statements.
+  // Falls back to DATABASE_URL when unset.
+  DIRECT_DATABASE_URL: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z
+      .string()
+      .url()
+      .refine((url) => url.startsWith('postgresql://') || url.startsWith('postgres://'), {
+        message: 'DIRECT_DATABASE_URL must be a valid PostgreSQL connection string',
+      })
+      .optional()
+  ),
   DB_STATEMENT_TIMEOUT_MS: z
     .string()
     .default('10000')

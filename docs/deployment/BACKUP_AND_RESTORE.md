@@ -13,6 +13,22 @@ sudo apt-get update
 sudo apt-get install -y postgresql-client gzip
 ```
 
+**The client major version must be greater than or equal to the server's.** `pg_dump` refuses to dump
+a server newer than itself. Production runs PostgreSQL 18 on Neon, so `pg_dump` must be 18 or newer.
+Debian bookworm's default `postgresql-client` package is **15**, which is not sufficient — add the
+PGDG repository to get 18:
+
+```bash
+sudo apt-get install -y postgresql-common
+sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+sudo apt-get install -y postgresql-client-18
+pg_dump --version   # must report 18.x or newer
+```
+
+The same applies to the `postgresql-client` installed in `backend/Dockerfile`, which comes from
+bookworm and is therefore version 15. The container's start command does not use it — schema setup
+runs through `node dist/db/deploy.js` — but do not run `pg_dump` from that image against Neon.
+
 The backup script requires:
 
 - `pg_dump`

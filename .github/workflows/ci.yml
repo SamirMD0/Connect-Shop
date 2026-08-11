@@ -19,7 +19,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:15
+        image: postgres:18
         env:
           POSTGRES_USER: testuser
           POSTGRES_PASSWORD: testpassword
@@ -84,10 +84,10 @@ jobs:
             echo "::notice::No backend lint script found; skipping backend lint."
           fi
 
+      # Same schema deployment path Render uses, so CI exercises the real thing.
+      # Fails the job on a non-zero exit, unlike `psql -f` without ON_ERROR_STOP.
       - name: Prepare test database
-        run: |
-          npm run db:schema
-          npm run db:migrate
+        run: npm run db:deploy
 
       - name: Run backend tests
         run: npm test

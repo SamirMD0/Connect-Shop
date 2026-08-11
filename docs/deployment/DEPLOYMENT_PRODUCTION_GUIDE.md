@@ -31,10 +31,23 @@ Recommended settings:
 | --- | --- |
 | Root directory | repository root |
 | Runtime | Node |
-| Build command | `cd backend && npm install && npm run build` |
-| Start command | `cd backend && npm start` |
+| Build command | `cd backend && npm ci --include=dev && npm run build` |
+| Start command | `cd backend && npm run migrate:prod && node dist/db/bootstrapSuperAdmin.js && npm start` |
 | Health check path | `/api/health` |
 | Instance type | Start with a paid instance for real demo/production testing |
+
+If the service's **Root directory** is set to `backend` instead of the repository root, drop the
+`cd backend && ` prefix from both commands.
+
+Command notes:
+
+- `--include=dev` is required. `NODE_ENV=production` is set on the service and also applies during
+  the build, so a plain `npm ci` would omit `typescript` and `tsc` would not be found.
+- The start command runs in order: schema + migrations, then the idempotent super-admin bootstrap,
+  then the server. `&&` means a non-zero exit from either database step stops the deployment instead
+  of starting the server against an invalid schema.
+- Both database steps are idempotent and safe to run on every deployment. Anything placed after
+  `npm start` would never execute, because the server does not exit.
 
 Render should inject `PORT`; the backend reads it from `process.env.PORT`.
 
@@ -43,7 +56,8 @@ Required backend environment variables:
 ```env
 NODE_ENV=production
 PORT=<render-provided-port-or-placeholder>
-DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DBNAME?sslmode=verify-full
+DIRECT_DATABASE_URL=postgresql://USER:PASSWORD@DIRECT_HOST:PORT/DBNAME?sslmode=verify-full
 DB_STATEMENT_TIMEOUT_MS=10000
 REDIS_URL=rediss://default:PASSWORD@HOST:PORT
 SESSION_SECRET=<long-random-secret-at-least-32-chars>
@@ -77,11 +91,20 @@ PUBLIC_READ_SSR_LIMIT=
 RESEND_API_KEY=
 LOG_PRETTY=false
 INITIALIZE_DATABASE=false
+ADMIN_BOOTSTRAP_EMAIL=
+ADMIN_BOOTSTRAP_NAME=
+ADMIN_BOOTSTRAP_PASSWORD=
 ```
 
 Notes:
 
 - Keep public-read limits blank unless a staging result justifies changing them.
+- Set `ADMIN_BOOTSTRAP_EMAIL`, `ADMIN_BOOTSTRAP_NAME` and `ADMIN_BOOTSTRAP_PASSWORD` only for the
+  first deployment against a new, empty database. Once the administrator exists, **delete all three
+  together** — leaving the email behind keeps a stale account reference in the service config for no
+  benefit. Every combination of the three is safe: the bootstrap step logs a warning and exits 0
+  rather than failing a deployment, and never creates a duplicate or resets an existing password.
+- Leave `INITIALIZE_DATABASE` unset or `false` in production; `npm run migrate:prod` owns schema setup.
 - Do not use Upstash free/low-quota Redis for production load testing.
 - Do not expose `SESSION_SECRET`, `IMAGEKIT_PRIVATE_KEY`, `GOOGLE_CLIENT_SECRET`, `REDIS_URL`, `DATABASE_URL`, or `INTERNAL_SSR_API_SECRET`.
 - `/api/health` is intentionally mounted before general user traffic rate limits for deployment and load balancer health checks.
@@ -145,24 +168,90 @@ Security rules:
 Steps:
 
 1. Create a managed PostgreSQL database.
-2. Copy its external connection string into Render as `DATABASE_URL`.
-3. Confirm the provider has backups enabled.
-4. Enable point-in-time recovery if available for the chosen plan.
-5. Check max connections and reserve capacity for migrations/admin tools.
-6. Keep the backend pool size in mind: the current backend pool uses max `20` connections per backend process.
-7. Run migrations after the backend build succeeds.
+2. Copy its connection string into Render as `DATABASE_URL`, with `?sslmode=verify-full`.
+3. If the provider offers a separate direct (non-pooled) endpoint, set `DIRECT_DATABASE_URL` to it.
+4. Confirm the provider has backups enabled.
+5. Enable point-in-time recovery if available for the chosen plan.
+6. Check max connections and reserve capacity for migrations/admin tools.
+7. Keep the backend pool size in mind: the current backend pool uses max `20` connections per backend process.
 
-Migration command:
+Schema setup runs automatically from the Render start command via `npm run migrate:prod`, which:
+
+1. connects using `DIRECT_DATABASE_URL` (falling back to `DATABASE_URL`), with query deadlines
+   disabled so schema and index DDL is not cut short,
+2. takes a PostgreSQL advisory lock so overlapping deployments serialise,
+3. applies the idempotent base schema `dist/db/schema.sql`,
+4. applies any migrations in `dist/db/migrations/` not yet recorded in `schema_migrations`,
+5. exits `0` on success and non-zero on failure, which stops the deployment.
+
+`npm run build` compiles with `tsc` and then runs `scripts/copy-db-assets.mjs`, which copies
+`schema.sql`, `seed.sql` and `migrations/*.sql` into `dist/db`. The deployed artifact is therefore
+self-contained and never reads from `src/` at runtime.
+
+To run the same steps locally against a database of your choice:
 
 ```bash
-cd backend && npm run db:migrate
+cd backend && npm run db:deploy      # from TypeScript source
+cd backend && npm run migrate:prod   # from the compiled dist output
 ```
+
+`npm run db:migrate` still runs the migration ledger on its own, without the schema step. It is what
+CI uses after `npm run db:schema`.
+
+### Neon PostgreSQL
+
+Neon requires TLS and exposes two endpoints per database.
+
+1. Create the project on **PostgreSQL 18**, Neon's default for new projects. The schema uses only
+   `uuid-ossp`, `pg_trgm` and standard DDL, so it is compatible with every version Neon offers
+   (14–18); 18 is supported until November 2030, whereas 15 reaches end of life in November 2027.
+   Neon has no in-place major-version upgrade — changing later means a new project and a dump/restore
+   — so pick the long-lived version now. CI runs the same major version (`postgres:18`).
+2. In the Neon console, open **Connection Details** and copy the connection string twice: once with
+   **Connection pooling** enabled (host contains `-pooler.`) and once with it disabled.
+3. Set `DATABASE_URL` to the **pooled** string and `DIRECT_DATABASE_URL` to the **direct** string.
+4. Set `?sslmode=verify-full` on both, and keep `channel_binding=require` if Neon includes it.
+5. Do not add an `ssl` object or `rejectUnauthorized: false` anywhere. Neon's certificate chains to a
+   public CA, so the driver verifies it against Node's bundled trust store with no extra configuration.
+
+`sslmode=require` also verifies the certificate with the current driver, but `pg-connection-string`
+logs a deprecation notice for it: in `pg` v9 it will adopt libpq semantics, which encrypt without
+verifying. `verify-full` keeps full verification before and after that change, and silences the notice.
+
+**Channel binding.** `pg@8.20.0` does implement SCRAM-SHA-256-PLUS (`tls-server-end-point`), but it
+is opt-in through the `enableChannelBinding` client option — `pg-connection-string@2.12.0` parses
+`channel_binding` out of the URL and then nothing reads it, so the URL parameter alone has no effect.
+`buildPoolConfig` in [backend/src/config/db.ts](../../backend/src/config/db.ts) therefore sets
+`enableChannelBinding` whenever the connection string requests TLS, and the driver negotiates
+SCRAM-SHA-256-PLUS wherever the server offers it. Leaving `channel_binding=require` in the URL is
+still worthwhile: it costs nothing here and is honoured by libpq-based tools such as `psql`.
+
+**Query timeouts on a pooled endpoint.** Neon's pooled endpoint (PgBouncer in transaction mode)
+accepts only `client_encoding`, `datestyle`, `timezone`, `standard_conforming_strings` and
+`application_name` as startup parameters, and `pg` puts `statement_timeout` in the startup packet.
+`DB_STATEMENT_TIMEOUT_MS` is therefore enforced in three scoped places instead of one global one:
+
+| Mechanism | Where | Scope |
+| --- | --- | --- |
+| `query_timeout` pool option | every query, pooled or direct | client-side deadline; never sent in the startup packet |
+| `SET LOCAL statement_timeout` | inside `withTransaction` | true server-side cancellation, reverts at COMMIT/ROLLBACK, safe under transaction pooling |
+| `statement_timeout` connection parameter | non-pooled endpoints only | true server-side cancellation for the whole session |
+
+No role-level or database-level default is set. A `ALTER ROLE … SET statement_timeout` would apply to
+every session using that role — `psql`, `pg_dump`, the Neon SQL editor, future services — to solve an
+application-level concern, and it would survive a rollback of the application code. If you later
+decide you want that hard server-side floor on the pooled endpoint, apply it deliberately once from
+the Neon SQL editor rather than from a deploy step, and remember `pg_dump` will inherit it.
+
+Neon computes can scale to zero. Startup connects with a bounded retry (5 attempts, exponential
+backoff, roughly 15 seconds total) so a cold start does not cause a boot loop; after that the process
+still exits non-zero rather than hiding a real connection failure.
 
 Validation:
 
-- Render backend starts without PostgreSQL connection errors.
+- Render logs show `Applying base schema (idempotent)` then `Database deployment complete`.
+- Render logs then show the super-admin bootstrap line, then `PostgreSQL connected`.
 - `GET https://api.yourdomain.com/api/health` returns 200.
-- Backend logs show successful PostgreSQL connection.
 
 ## 5. Redis Deployment
 

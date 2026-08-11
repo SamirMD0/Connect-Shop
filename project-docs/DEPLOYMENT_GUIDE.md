@@ -41,8 +41,9 @@ Set these in the Render backend service:
 |---|---|---|
 | `NODE_ENV` | `production` | Enables secure cookies. |
 | `PORT` | `5000` | Render usually injects `PORT`; keep app compatible. |
-| `DATABASE_URL` | `postgresql://...` | Copy from Render PostgreSQL internal connection string. |
-| `DB_STATEMENT_TIMEOUT_MS` | `10000` | Optional query timeout. |
+| `DATABASE_URL` | `postgresql://...?sslmode=verify-full` | Managed PostgreSQL connection string used by the running app. On Neon use the pooled endpoint. |
+| `DIRECT_DATABASE_URL` | `postgresql://...?sslmode=verify-full` | Optional direct (non-pooled) endpoint used only by `npm run migrate:prod`. Falls back to `DATABASE_URL`. |
+| `DB_STATEMENT_TIMEOUT_MS` | `10000` | Optional query timeout. Set to `0` to disable. |
 | `SESSION_SECRET` | `generate-a-long-random-secret` | Must be at least 32 characters; use a strong random value. |
 | `FRONTEND_URL` | `https://www.your-domain.com` | Exact frontend origin allowed by CORS and auth redirects. |
 | `GOOGLE_CLIENT_ID` | `your-google-client-id` | Required by current backend env validation. |
@@ -91,19 +92,34 @@ Production notes:
 - Keep `NODE_ENV=production` so cookies use the secure flag.
 - Do not weaken CORS or CSRF to solve deployment issues. Fix origins and HTTPS configuration instead.
 
-## 4. Render PostgreSQL
+## 4. Managed PostgreSQL
 
-Create a Render PostgreSQL database and copy its `DATABASE_URL` into the backend service.
+Create a managed PostgreSQL database (Neon, Render PostgreSQL, or another provider) and copy its
+connection string into the backend service as `DATABASE_URL`, with `?sslmode=verify-full`. If the
+provider exposes a separate direct/non-pooled endpoint, also set `DIRECT_DATABASE_URL`.
 
-Run migrations after deployment:
+Schema setup runs automatically as part of the Render start command, because the free plan has no
+shell:
 
-```bash
-npm run db:migrate
+```
+npm run migrate:prod && node dist/db/bootstrapSuperAdmin.js && npm start
 ```
 
-For local development, run that command from `backend` with `DATABASE_URL` set. On Render, run it from a one-off shell or deploy job after the database exists and before real traffic uses the app.
+`npm run migrate:prod` runs `dist/db/deploy.js`, which takes an advisory lock, applies the idempotent
+`dist/db/schema.sql`, then applies any pending files from `dist/db/migrations/` using the
+`schema_migrations` ledger. It exits non-zero on failure, so the server never starts against a broken
+schema. Run the same thing locally with `npm run db:deploy` from `backend`.
 
-Do not use `db:schema` against a production database unless you fully understand the schema file impact. Use migrations for production changes.
+`npm run build` copies the SQL assets into `dist/db` after `tsc`, so the production artifact does not
+depend on `src/` existing at runtime.
+
+`npm run db:migrate` still runs only the migration ledger, without the schema step.
+
+Do not run `db:schema` (which shells out to `psql`) against a production database unless you fully
+understand the schema file impact. `migrate:prod` is the supported production path.
+
+See `docs/deployment/DEPLOYMENT_PRODUCTION_GUIDE.md` for the Neon-specific setup, including why the
+pooled endpoint cannot accept a `statement_timeout` startup parameter.
 
 Production database notes:
 

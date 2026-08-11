@@ -1,7 +1,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
+import type { PoolClient } from 'pg';
 import { pool } from '../config/db';
 import { logger } from '../utils/logger';
+import { resolveDbAssetPath } from './paths';
 
 interface MigrationFile {
   id: string;
@@ -9,7 +11,7 @@ interface MigrationFile {
 }
 
 async function listMigrationFiles(): Promise<MigrationFile[]> {
-  const migrationsDir = path.resolve(process.cwd(), 'src', 'db', 'migrations');
+  const migrationsDir = resolveDbAssetPath('migrations');
   const entries = await fs.readdir(migrationsDir);
 
   return entries
@@ -21,8 +23,8 @@ async function listMigrationFiles(): Promise<MigrationFile[]> {
     }));
 }
 
-async function ensureMigrationsTable(): Promise<void> {
-  await pool.query(`
+async function ensureMigrationsTable(client: PoolClient): Promise<void> {
+  await client.query(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       id VARCHAR(255) PRIMARY KEY,
       applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -30,14 +32,13 @@ async function ensureMigrationsTable(): Promise<void> {
   `);
 }
 
-async function getAppliedMigrationIds(): Promise<Set<string>> {
-  const result = await pool.query<{ id: string }>('SELECT id FROM schema_migrations');
+async function getAppliedMigrationIds(client: PoolClient): Promise<Set<string>> {
+  const result = await client.query<{ id: string }>('SELECT id FROM schema_migrations');
   return new Set(result.rows.map((row) => row.id));
 }
 
-async function applyMigration(migration: MigrationFile): Promise<void> {
+async function applyMigration(client: PoolClient, migration: MigrationFile): Promise<void> {
   const sql = await fs.readFile(migration.path, 'utf8');
-  const client = await pool.connect();
 
   try {
     await client.query('BEGIN');
@@ -49,30 +50,53 @@ async function applyMigration(migration: MigrationFile): Promise<void> {
     await client.query('ROLLBACK');
     logger.error({ err, migration: migration.id }, 'Database migration failed');
     throw err;
-  } finally {
-    client.release();
   }
 }
 
-async function main(): Promise<void> {
-  await ensureMigrationsTable();
+/**
+ * Apply every migration that is not yet recorded in `schema_migrations`.
+ *
+ * Idempotent: already-applied migrations are skipped, so this is safe to run on
+ * every deployment. Takes a caller-supplied client so callers can hold a session
+ * scoped advisory lock across the whole run.
+ *
+ * @returns the number of migrations applied by this run.
+ */
+export async function runMigrations(client: PoolClient): Promise<number> {
+  await ensureMigrationsTable(client);
+
   const [migrations, appliedIds] = await Promise.all([
     listMigrationFiles(),
-    getAppliedMigrationIds(),
+    getAppliedMigrationIds(client),
   ]);
 
   const pending = migrations.filter((migration) => !appliedIds.has(migration.id));
 
   for (const migration of pending) {
-    await applyMigration(migration);
+    await applyMigration(client, migration);
   }
 
-  logger.info({ applied: pending.length }, 'Database migrations complete');
-  await pool.end();
+  return pending.length;
 }
 
-void main().catch(async (err) => {
-  logger.error({ err }, 'Database migration runner failed');
-  await pool.end();
-  process.exit(1);
-});
+async function main(): Promise<void> {
+  const client = await pool.connect();
+
+  try {
+    const applied = await runMigrations(client);
+    logger.info({ applied }, 'Database migrations complete');
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
+if (require.main === module) {
+  main()
+    .then(() => process.exit(0))
+    .catch(async (err) => {
+      logger.error({ err }, 'Database migration runner failed');
+      await pool.end().catch(() => undefined);
+      process.exit(1);
+    });
+}
