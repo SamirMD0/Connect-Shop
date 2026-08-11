@@ -1,8 +1,14 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
 
+// Vercel builds through its own deployment adapter and manages `output` itself, so
+// setting `standalone` there is unsupported and leaves the build output in a shape its
+// adapter does not expect. Standalone is still required by the self-hosted and Docker
+// paths (scripts/start-standalone.mjs, frontend/Dockerfile), so it stays on elsewhere.
+const isVercelBuild = Boolean(process.env.VERCEL);
+
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  ...(isVercelBuild ? {} : { output: 'standalone' as const }),
   images: {
     unoptimized: true,
     remotePatterns: [
