@@ -1,19 +1,14 @@
-import { dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { FlatCompat } from '@eslint/eslintrc';
+import nextCoreWebVitals from 'eslint-config-next/core-web-vitals';
+import nextTypescript from 'eslint-config-next/typescript';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
-
+// eslint-config-next 16 ships native flat configs, so the @eslint/eslintrc
+// FlatCompat shim used for v15 is no longer needed.
 const eslintConfig = [
   {
     ignores: ['.next/**', 'node_modules/**', 'next-env.d.ts'],
   },
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  ...nextCoreWebVitals,
+  ...nextTypescript,
   {
     rules: {
       '@next/next/no-img-element': 'warn',
@@ -21,6 +16,15 @@ const eslintConfig = [
       '@typescript-eslint/no-unused-vars': 'warn',
       'react-hooks/exhaustive-deps': 'warn',
       'react/no-unescaped-entities': 'warn',
+
+      // eslint-plugin-react-hooks v6 (pulled in by eslint-config-next 16) enables
+      // these by default. They flag pre-existing patterns in data-fetching effects
+      // across ~27 files — static analysis findings, not Next 16 runtime breakages.
+      // Downgraded to warnings so they stay visible; fixing them is a separate
+      // refactor from the security upgrade that introduced the rules.
+      'react-hooks/set-state-in-effect': 'warn',
+      'react-hooks/purity': 'warn',
+      'react-hooks/immutability': 'warn',
     },
   },
 ];
