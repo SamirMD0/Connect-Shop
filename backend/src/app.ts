@@ -29,6 +29,7 @@ import reviewRoutes from './routes/review.routes';
 import wishlistRoutes from './routes/wishlist.routes';
 import usersRoutes from './routes/users.routes';
 import homepageRoutes from './routes/homepage.routes';
+import { publicBusinessSettings } from './config/business';
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use(xss());                             // Sanitize data against XSS
 app.use(csrfProtection);                    // CSRF protection for unsafe cookie-authenticated requests
 
 // ─── API Routes ──────────────────────────────────────────────────────────────
+app.get('/api/v1/store/config', publicReadLimiter, (_req, res) => { res.json({ success: true, settings: publicBusinessSettings() }); });
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/products', publicReadLimiter, productsRoutes);
 app.use('/api/v1/categories', publicReadLimiter, categoriesRoutes);

@@ -1,7 +1,10 @@
 // backend/src/config/env.ts
 import { z } from 'zod';
 import dotenv from 'dotenv';
+import { optionalRedisUrl } from './redisUrl';
+import { customerEnvFields, emailEnvFields, validateEmailConfiguration } from './customerConfig';
 
+const configurationStartedAt = performance.now();
 dotenv.config();
 
 const optionalEnvString = z.preprocess(
@@ -31,6 +34,8 @@ const positiveInteger = (defaultValue: string, label: string) => z
   });
 
 const envSchema = z.object({
+  ...customerEnvFields,
+  ...emailEnvFields,
   // Server
   PORT: z
     .string()
@@ -79,7 +84,9 @@ const envSchema = z.object({
   FRONTEND_URL: z.string().url('FRONTEND_URL must be a valid URL'),
 
   // Redis
-  REDIS_URL: z.string().url().optional(),
+  REDIS_URL: optionalRedisUrl,
+  REDIS_CACHE_TIMEOUT_MS: positiveInteger('250', 'REDIS_CACHE_TIMEOUT_MS'),
+  HOMEPAGE_OPTIONAL_TIMEOUT_MS: positiveInteger('1200', 'HOMEPAGE_OPTIONAL_TIMEOUT_MS'),
 
   // Public read rate limits
   PUBLIC_READ_WINDOW_MS: positiveInteger('900000', 'PUBLIC_READ_WINDOW_MS'),
@@ -112,6 +119,7 @@ const envSchema = z.object({
     .default('604800000')
     .transform((v) => parseInt(v, 10)),
 }).superRefine((env, ctx) => {
+  validateEmailConfiguration(env, ctx);
   if (env.NODE_ENV !== 'production') return;
 
   const requiredImageKitKeys = [
@@ -147,4 +155,6 @@ function validateEnv() {
 }
 
 export const env = validateEnv();
+// Logged after validation by the server, avoiding an env/logger import cycle.
+export const configurationDurationMs = Number((performance.now() - configurationStartedAt).toFixed(2));
 export type Env = typeof env;

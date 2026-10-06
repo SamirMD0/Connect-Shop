@@ -1,5 +1,7 @@
 import { PoolClient } from 'pg';
 import { query, withTransaction } from '../config/db';
+import { AppError } from '../utils/errors';
+import { assertInventoryChange } from '../services/inventoryVersion';
 import type { Product, ProductImage, ProductVariant } from '../services/products.service';
 
 export interface ProductImageInput {
@@ -14,7 +16,8 @@ export interface ProductVariantInput {
   sku: string;
   name: string;
   price: number;
-  stock: number;
+  stock?: number;
+  inventory_version?: number;
   attributes?: Record<string, unknown>;
   image_url?: string | null;
 }
@@ -26,7 +29,8 @@ interface ProductWriteInput {
   price: number;
   image_url: string | null;
   category_id: number;
-  stock: number;
+  stock?: number;
+  inventory_version?: number;
   is_featured: boolean;
   brand_id?: number | null;
   brand?: string | null;
@@ -123,7 +127,7 @@ export class ProductRepository {
     );
   }
 
-  static async create(data: ProductWriteInput) {
+  static async create(data: ProductWriteInput & { stock: number }) {
     return withTransaction(async (client) => {
       const rows = await client.query<Product>(
         `INSERT INTO products (name, slug, description, price, image_url, category_id, stock, is_featured, brand_id, brand, sku, compare_at_price, weight_grams, specs, meta_title, meta_description)
@@ -133,16 +137,19 @@ export class ProductRepository {
       );
       const product = rows.rows[0];
       await this.replaceImages(client, product.id, data.gallery_images || []);
-      await this.replaceVariants(client, product.id, data.variants || []);
+      await this.syncVariants(client, product.id, data.variants || []);
       return product;
     });
   }
 
   static async update(id: string, data: ProductWriteInput) {
     return withTransaction(async (client) => {
+      const current = (await client.query<Product>('SELECT * FROM products WHERE id = $1 FOR UPDATE', [id])).rows[0];
+      if (!current) return null;
+      if (data.stock !== undefined) assertInventoryChange(data.stock, data.inventory_version, current.inventory_version);
       const rows = await client.query<Product>(
         `UPDATE products
-         SET name = $1, slug = $2, description = $3, price = $4, image_url = $5, category_id = $6, stock = $7, is_featured = $8,
+         SET name = $1, slug = $2, description = $3, price = $4, image_url = $5, category_id = $6, stock = COALESCE($7::int, stock), is_featured = $8,
              brand_id = $9, brand = $10, sku = $11, compare_at_price = $12, weight_grams = $13, specs = $14, meta_title = $15, meta_description = $16, updated_at = NOW()
          WHERE id = $17
          RETURNING *`,
@@ -151,7 +158,7 @@ export class ProductRepository {
       const product = rows.rows[0] || null;
       if (!product) return null;
       await this.replaceImages(client, id, data.gallery_images || []);
-      await this.replaceVariants(client, id, data.variants || []);
+      if (data.variants !== undefined) await this.syncVariants(client, id, data.variants);
       return product;
     });
   }
@@ -179,24 +186,37 @@ export class ProductRepository {
     }
   }
 
-  static async replaceVariants(client: PoolClient, productId: string, variants: ProductVariantInput[]) {
-    await client.query(`DELETE FROM product_variants WHERE product_id = $1`, [productId]);
-
+  static async syncVariants(client: PoolClient, productId: string, variants: ProductVariantInput[]) {
+    const current = (await client.query<ProductVariant>(
+      'SELECT * FROM product_variants WHERE product_id = $1 ORDER BY id FOR UPDATE', [productId])).rows;
+    const byId = new Map(current.map(variant => [variant.id, variant]));
+    const kept: string[] = [];
+    const seen = new Set<string>();
     for (const variant of variants) {
-      if (!variant.sku || !variant.name) continue;
-      await client.query(
-        `INSERT INTO product_variants (product_id, sku, name, price, stock, attributes, image_url)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          productId,
-          variant.sku,
-          variant.name,
-          variant.price,
-          variant.stock,
-          JSON.stringify(variant.attributes || {}),
-          variant.image_url || null,
-        ]
-      );
+      if (!variant.sku?.trim() || !variant.name?.trim() || !Number.isFinite(variant.price) || variant.price <= 0) {
+        throw new AppError('Each variant requires a SKU, name and positive price.', 400);
+      }
+      if (variant.id) {
+        const saved = byId.get(variant.id);
+        if (!saved || !saved.is_active || seen.has(variant.id)) {
+          throw new AppError('Variant is unavailable, duplicated or does not belong to this product. Reload the product.', 409, true, 'VARIANT_CONFLICT');
+        }
+        seen.add(variant.id); kept.push(variant.id);
+        if (variant.stock !== undefined) assertInventoryChange(variant.stock, variant.inventory_version, saved.inventory_version);
+        await client.query(
+          'UPDATE product_variants SET sku = $2, name = $3, price = $4, attributes = $5::jsonb, image_url = $6, stock = COALESCE($7::int, stock) WHERE id = $1',
+          [variant.id, variant.sku.trim(), variant.name.trim(), variant.price, JSON.stringify(variant.attributes || {}), variant.image_url || null, variant.stock]);
+      } else {
+        if (current.some(saved => saved.sku === variant.sku.trim())) {
+          throw new AppError('Existing variants must retain their ID; retired SKUs cannot be recreated.', 409, true, 'VARIANT_ID_REQUIRED');
+        }
+        if (!Number.isSafeInteger(variant.stock) || Number(variant.stock) < 0) throw new AppError('New variants require nonnegative stock.', 400);
+        const created = await client.query<{ id: string }>(
+          'INSERT INTO product_variants (product_id, sku, name, price, stock, attributes, image_url) VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7) RETURNING id',
+          [productId, variant.sku.trim(), variant.name.trim(), variant.price, variant.stock, JSON.stringify(variant.attributes || {}), variant.image_url || null]);
+        kept.push(created.rows[0].id);
+      }
     }
+    await client.query('UPDATE product_variants SET is_active = FALSE WHERE product_id = $1 AND is_active AND NOT (id = ANY($2::uuid[]))', [productId, kept]);
   }
 }

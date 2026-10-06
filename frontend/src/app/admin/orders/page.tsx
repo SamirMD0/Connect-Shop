@@ -7,6 +7,7 @@ import { Order, OrderItem, ShippingAddress } from '../../../lib/types';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
 import { useToast } from '@/hooks/useToast';
+import { Money } from '@/context/StoreSettingsContext';
 import { SafeImage } from '@/components/ui/SafeImage';
 
 type OrderStatus = 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
@@ -32,6 +33,10 @@ const orderStatuses: Array<{ value: OrderStatus; label: string }> = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
+function statusOptions(order: Order) {
+  return orderStatuses.filter(status => status.value === order.status || order.allowed_statuses?.includes(status.value));
+}
+
 const statusClasses: Record<OrderStatus, string> = {
   confirmed: 'bg-blue-50 text-blue-700 border-blue-200',
   processing: 'bg-amber-50 text-amber-700 border-amber-200',
@@ -40,9 +45,8 @@ const statusClasses: Record<OrderStatus, string> = {
   cancelled: 'bg-red-50 text-red-700 border-red-200',
 };
 
-function formatMoney(value?: string | number | null): string {
-  const amount = Number(value || 0);
-  return `$${amount.toFixed(2)}`;
+function formatMoney(value?: string | number | null, currency = 'USD') {
+  return <Money amount={value ?? '0.00'} currency={currency} />;
 }
 
 function formatDate(value?: string | null): string {
@@ -126,7 +130,7 @@ export default function AdminOrders() {
       });
 
       setOrders((current) => current.map((order) => (
-        order.id === orderId ? { ...order, status: res.order.status } : order
+        order.id === orderId ? { ...order, status: res.order.status, allowed_statuses: res.order.allowed_statuses } : order
       )));
       setSelectedOrder((current) => current && current.id === orderId ? { ...current, ...res.order } : current);
       setStatusDraft(res.order.status as OrderStatus);
@@ -179,7 +183,7 @@ export default function AdminOrders() {
       ),
     },
     { header: 'Items', cell: (order: AdminOrder) => order.item_count || 0 },
-    { header: 'Total', cell: (order: AdminOrder) => <span className="font-semibold">{formatMoney(order.total)}</span> },
+    { header: 'Total', cell: (order: AdminOrder) => <span className="font-semibold">{formatMoney(order.total, order.currency || 'USD')}</span> },
     {
       header: 'Payment',
       cell: (order: AdminOrder) => (
@@ -200,7 +204,7 @@ export default function AdminOrders() {
           onChange={(event) => void updateOrderStatus(order.id, event.target.value as OrderStatus)}
           disabled={updatingId === order.id}
         >
-          {orderStatuses.map((status) => (
+          {statusOptions(order).map((status) => (
             <option key={status.value} value={status.value}>{status.label}</option>
           ))}
         </select>
@@ -281,7 +285,7 @@ export default function AdminOrders() {
                 <p className="font-medium text-[#0B1B48] mt-1 truncate">{order.customer_name || order.shipping_address?.fullName || 'Guest customer'}</p>
               </div>
               <div className="text-right shrink-0">
-                <p className="font-semibold">{formatMoney(order.total)}</p>
+                <p className="font-semibold">{formatMoney(order.total, order.currency || 'USD')}</p>
                 <p className="text-xs text-slate-500">{order.item_count || 0} items</p>
               </div>
             </div>
@@ -296,7 +300,7 @@ export default function AdminOrders() {
                   onChange={(event) => void updateOrderStatus(order.id, event.target.value as OrderStatus)}
                   disabled={updatingId === order.id}
                 >
-                  {orderStatuses.map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
+                  {statusOptions(order).map((s) => (<option key={s.value} value={s.value}>{s.label}</option>))}
                 </select>
               </div>
               <button onClick={() => void openOrderDetail(order.id)} className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700 transition-colors hover:border-accent hover:text-accent">
@@ -350,7 +354,7 @@ export default function AdminOrders() {
                 <div className="mt-3 space-y-2">
                   <p>{formatPaymentMethod(selectedOrder.payment_method)}</p>
                   <p className="text-slate-500">Status: {selectedOrder.payment_status || 'pending'}</p>
-                  <p className="font-semibold text-[#0B1B48]">{formatMoney(selectedOrder.total)}</p>
+                  <p className="font-semibold text-[#0B1B48]">{formatMoney(selectedOrder.total, selectedOrder.currency || 'USD')}</p>
                 </div>
               </section>
 
@@ -362,7 +366,7 @@ export default function AdminOrders() {
                     onChange={(event) => setStatusDraft(event.target.value as OrderStatus)}
                     className="h-10 flex-1 rounded-lg border border-slate-200 bg-white px-3 text-sm text-[#0B1B48] outline-none focus:border-accent focus:ring-2 focus:ring-accent/15"
                   >
-                    {orderStatuses.map((status) => (
+                    {statusOptions(selectedOrder).map((status) => (
                       <option key={status.value} value={status.value}>{status.label}</option>
                     ))}
                   </select>
@@ -432,8 +436,8 @@ export default function AdminOrders() {
                           </div>
                         </td>
                         <td className="px-4 py-3">{item.quantity}</td>
-                        <td className="px-4 py-3">{formatMoney(item.price_at_purchase)}</td>
-                        <td className="px-4 py-3 font-semibold">{formatMoney(Number(item.price_at_purchase) * item.quantity)}</td>
+                        <td className="px-4 py-3">{formatMoney(item.price_at_purchase, selectedOrder.currency || 'USD')}</td>
+                        <td className="px-4 py-3 font-semibold">{formatMoney(Number(item.price_at_purchase) * item.quantity, selectedOrder.currency || 'USD')}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -448,7 +452,7 @@ export default function AdminOrders() {
                   {totals.map(([label, value]) => (
                     <div key={label} className={`flex justify-between ${label === 'Total' ? 'border-t border-slate-200 pt-2 text-base font-bold text-[#0B1B48]' : ''}`}>
                       <span>{label}</span>
-                      <span>{formatMoney(value)}</span>
+                      <span>{formatMoney(value, selectedOrder.currency || 'USD')}</span>
                     </div>
                   ))}
                 </div>

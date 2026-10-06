@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { GuestMergeNotice } from '@/components/cart/GuestMergeNotice';
 import { Container } from '@/components/layout/Container';
 import { CartItemCard } from '@/components/cart/CartItem';
 import { CartSummary } from '@/components/cart/CartSummary';
@@ -45,6 +46,7 @@ export default function CartPage() {
     return (
       <div className="animate-fade-in">
         <Container className="py-12">
+          <GuestMergeNotice />
           <div className="mx-auto max-w-2xl text-center">
             <EmptyState
               icon={<ShoppingBag className="h-16 w-16" />}
@@ -62,6 +64,7 @@ export default function CartPage() {
   return (
     <div className="animate-fade-in">
       <Container className="py-8">
+        <GuestMergeNotice />
         {/* Header */}
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>

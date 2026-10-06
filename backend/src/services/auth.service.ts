@@ -24,6 +24,7 @@ export interface User {
   phone?: string | null;
   password_hash?: string | null;
   email_verified_at?: Date | null;
+  emailDeliveryStatus?: import('./email.service').EmailDeliveryStatus | 'failed';
   deleted_at?: Date | null;
   session_id?: string;
   mfa_enabled?: boolean;
@@ -150,11 +151,14 @@ export async function registerWithPassword(input: CredentialsRegisterInput): Pro
     [email, input.name.trim(), input.phone?.trim() || null, passwordHash]
   );
 
-  const token = await createAuthToken(rows[0].id, 'email_verification', 24 * 60 * 60 * 1000);
-  await EmailService.sendEmailVerification(
-    email,
-    `${env.FRONTEND_URL}/auth/verify-email?token=${encodeURIComponent(token)}`
-  );
+  if (env.EMAIL_AUTH_ENABLED === false) rows[0].emailDeliveryStatus = 'disabled';
+  else {
+    const token = await createAuthToken(rows[0].id, 'email_verification', 24 * 60 * 60 * 1000);
+    try {
+      rows[0].emailDeliveryStatus = await EmailService.sendEmailVerification(
+        email, `${env.FRONTEND_URL}/auth/verify-email?token=${encodeURIComponent(token)}`);
+    } catch { rows[0].emailDeliveryStatus = 'failed'; }
+  }
 
   return rows[0];
 }
@@ -200,6 +204,7 @@ export async function verifyEmailToken(token: string): Promise<boolean> {
 }
 
 export async function requestPasswordReset(email: string): Promise<void> {
+  if (env.EMAIL_AUTH_ENABLED === false) return;
   const rows = await query<User>(
     `SELECT *
      FROM users

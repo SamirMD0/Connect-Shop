@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "tsc --project tsconfig.json && node scripts/copy-db-assets.mjs",
-    "test": "tsx --test --test-concurrency=1 tests/admin.role-permissions.test.ts tests/admin.security-monitoring.test.ts tests/auth.session.test.ts tests/homepage.brand-product.validation.test.ts tests/rateLimiter.public-read.test.ts tests/health.rate-limit.test.ts tests/homepage.full-public.test.ts tests/public-cache-policy.test.ts tests/product-query-performance.test.ts tests/production-cookie-security.test.ts",
+    "test": "tsx --test --test-concurrency=1 tests/env.redis-url.test.ts tests/customer-config.test.ts tests/business-rules.test.ts tests/email.delivery.test.ts tests/password-recovery.response.test.ts tests/cart-merge.policy.test.ts tests/checkout.idempotency.test.ts tests/checkout.controller.test.ts tests/inventory.policy.test.ts tests/public-cache-deadline.test.ts tests/homepage.assembly.test.ts tests/performance.homepage.test.ts tests/admin.role-permissions.test.ts tests/admin.security-monitoring.test.ts tests/auth.session.test.ts tests/homepage.brand-product.validation.test.ts tests/rateLimiter.public-read.test.ts tests/health.rate-limit.test.ts tests/homepage.full-public.test.ts tests/public-cache-policy.test.ts tests/product-query-performance.test.ts tests/production-cookie-security.test.ts",
     "start": "node dist/server.js",
     "db:schema": "psql $DATABASE_URL -f src/db/schema.sql",
     "db:seed": "psql $DATABASE_URL -f src/db/seed.sql",

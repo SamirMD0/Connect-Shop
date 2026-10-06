@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import Link from 'next/link';
 import { HomepageSection, HomepageSectionItem } from '@/lib/types';
 
@@ -49,6 +49,7 @@ function getCountdownItems(endDate: string): typeof fallbackCountdownItems {
 }
 
 export function CountdownPromo({ promo }: CountdownPromoProps) {
+  if (!promo) return null;
   const eyebrow = promo
     ? ('eyebrow' in promo ? promo.eyebrow : null) || promo.subtitle || getMetadataString(promo.metadata, 'eyebrow')
     : null;
@@ -66,12 +67,12 @@ export function CountdownPromo({ promo }: CountdownPromoProps) {
             </span>
 
             <h2 className="mb-3 text-3xl font-bold leading-tight text-[#ffffff] sm:text-4xl lg:text-[44px]">
-              {promo?.title || 'Enhance Your Music Experience'}
+              {promo.title || 'Featured promotion'}
             </h2>
 
-            <p className="text-sm leading-6 text-yellow-400 sm:text-base">
-              {promo?.description || 'iPhone 16 Pro Max delivers immersive audio, sharp performance, and a premium everyday experience.'}
-            </p>
+            {promo.description && (
+              <p className="text-sm leading-6 text-yellow-400 sm:text-base">{promo.description}</p>
+            )}
 
             <div className="mt-6 flex flex-wrap gap-5 sm:gap-6">
               {countdownItems.map((item) => (
@@ -101,13 +102,15 @@ export function CountdownPromo({ promo }: CountdownPromoProps) {
             height={482}
             className="absolute inset-0 z-0 hidden h-full w-full object-cover sm:block"
           />
-          <Image
-            src={promo?.image_url || '/nextmerce/countdown/countdown-01.png'}
-            alt={promo?.title || 'featured product'}
-            width={411}
-            height={376}
-            className="absolute bottom-6 right-4 z-0 hidden h-[300px] w-auto object-contain transition-transform duration-500 hover:scale-105 lg:block xl:bottom-10 xl:right-28 xl:h-[376px]"
-          />
+          {promo.image_url && (
+            <Image
+              src={promo.image_url}
+              alt={promo.title || 'Promotion'}
+              width={411}
+              height={376}
+              className="absolute bottom-6 right-4 z-0 hidden h-[300px] w-auto object-contain transition-transform duration-500 hover:scale-105 lg:block xl:bottom-10 xl:right-28 xl:h-[376px]"
+            />
+          )}
         </div>
       </div>
     </section>

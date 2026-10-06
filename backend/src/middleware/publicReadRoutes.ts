@@ -46,7 +46,8 @@ export function getPublicReadRouteFamily(
   }
 
   if (
-    path === '/api/v1/categories'
+    path === '/api/v1/store/config'
+    || path === '/api/v1/categories'
     || path.startsWith('/api/v1/categories/')
     || path === '/api/v1/brands'
     || path.startsWith('/api/v1/brands/')

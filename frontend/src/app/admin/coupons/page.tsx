@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { Edit2, Plus, Trash2 } from 'lucide-react';
+import { Money } from '@/context/StoreSettingsContext';
 import { api, getErrorMessage } from '../../../lib/api';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
@@ -118,7 +119,7 @@ export default function AdminCoupons() {
         <p className="text-xs text-slate-500">{coupon.description || 'No description'}</p>
       </div>
     ) },
-    { header: 'Discount', cell: (coupon: Coupon) => coupon.type === 'percent' ? `${coupon.value}%` : `$${coupon.value}` },
+    { header: 'Discount', cell: (coupon: Coupon) => coupon.type === 'percent' ? `${coupon.value}%` : <Money amount={coupon.value} /> },
     { header: 'Usage', cell: (coupon: Coupon) => `${coupon.used_count}${coupon.usage_limit ? ` / ${coupon.usage_limit}` : ''}` },
     { header: 'Status', cell: (coupon: Coupon) => (
       <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${coupon.is_active ? 'bg-success/10 text-success' : 'bg-slate-100 text-slate-500'}`}>
@@ -161,7 +162,7 @@ export default function AdminCoupons() {
             </div>
             <p className="text-xs text-slate-500 truncate">{coupon.description || 'No description'}</p>
             <div className="flex gap-2 mt-1 text-xs text-slate-600">
-              <span>{coupon.type === 'percent' ? `${coupon.value}%` : `$${coupon.value}`}</span>
+              <span>{coupon.type === 'percent' ? `${coupon.value}%` : <Money amount={coupon.value} />}</span>
               <span>·</span>
               <span>{coupon.used_count}{coupon.usage_limit ? ` / ${coupon.usage_limit}` : ''} used</span>
             </div>

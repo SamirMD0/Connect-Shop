@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { Money } from '@/context/StoreSettingsContext';
 import { CartItem as CartItemType } from '@/lib/types';
 import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/useToast';
@@ -71,7 +72,7 @@ export function CartItemCard({ item }: CartItemProps) {
           <p className="mt-1 text-sm text-text-muted">Option: {item.variant_name}</p>
         )}
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
-          <span className="font-semibold text-text-primary">${price.toFixed(2)} each</span>
+          <span className="font-semibold text-text-primary">{<Money amount={price} />} each</span>
           <span className="text-xs text-text-muted">{item.stock} available</span>
         </div>
 
@@ -114,7 +115,7 @@ export function CartItemCard({ item }: CartItemProps) {
 
       <div className="col-span-2 flex items-center justify-between gap-3 border-t border-border pt-3 sm:col-span-1 sm:block sm:border-0 sm:pt-0 sm:text-right">
         <span className="text-xs font-semibold uppercase tracking-wide text-text-muted sm:block">Subtotal</span>
-        <p className="text-lg font-bold text-text-primary sm:mt-1">${lineTotal}</p>
+        <p className="text-lg font-bold text-text-primary sm:mt-1">{<Money amount={lineTotal} />}</p>
       </div>
     </article>
   );

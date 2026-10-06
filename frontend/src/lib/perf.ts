@@ -37,6 +37,26 @@ export function logServerFetchTiming(input: {
   });
 }
 
+// Measure the complete aggregate operation, including response parsing and failures.
+// Unlike slow-fetch logs, baseline mode records warm responses below the threshold.
+export async function measureHomepageAggregateRequest<T>(load: () => Promise<T>): Promise<T> {
+  if (!isPerfLoggingEnabled()) return load();
+
+  const startedAt = performance.now();
+  let outcome: 'success' | 'failed' = 'failed';
+  try {
+    const result = await load();
+    outcome = 'success';
+    return result;
+  } finally {
+    console.info('[perf][frontend][homepage-aggregate]', {
+      endpoint: '/api/v1/homepage/full',
+      outcome,
+      durationMs: roundMilliseconds(performance.now() - startedAt),
+    });
+  }
+}
+
 export function logServerRenderTiming(input: {
   pageType: string;
   phase: string;

@@ -6,6 +6,7 @@ import { StoreFilters } from '@/components/products/StoreFilters';
 import { StorePagination } from '@/components/products/StorePagination';
 import { ProductComparison } from '@/components/products/ProductComparison';
 import { api } from '@/lib/api';
+import { StorefrontUnavailable } from '@/components/ui/StorefrontUnavailable';
 import { APP_NAME } from '@/lib/constants';
 import { logServerRenderTiming } from '@/lib/perf';
 import { Product, Category, PaginatedProducts } from '@/lib/types';
@@ -70,7 +71,7 @@ export default async function StorePage({ searchParams }: Props) {
   let total = 0;
 
   try {
-    const [productsRes, catRes] = await Promise.all([
+    const [productsRes, catRes] = await Promise.allSettled([
       api.get<{ success: boolean } & PaginatedProducts>('/api/products', {
         params: {
           page: currentPage,
@@ -87,12 +88,13 @@ export default async function StorePage({ searchParams }: Props) {
       }),
       api.get<{ success: boolean; categories: Category[] }>('/api/categories'),
     ]);
-    products = productsRes.products || [];
-    totalPages = productsRes.totalPages || 1;
-    total = productsRes.total || 0;
-    categories = catRes.categories || [];
-  } catch (error) {
-    console.error('Error fetching store data:', error);
+    if (productsRes.status === 'rejected') throw productsRes.reason;
+    products = productsRes.value.products || [];
+    totalPages = productsRes.value.totalPages || 1;
+    total = productsRes.value.total || 0;
+    categories = catRes.status === 'fulfilled' ? catRes.value.categories || [] : [];
+  } catch {
+    return <StorefrontUnavailable />;
   }
 
   logServerRenderTiming({

@@ -1,3 +1,4 @@
+import { getStoreSettings } from '@/lib/store-settings.server';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
@@ -7,7 +8,9 @@ import { ProductDisplay } from '@/components/products/ProductDisplay';
 import { ProductReviews } from '@/components/products/ProductReviews';
 import { ProductQuestions } from '@/components/products/ProductQuestions';
 import { RecentlyViewedProducts } from '@/components/products/RecentlyViewedProducts';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
+import { cache, Suspense } from 'react';
+import { StorefrontUnavailable } from '@/components/ui/StorefrontUnavailable';
 import { APP_NAME, SITE_URL } from '@/lib/constants';
 import { logServerRenderTiming } from '@/lib/perf';
 import { Product } from '@/lib/types';
@@ -19,14 +22,15 @@ interface Props {
   params: Promise<{ slug: string }>;
 }
 
-async function getProduct(slug: string) {
+const getProduct = cache(async (slug: string) => {
   try {
     const res = await api.get<{ success: boolean; product: Product }>(`/api/products/${slug}`);
     return res.product;
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null;
+    throw error;
   }
-}
+});
 
 export async function generateStaticParams() {
   try {
@@ -41,7 +45,9 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const p = await params;
-  const product = await getProduct(p.slug);
+  let product: Product | null;
+  try { product = await getProduct(p.slug); }
+  catch { return { title: 'Product | ' + APP_NAME, robots: { index: false } }; }
   
   if (!product) {
     return { title: `Product Not Found | ${APP_NAME}` };
@@ -73,15 +79,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-export default async function ProductDetailPage({ params }: Props) {
-  const renderStart = performance.now();
-  const p = await params;
-  const product = await getProduct(p.slug);
-
-  if (!product) {
-    notFound();
-  }
-
+async function RelatedProducts({ product }: { product: Product }) {
   // Fetch related
   let related: Product[] = [];
   if (product.category_slug) {
@@ -95,6 +93,26 @@ export default async function ProductDetailPage({ params }: Props) {
     }
   }
 
+  if (related.length === 0) return null;
+  return (
+    <section className="mt-16 border-t border-border pt-12">
+      <h2 className="mb-7 text-2xl font-bold text-text-primary">You might also like</h2>
+      <ProductGrid products={related} />
+    </section>
+  );
+}
+
+export default async function ProductDetailPage({ params }: Props) {
+  const renderStart = performance.now();
+  const p = await params;
+  let product: Product | null;
+  try { product = await getProduct(p.slug); }
+  catch { return <StorefrontUnavailable />; }
+
+  if (!product) {
+    notFound();
+  }
+
   logServerRenderTiming({
     pageType: 'product_detail',
     phase: 'render_prep',
@@ -105,6 +123,7 @@ export default async function ProductDetailPage({ params }: Props) {
     product.image_url,
     ...(product.gallery_images || []).map((image) => image.image_url),
   ].filter(Boolean) as string[];
+  const settings = await getStoreSettings();
   const jsonLd = {
     '@context': 'https://schema.org',
     '@type': 'Product',
@@ -118,13 +137,13 @@ export default async function ProductDetailPage({ params }: Props) {
       ratingValue: product.rating,
       reviewCount: product.review_count,
     } : undefined,
-    offers: {
+    offers: settings ? {
       '@type': 'Offer',
       price: product.price,
-      priceCurrency: 'USD',
+      priceCurrency: settings.currency,
       availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
       url: `${SITE_URL}/store/${product.slug}`,
-    },
+    } : undefined,
   };
   const safeJsonLd = JSON.stringify(jsonLd).replace(/</g, '\\u003c');
 
@@ -157,12 +176,7 @@ export default async function ProductDetailPage({ params }: Props) {
         <ProductQuestions slug={product.slug} />
 
         {/* Related Products */}
-        {related.length > 0 && (
-          <section className="mt-16 border-t border-border pt-12">
-            <h2 className="mb-7 text-2xl font-bold text-text-primary">You might also like</h2>
-            <ProductGrid products={related} />
-          </section>
-        )}
+        <Suspense fallback={null}><RelatedProducts product={product} /></Suspense>
 
         <RecentlyViewedProducts currentProductId={product.id} />
       </Container>

@@ -1,5 +1,6 @@
 import { API_URL } from './constants';
 import { logServerFetchTiming } from './perf';
+import { isPublicStorefrontRead, withPublicReadDeadline } from './public-read';
 
 export class ApiError extends Error {
   constructor(public status: number, message: string, public code?: string) {
@@ -31,7 +32,8 @@ function isServerSidePublicRead(versionedEndpoint: string, method: string): bool
 
   const path = versionedEndpoint.split('?')[0];
 
-  return path === '/api/v1/homepage'
+  return path === '/api/v1/store/config'
+    || path === '/api/v1/homepage'
     || path === '/api/v1/homepage/full'
     || path.startsWith('/api/v1/homepage/')
     || path === '/api/v1/products'
@@ -110,45 +112,52 @@ async function fetchWrapper<T>(endpoint: string, options: RequestOptions = {}): 
 
   addInternalSsrSecretHeader(headers, versionedEndpoint, method);
 
-  const fetchStart = performance.now();
-  const response = await fetch(url, {
-    ...options,
-    headers,
-    credentials: 'include', // Important for cookies (session auth)
-  });
-  logServerFetchTiming({
-    endpoint: versionedEndpoint,
-    method,
-    status: response.status,
-    durationMs: performance.now() - fetchStart,
-  });
+  const request = async (signal?: AbortSignal | null): Promise<T> => {
+    const fetchStart = performance.now();
+    const response = await fetch(url, {
+      ...options,
+      signal,
+      headers,
+      credentials: 'include', // Important for cookies (session auth)
+    });
+    logServerFetchTiming({
+      endpoint: versionedEndpoint,
+      method,
+      status: response.status,
+      durationMs: performance.now() - fetchStart,
+    });
 
-  const isJson = response.headers.get('content-type')?.includes('application/json');
-  const data = isJson ? await response.json() : await response.text();
+    const isJson = response.headers.get('content-type')?.includes('application/json');
+    const data = isJson ? await response.json() : await response.text();
 
-  if (!response.ok) {
-    if (response.status === 403 && UNSAFE_METHODS.has(method)) {
-      csrfToken = null;
+    if (!response.ok) {
+      if (response.status === 403 && UNSAFE_METHODS.has(method)) {
+        csrfToken = null;
+      }
+
+      const message = (
+        isJson
+        && typeof data === 'object'
+        && data !== null
+        && 'message' in data
+        && typeof data.message === 'string'
+      ) ? data.message : response.statusText;
+      const code = (
+        isJson
+        && typeof data === 'object'
+        && data !== null
+        && 'code' in data
+        && typeof data.code === 'string'
+      ) ? data.code : undefined;
+      throw new ApiError(response.status, message, code);
     }
 
-    const message = (
-      isJson
-      && typeof data === 'object'
-      && data !== null
-      && 'message' in data
-      && typeof data.message === 'string'
-    ) ? data.message : response.statusText;
-    const code = (
-      isJson
-      && typeof data === 'object'
-      && data !== null
-      && 'code' in data
-      && typeof data.code === 'string'
-    ) ? data.code : undefined;
-    throw new ApiError(response.status, message, code);
-  }
+    return data as T;
+  };
 
-  return data as T;
+  return isPublicStorefrontRead(versionedEndpoint, method)
+    ? withPublicReadDeadline(request, options.signal)
+    : request(options.signal);
 }
 
 export const api = {

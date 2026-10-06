@@ -1,12 +1,13 @@
 // backend/src/routes/orders.routes.ts
 import { Router } from 'express';
-import { create, list, getById, cancel, requestReturn, reorderItems, invoice } from '../controllers/orders.controller';
+import { create, quote, list, getById, cancel, requestReturn, reorderItems, invoice } from '../controllers/orders.controller';
 import { optionalAuth, requireAuth } from '../middleware/auth';
-import { checkoutLimiter } from '../middleware/rateLimiter';
-import { placeOrderRules, orderIdRules, returnRequestRules, validate } from '../middleware/validate';
+import { checkoutLimiter, checkoutQuoteLimiter } from '../middleware/rateLimiter';
+import { checkoutQuoteRules, placeOrderRules, orderIdRules, returnRequestRules, validate } from '../middleware/validate';
 
 const router = Router();
 
+router.post('/quote', optionalAuth, checkoutQuoteLimiter, ...checkoutQuoteRules, validate, quote);
 router.post('/', optionalAuth, checkoutLimiter, ...placeOrderRules, validate, create);
 
 // Order history/detail requires authentication

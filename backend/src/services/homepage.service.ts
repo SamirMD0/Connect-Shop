@@ -7,6 +7,19 @@ import { CategoryRepository } from '../repositories/category.repository';
 import { AppError } from '../utils/errors';
 import { getBrands, getCategories, getFeaturedProducts, listProducts } from './products.service';
 import type { Brand, Category, Product } from './products.service';
+import { createHomepageReads, HomepageReads } from './homepageReads';
+import { withDeadline } from '../utils/deadline';
+import { env } from '../config/env';
+import { logger } from '../utils/logger';
+
+export function defaultHomepageReads(): HomepageReads {
+  return createHomepageReads({
+    featured: () => getFeaturedProducts(8),
+    trending: async () => (await listProducts({ sort: 'rating', limit: 8 })).products,
+    newest: async () => (await listProducts({ sort: 'newest', limit: 8 })).products,
+    categories: getCategories, brands: getBrands,
+  });
+}
 
 export const HOMEPAGE_SECTION_KEYS = [
   'hero_carousel',
@@ -246,7 +259,11 @@ interface LegacyPromotion {
   updated_at: Date;
 }
 
+// Internal marker: degraded optional content must never populate the public cache.
+export const HOMEPAGE_PARTIAL = Symbol('homepagePartial');
+
 export type HomepageContent = {
+  [HOMEPAGE_PARTIAL]?: boolean;
   hero_carousel: HomepageSectionItem[];
   hero_side_promo: HomepageSectionItem[];
   service_features: HomepageSectionItem[];
@@ -884,7 +901,8 @@ async function resolvePromotionBlockData(promotionId: number): Promise<Record<st
 
 async function resolveHomepageBlockData(
   block: HomepageBlock,
-  homepage: HomepageContent
+  homepage: HomepageContent,
+  reads: HomepageReads
 ): Promise<Record<string, unknown> | null> {
   switch (block.block_type) {
     case 'hero_carousel':
@@ -894,8 +912,7 @@ async function resolveHomepageBlockData(
         service_features: homepage.service_features,
       };
     case 'new_arrivals': {
-      const result = await listProducts({ sort: 'newest', limit: 8 });
-      return { products: result.products };
+      return { products: await reads.newest() };
     }
     case 'brand_product_section': {
       const section = homepage.brand_product_sections.find(
@@ -912,25 +929,35 @@ async function resolveHomepageBlockData(
     case 'promotion_banner':
       return block.promotion_id ? resolvePromotionBlockData(block.promotion_id) : null;
     case 'best_sellers': {
-      const result = await listProducts({ sort: 'rating', limit: 8 });
-      return { products: result.products };
+      return { products: await reads.trending() };
     }
     case 'featured_products':
-      return { products: await getFeaturedProducts(8) };
+      return { products: await reads.featured() };
     case 'testimonials':
       return { items: homepage.testimonials };
     case 'newsletter':
       return { section: homepage.newsletter };
     case 'category_showcase':
-      return { categories: await getCategories() };
+      return { categories: await reads.categories() };
     case 'brand_showcase':
-      return { brands: await getBrands() };
+      return { brands: await reads.brands() };
     default:
       return {};
   }
 }
 
-export async function getActiveHomepageBlocks(homepage: HomepageContent): Promise<PublicHomepageBlock[]> {
+async function optionalHomepageContent<T>(homepage: HomepageContent, section: string, load: () => Promise<T>, fallback: T): Promise<T> {
+  try {
+    // Reserve part of the aggregate budget for the remaining CMS assembly.
+    return await withDeadline(load, Math.max(1, Math.floor(env.HOMEPAGE_OPTIONAL_TIMEOUT_MS / 2)));
+  } catch {
+    homepage[HOMEPAGE_PARTIAL] = true;
+    logger.warn({ section }, 'Optional homepage content unavailable');
+    return fallback;
+  }
+}
+
+export async function getActiveHomepageBlocks(homepage: HomepageContent, reads: HomepageReads = defaultHomepageReads()): Promise<PublicHomepageBlock[]> {
   const blocks = await query<HomepageBlock>(
     `SELECT * FROM homepage_blocks
      WHERE is_active = true
@@ -939,7 +966,8 @@ export async function getActiveHomepageBlocks(homepage: HomepageContent): Promis
 
   const resolved = await Promise.all(
     blocks.map(async (block) => {
-      const data = await resolveHomepageBlockData(block, homepage);
+      const data = await optionalHomepageContent(homepage, block.block_type,
+        () => resolveHomepageBlockData(block, homepage, reads), null);
       if (!data) {
         return null;
       }
@@ -951,7 +979,7 @@ export async function getActiveHomepageBlocks(homepage: HomepageContent): Promis
   return resolved.filter((block): block is PublicHomepageBlock => block !== null);
 }
 
-export async function getActiveHomepageContent(): Promise<HomepageContent> {
+export async function getActiveHomepageContent(reads: HomepageReads = defaultHomepageReads()): Promise<HomepageContent> {
   const sections = await query<HomepageSection>(
     `SELECT * FROM homepage_sections
      WHERE is_active = true
@@ -961,12 +989,12 @@ export async function getActiveHomepageContent(): Promise<HomepageContent> {
   if (sections.length === 0) {
     const homepage = await applyLegacyPromotionContent(createEmptyHomepageContent());
     const [brandSections, categorySections] = await Promise.all([
-      getActiveHomepageBrandProductSections(),
-      getActiveHomepageCategoryProductSections(),
+      optionalHomepageContent(homepage, 'brand_product_sections', getActiveHomepageBrandProductSections, []),
+      optionalHomepageContent(homepage, 'category_product_sections', getActiveHomepageCategoryProductSections, []),
     ]);
     homepage.brand_product_sections = brandSections;
     homepage.category_product_sections = categorySections;
-    const homepageBlocks = await getActiveHomepageBlocks(homepage);
+    const homepageBlocks = await getActiveHomepageBlocks(homepage, reads);
     if (homepageBlocks.length > 0) {
       homepage.homepage_blocks = homepageBlocks;
     }
@@ -984,12 +1012,12 @@ export async function getActiveHomepageContent(): Promise<HomepageContent> {
 
   const homepage = await applyLegacyPromotionContent(groupHomepageContent(nestSections(sections, items)));
   const [brandSections, categorySections] = await Promise.all([
-    getActiveHomepageBrandProductSections(),
-    getActiveHomepageCategoryProductSections(),
+    optionalHomepageContent(homepage, 'brand_product_sections', getActiveHomepageBrandProductSections, []),
+    optionalHomepageContent(homepage, 'category_product_sections', getActiveHomepageCategoryProductSections, []),
   ]);
   homepage.brand_product_sections = brandSections;
   homepage.category_product_sections = categorySections;
-  const homepageBlocks = await getActiveHomepageBlocks(homepage);
+  const homepageBlocks = await getActiveHomepageBlocks(homepage, reads);
   if (homepageBlocks.length > 0) {
     homepage.homepage_blocks = homepageBlocks;
   }

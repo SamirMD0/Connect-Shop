@@ -8,14 +8,16 @@ import { api } from '@/lib/api';
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const [done, setDone] = useState(false);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
-    await api.post('/api/auth/forgot-password', { email });
-    setDone(true);
-    setLoading(false);
+    setError('');
+    try { await api.post('/api/auth/forgot-password', { email }); setDone(true); }
+    catch { setError('We could not submit your request. Please try again.'); }
+    finally { setLoading(false); }
   }
 
   return (
@@ -36,7 +38,8 @@ export default function ForgotPasswordPage() {
             required
           />
         </div>
-        {done && <p className="text-sm text-text-muted" role="status">If an account exists, a reset link has been sent.</p>}
+        {done && <p className="text-sm text-text-muted" role="status">If an eligible account exists, we will attempt to send a reset link.</p>}
+        {error && <p role="alert" className="text-sm text-danger">{error}</p>}
         <Button type="submit" className="w-full" loading={loading}>Send reset link</Button>
       </form>
     </Container>

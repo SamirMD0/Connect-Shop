@@ -38,6 +38,7 @@ export const corsOptions: CorsOptions = {
     'Authorization',
     'X-Requested-With',
     'X-CSRF-Token',
+    'Idempotency-Key',
   ],
 
   exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining'],

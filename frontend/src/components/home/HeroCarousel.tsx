@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import Link from 'next/link';
 import { ArrowRight, ChevronLeft, ChevronRight } from 'lucide-react';
 import { CarouselSlide } from '@/lib/types';
@@ -83,6 +83,7 @@ export function HeroCarousel({ slides }: HeroCarouselProps) {
               aria-hidden={index !== currentIndex}
             >
               <Image
+                imagekitWidth={1920}
                 src={slide.image_url}
                 alt={slide.title}
                 fill

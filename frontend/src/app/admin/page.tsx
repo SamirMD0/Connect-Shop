@@ -6,11 +6,13 @@ import Image from 'next/image';
 import { DollarSign, ShoppingCart, Users, Package, Grid } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
 import { api } from '../../lib/api';
+import { useStoreMoney } from '@/context/StoreSettingsContext';
 import { AnalyticsSummary } from '../../lib/types';
 import { AdminStatCard } from '../../components/admin/AdminStatCard';
 import { PhantomSkeleton } from '../../components/ui/PhantomSkeleton';
 
 export default function AdminOverview() {
+  const money = useStoreMoney();
   const [data, setData] = useState<AnalyticsSummary | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -76,7 +78,7 @@ export default function AdminOverview() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
             <AdminStatCard
               title="Total Revenue"
-              value="$0"
+              value={money(0)}
               icon={<DollarSign className="w-5 h-5" />}
             />
             <AdminStatCard
@@ -133,7 +135,7 @@ export default function AdminOverview() {
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 sm:gap-6">
         <AdminStatCard 
           title="Total Revenue" 
-          value={`$${parseFloat(data.totalRevenue).toLocaleString()}`}
+          value={money(data.totalRevenue)}
           icon={<DollarSign className="w-5 h-5" />} 
         />
         <AdminStatCard 
@@ -180,7 +182,7 @@ export default function AdminOverview() {
                   tick={{ fill: '#64748b', fontSize: 12 }}
                   axisLine={false}
                   tickLine={false}
-                  tickFormatter={(val) => `$${val}`}
+                  tickFormatter={(val) => money(Number(val))}
                 />
               )}
               <Tooltip
@@ -193,7 +195,7 @@ export default function AdminOverview() {
                 }}
                 itemStyle={{ color: '#0B1B48' }}
                 labelStyle={{ color: '#64748b' }}
-                formatter={(value) => [`$${Number(value).toLocaleString()}`, 'Revenue']}
+                formatter={(value) => [money(Number(value)), 'Revenue']}
               />
               <Bar dataKey="revenue" fill="#2563eb" radius={[6, 6, 0, 0]} maxBarSize={isMobile ? 30 : 50} />
             </BarChart>
@@ -265,7 +267,7 @@ export default function AdminOverview() {
                     </div>
                     <div>
                       <p className="line-clamp-1 font-medium text-[#0B1B48]">{prod.name}</p>
-                      <p className="text-xs text-accent">${parseFloat(prod.price).toLocaleString()}</p>
+                      <p className="text-xs text-accent">{money(prod.price)}</p>
                     </div>
                   </div>
                   <span className={`text-xs px-3 py-1.5 rounded-lg ${

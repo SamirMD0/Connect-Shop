@@ -11,11 +11,13 @@ import {
   deleteHomepageBrandProductSection,
   deleteHomepageCategoryProductSection,
   getActiveHomepageContent,
+  defaultHomepageReads,
   getAdminHomepageBlocks,
   getAdminHomepageSections,
   getAdminHomepageBrandProductSections,
   getAdminHomepageCategoryProductSections,
   HomepageContent,
+  HOMEPAGE_PARTIAL,
   moveHomepageBlock,
   moveHomepageBrandProductSection,
   moveHomepageCategoryProductSection,
@@ -28,11 +30,13 @@ import {
   updateHomepageCategoryProductSection,
 } from '../services/homepage.service';
 import { getActiveSlides } from '../services/carousel.service';
-import { getBrands, getCategories, getFeaturedProducts, listProducts } from '../services/products.service';
+import { getBrands, getCategories, getFeaturedProducts } from '../services/products.service';
 import { getJsonCache, setJsonCache } from '../config/redis';
 import { CACHE_KEYS, CACHE_TTL_SECONDS } from '../utils/cachePolicy';
 import { NotFoundError } from '../utils/errors';
 import { logger } from '../utils/logger';
+import { withDeadline } from '../utils/deadline';
+import { env } from '../config/env';
 
 type HomepageAggregateSection =
   | 'featuredProducts'
@@ -63,9 +67,10 @@ async function safelyResolveHomepageSection<T>(
   load: () => Promise<T>
 ): Promise<{ value: T; failed: boolean }> {
   try {
-    return { value: await load(), failed: false };
-  } catch (error) {
-    logger.error({ err: error, section }, 'Homepage aggregate section failed');
+    const optional = ['brands', 'carouselSlides', 'homepage'].includes(section);
+    return { value: await (optional ? withDeadline(load, env.HOMEPAGE_OPTIONAL_TIMEOUT_MS) : load()), failed: false };
+  } catch {
+    logger.warn({ section }, 'Homepage aggregate section unavailable');
     return { value: fallback, failed: true };
   }
 }
@@ -82,8 +87,10 @@ export async function getPublicHomepage(
       return;
     }
 
-    const homepage = await getActiveHomepageContent();
-    await setJsonCache(CACHE_KEYS.homepageActive, homepage, CACHE_TTL_SECONDS.homepage);
+    const homepage = await withDeadline(() => getActiveHomepageContent(), env.HOMEPAGE_OPTIONAL_TIMEOUT_MS);
+    if (!homepage[HOMEPAGE_PARTIAL]) {
+      await setJsonCache(CACHE_KEYS.homepageActive, homepage, CACHE_TTL_SECONDS.homepage);
+    }
     res.json({ success: true, homepage });
   } catch (err) {
     next(err);
@@ -98,10 +105,15 @@ export async function getPublicHomepageFull(
   try {
     const cached = await getJsonCache<HomepageAggregateResponse>(CACHE_KEYS.homepageFull);
     if (cached) {
+      res.locals.homepageAggregateSuccessful = cached.success === true
+        && !cached.partialFailures.some((section) => (
+          ['featuredProducts', 'trendingProducts', 'categories'].includes(section)
+        ));
       res.json(cached);
       return;
     }
 
+    const reads = defaultHomepageReads();
     const [
       featuredProducts,
       trendingProducts,
@@ -110,16 +122,14 @@ export async function getPublicHomepageFull(
       carouselSlides,
       homepage,
     ] = await Promise.all([
-      safelyResolveHomepageSection('featuredProducts', [], () => getFeaturedProducts()),
-      safelyResolveHomepageSection('trendingProducts', [], async () => (
-        await listProducts({ sort: 'rating', limit: 8 })
-      ).products),
-      safelyResolveHomepageSection('categories', [], () => getCategories()),
+      safelyResolveHomepageSection('featuredProducts', [], reads.featured),
+      safelyResolveHomepageSection('trendingProducts', [], reads.trending),
+      safelyResolveHomepageSection('categories', [], reads.categories),
       safelyResolveHomepageSection('brands', [], async () => (
-        await getBrands()
+        await reads.brands()
       ).filter((brand) => brand.is_active)),
       safelyResolveHomepageSection('carouselSlides', [], () => getActiveSlides()),
-      safelyResolveHomepageSection('homepage', createEmptyHomepageContent(), () => getActiveHomepageContent()),
+      safelyResolveHomepageSection('homepage', createEmptyHomepageContent(), () => getActiveHomepageContent(reads)),
     ]);
     const partialFailures = [
       featuredProducts.failed ? 'featuredProducts' : null,
@@ -127,7 +137,7 @@ export async function getPublicHomepageFull(
       categories.failed ? 'categories' : null,
       brands.failed ? 'brands' : null,
       carouselSlides.failed ? 'carouselSlides' : null,
-      homepage.failed ? 'homepage' : null,
+      homepage.failed || homepage.value[HOMEPAGE_PARTIAL] ? 'homepage' : null,
     ].filter((section): section is HomepageAggregateSection => section !== null);
     const data: HomepageAggregateData = {
       featuredProducts: featuredProducts.value,
@@ -147,6 +157,8 @@ export async function getPublicHomepageFull(
       await setJsonCache(CACHE_KEYS.homepageFull, responseBody, CACHE_TTL_SECONDS.homepageFull);
     }
 
+    res.locals.homepageAggregateSuccessful = !featuredProducts.failed
+      && !trendingProducts.failed && !categories.failed;
     res.json(responseBody);
   } catch (err) {
     next(err);

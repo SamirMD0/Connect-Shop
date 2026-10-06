@@ -4,11 +4,14 @@ import React, { useEffect, useState } from 'react';
 import { Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Download, Upload, LayoutGrid, List, Package } from 'lucide-react';
 import { api, ApiError, getErrorMessage } from '../../../lib/api';
 import { Product, Category, Brand } from '../../../lib/types';
+import { inventoryEdit } from '@/lib/inventory-edit';
 import { DataTable } from '../../../components/admin/DataTable';
 import { Modal } from '../../../components/admin/Modal';
+import { Money } from '@/context/StoreSettingsContext';
 import { SafeImage } from '@/components/ui/SafeImage';
 
 interface VariantForm {
+  id?: string;
   sku: string;
   name: string;
   price: string;
@@ -195,10 +198,11 @@ export default function AdminProducts() {
         const detail = await api.get<{ success: boolean; product: Product }>(`/api/products/${product.slug}`);
         fullProduct = detail.product;
       } catch {
-        // The list payload is enough for basic edits if detail fetch fails.
+        setFormError('Unable to load product details. Retry before editing.');
+        return;
       }
 
-      setEditingProduct(product);
+      setEditingProduct(fullProduct);
       setFormData({
         name: fullProduct.name,
         slug: fullProduct.slug,
@@ -217,7 +221,8 @@ export default function AdminProducts() {
         meta_title: fullProduct.meta_title || '',
         meta_description: fullProduct.meta_description || '',
         gallery_images_text: fullProduct.gallery_images?.map(img => img.image_url).join('\n') || '',
-        variants: fullProduct.variants?.map(variant => ({
+        variants: fullProduct.variants?.filter(variant => variant.is_active !== false).map(variant => ({
+          id: variant.id,
           sku: variant.sku,
           name: variant.name,
           price: variant.price.toString(),
@@ -240,7 +245,7 @@ export default function AdminProducts() {
     setSubmitting(true);
     try {
       const price = parseFloat(formData.price);
-      const stock = parseInt(formData.stock, 10);
+      const stock = formData.stock.trim() ? Number(formData.stock) : NaN;
       const categoryId = parseInt(formData.category_id, 10);
 
       if (!formData.name.trim()) throw new Error('Product name is required.');
@@ -258,16 +263,22 @@ export default function AdminProducts() {
         .filter(Boolean)
         .map((image_url, index) => ({ image_url, sort_order: index, is_primary: false }));
 
-      const variants = formData.variants
-        .filter(variant => variant.sku.trim() && variant.name.trim() && variant.price)
-        .map(variant => ({
+      const variants = formData.variants.map(variant => {
+        const price = Number(variant.price);
+        if (!variant.sku.trim() || !variant.name.trim() || !Number.isFinite(price) || price <= 0) {
+          throw new Error('Each variant needs a SKU, name and positive price. Use Remove to retire it.');
+        }
+        const original = editingProduct?.variants?.find(saved => saved.id === variant.id);
+        return {
+          id: variant.id,
           sku: variant.sku.trim(),
           name: variant.name.trim(),
-          price: parseFloat(variant.price),
-          stock: parseInt(variant.stock || '0', 10),
+          price,
+          ...inventoryEdit(variant.stock.trim() ? Number(variant.stock) : NaN, original?.stock, original?.inventory_version),
           attributes: JSON.parse(variant.attributes || '{}'),
           image_url: variant.image_url.trim() || null,
-        }));
+        };
+      });
 
       const payload = {
         name: formData.name.trim(),
@@ -276,7 +287,7 @@ export default function AdminProducts() {
         description: formData.description.trim() || null,
         price,
         category_id: categoryId,
-        stock,
+        ...inventoryEdit(stock, editingProduct?.stock, editingProduct?.inventory_version),
         is_featured: formData.is_featured,
         brand_id: formData.brand_id ? parseInt(formData.brand_id, 10) : null,
         brand: formData.brand.trim() || null,
@@ -506,7 +517,7 @@ export default function AdminProducts() {
   const columns = [
     { header: 'Image', cell: (p: Product) => renderProductImage(p) },
     { header: 'Name', accessorKey: 'name' as keyof Product },
-    { header: 'Price', cell: (p: Product) => <span className="text-accent font-medium">${p.price}</span> },
+    { header: 'Price', cell: (p: Product) => <span className="text-accent font-medium">{<Money amount={p.price} />}</span> },
     { header: 'Category', accessorKey: 'category_name' as keyof Product },
     { header: 'Brand', cell: (p: Product) => <span className="text-slate-600">{p.brand || '-'}</span> },
     { header: 'Stock', cell: (p: Product) => (
@@ -532,6 +543,7 @@ export default function AdminProducts() {
         <div>
           <h1 className="text-2xl font-bold text-[#0B1B48]">Products</h1>
           <p className="mt-1 text-sm text-slate-500">Manage your store&apos;s inventory</p>
+          {formError && !isModalOpen && <p role="alert" className="mt-2 text-sm text-red-600">{formError}</p>}
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <form onSubmit={handleSearch} className="relative w-full sm:w-64">
@@ -613,7 +625,7 @@ export default function AdminProducts() {
               {renderProductImage(p)}
               <div className="min-w-0">
                 <p className="font-medium text-[#0B1B48] truncate">{p.name}</p>
-                <p className="text-xs text-accent">${p.price}</p>
+                <p className="text-xs text-accent">{<Money amount={p.price} />}</p>
                 <div className="flex flex-wrap gap-1.5 mt-1">
                   <span className="text-xs text-slate-500">{p.category_name || 'No category'}</span>
                   {p.brand && <span className="text-xs text-slate-500">· {p.brand}</span>}
@@ -637,7 +649,7 @@ export default function AdminProducts() {
                     <h3 className="line-clamp-2 font-semibold text-[#0B1B48]">{product.name}</h3>
                     <p className="mt-1 truncate text-xs text-slate-500">/{product.slug}</p>
                   </div>
-                  <span className="shrink-0 font-semibold text-accent">${product.price}</span>
+                  <span className="shrink-0 font-semibold text-accent">{<Money amount={product.price} />}</span>
                 </div>
 
                 <div className="flex flex-wrap gap-2 text-xs">

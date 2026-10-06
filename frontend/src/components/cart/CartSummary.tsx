@@ -3,22 +3,17 @@
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/hooks/useCart';
 import { Button } from '@/components/ui/Button';
+import { Money } from '@/context/StoreSettingsContext';
 import { ArrowRight, Truck, WalletCards } from 'lucide-react';
 
 export function CartSummary() {
   const { itemCount, subtotal } = useCart();
   const router = useRouter();
 
-  const subtotalNum = parseFloat(subtotal) || 0;
-  const freeShippingThreshold = 150;
-  const estimatedShipping = subtotalNum >= freeShippingThreshold || subtotalNum === 0 ? 0 : 4;
-  const estimatedTax = Math.round(subtotalNum * 0.11 * 100) / 100;
-  const estimatedTotal = (subtotalNum + estimatedShipping + estimatedTax).toFixed(2);
-
   return (
     <section className="rounded-lg border border-border bg-bg-surface p-5 shadow-sm lg:sticky lg:top-24" aria-labelledby="cart-summary-heading">
       <h2 id="cart-summary-heading" className="text-lg font-bold text-text-primary">Order summary</h2>
-      <p className="mt-1 text-sm text-text-muted">Estimated charges before delivery confirmation.</p>
+      <p className="mt-1 text-sm text-text-muted">Tax, delivery and coupons are calculated at checkout.</p>
 
       <div className="my-5 grid gap-3">
         <div className="flex items-start gap-3 rounded-lg bg-accent/10 p-3">
@@ -40,22 +35,9 @@ export function CartSummary() {
       <div className="space-y-3 text-sm">
         <div className="flex justify-between text-text-muted">
           <span>Subtotal ({itemCount} {itemCount === 1 ? 'item' : 'items'})</span>
-          <span className="text-text-primary font-medium">${subtotal}</span>
+          <span className="text-text-primary font-medium">{<Money amount={subtotal} />}</span>
         </div>
-        <div className="flex justify-between text-text-muted">
-          <span>Estimated tax</span>
-          <span className="text-text-primary font-medium">${estimatedTax.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-text-muted">
-          <span>Estimated delivery</span>
-          <span className="text-text-primary font-medium">
-            {subtotalNum >= freeShippingThreshold ? '$0.00' : `$${estimatedShipping.toFixed(2)}`}
-          </span>
-        </div>
-        <div className="flex justify-between border-t border-border pt-4 text-lg font-bold text-text-primary">
-          <span>Estimated total</span>
-          <span>${estimatedTotal}</span>
-        </div>
+        <p className="text-xs text-text-muted">Review the server quote after selecting your delivery region and coupon.</p>
       </div>
 
       <Button

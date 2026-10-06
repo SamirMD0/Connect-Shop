@@ -1,6 +1,7 @@
 // backend/src/controllers/orders.controller.ts
 import { Request, Response, NextFunction } from 'express';
 import {
+  quoteCheckout,
   placeOrder,
   placeGuestOrder,
   getUserOrders,
@@ -15,6 +16,7 @@ import {
 import { EmailService } from '../services/email.service';
 import { NotFoundError, AppError } from '../utils/errors';
 import { logCheckoutBlocked, maskPhone } from '../services/securityEvent.service';
+import { logger } from '../utils/logger';
 
 /**
  * POST /api/orders
@@ -26,20 +28,23 @@ export async function create(req: Request, res: Response, next: NextFunction): P
     const { shippingAddress, paymentMethod, couponCode, deliverySlot, guestEmail, items } = req.body;
     const user = req.user;
 
-    const order = user
-      ? await placeOrder(user.id, shippingAddress, paymentMethod, { couponCode, deliverySlot })
-      : await placeGuestOrder(guestEmail, items || [], shippingAddress, paymentMethod, { couponCode, deliverySlot });
+    const options = { ...(req.body.expectedQuote === undefined ? {} : { expectedQuote: req.body.expectedQuote }), couponCode, deliverySlot, items, idempotencyKey: req.get('Idempotency-Key') };
+    const { order, replayed } = user
+      ? await placeOrder(user.id, shippingAddress, paymentMethod, options)
+      : await placeGuestOrder(guestEmail, items || [], shippingAddress, paymentMethod, options);
 
     // Send confirmation email asynchronously
     const confirmationEmail = user?.email || guestEmail;
-    if (confirmationEmail) {
-      EmailService.sendOrderConfirmation(confirmationEmail, order.id, Number(order.total)).catch(console.error);
+    if (confirmationEmail && !replayed) {
+      void Promise.resolve().then(() => EmailService.sendOrderConfirmation(confirmationEmail, order.id, Number(order.total), order.currency || 'USD'))
+        .catch(() => logger.warn('Committed checkout confirmation email failed'));
     }
 
     res.status(201).json({
       success: true,
       message: 'Order placed successfully!',
       order,
+      replayed,
     });
   } catch (err) {
     if (err instanceof CheckoutAbuseError) {
@@ -143,4 +148,13 @@ export async function invoice(req: Request, res: Response, next: NextFunction): 
   } catch (err) {
     next(err);
   }
+}
+
+/** POST /api/orders/quote: no account/guest email or address details in response. */
+export async function quote(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    const value = await quoteCheckout(req.user?.id || null, req.body.items, req.body.shippingAddress, req.body.couponCode, req.body.paymentMethod);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ success: true, quote: value });
+  } catch (error) { next(error); }
 }

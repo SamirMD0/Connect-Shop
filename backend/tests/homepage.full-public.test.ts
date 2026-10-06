@@ -12,6 +12,7 @@ function createJsonResponse() {
   let body: unknown;
 
   const res = {
+    locals: {},
     status(code: number) {
       statusCode = code;
       return this;

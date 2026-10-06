@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import Link from 'next/link';
 import { Category } from '@/lib/types';
 
@@ -31,6 +31,7 @@ export function AllCategoriesSection({ categories, fallbackImages }: AllCategori
             >
               <div className="relative mx-auto mb-3 flex h-24 w-24 items-center justify-center rounded-full bg-white">
                 <Image
+                  imagekitWidth={400}
                   src={category.image_url || fallbackImages[index % fallbackImages.length]}
                   alt={category.name}
                   fill

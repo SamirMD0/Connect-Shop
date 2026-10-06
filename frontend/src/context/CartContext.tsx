@@ -1,12 +1,18 @@
 'use client';
 
-import React, { createContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { Cart, CartItem, GuestCartItem, Product } from '@/lib/types';
+import React, { createContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
+import { Cart, CartItem, Product } from '@/lib/types';
 import { api, ApiError } from '@/lib/api';
-import { CART_STORAGE_KEY } from '@/lib/constants';
+import { getGuestCart, mutateGuestCart, prepareGuestMerge, confirmGuestMerge, type MergeResult, type RejectedMergeLine } from '@/lib/guest-cart';
 import { useAuth } from '@/hooks/useAuth';
+import { removePurchasedGuestItems, type CheckoutRequestItem } from '@/lib/checkout-attempt';
 
 interface CartContextType {
+  mergeError: string | null;
+  mergeRejected: RejectedMergeLine[];
+  guestItemsRemaining: number;
+  mergeLoading: boolean;
+  retryGuestMerge: () => Promise<void>;
   items: CartItem[];
   itemCount: number;
   subtotal: string;
@@ -14,10 +20,13 @@ interface CartContextType {
   addItem: (productId: string, quantity?: number, variantId?: string | null) => Promise<void>;
   updateItem: (itemId: number, quantity: number) => Promise<void>;
   removeItem: (itemId: number) => Promise<void>;
+  refreshCart: () => Promise<void>;
   clearCart: () => void;
+  completeCheckout: (purchased: CheckoutRequestItem[]) => Promise<void>;
 }
 
 export const CartContext = createContext<CartContextType>({
+  mergeError: null, mergeRejected: [], guestItemsRemaining: 0, mergeLoading: false, retryGuestMerge: async () => {},
   items: [],
   itemCount: 0,
   subtotal: '0.00',
@@ -25,34 +34,10 @@ export const CartContext = createContext<CartContextType>({
   addItem: async () => {},
   updateItem: async () => {},
   removeItem: async () => {},
+  refreshCart: async () => {},
   clearCart: () => {},
+  completeCheckout: async () => {},
 });
-
-// ─── Guest Cart Helpers ──────────────────────────────────────────────────────
-
-function getGuestCart(): GuestCartItem[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const stored = localStorage.getItem(CART_STORAGE_KEY);
-    const items: GuestCartItem[] = stored ? JSON.parse(stored) : [];
-    const activeItems = items.filter(item => !item.expires_at || new Date(item.expires_at).getTime() > Date.now());
-    if (activeItems.length !== items.length) setGuestCart(activeItems);
-    return activeItems;
-  } catch {
-    return [];
-  }
-}
-
-function setGuestCart(items: GuestCartItem[]) {
-  if (typeof window === 'undefined') return;
-  const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-  localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items.map(item => ({ ...item, expires_at: item.expires_at || expiresAt }))));
-}
-
-function clearGuestCart() {
-  if (typeof window === 'undefined') return;
-  localStorage.removeItem(CART_STORAGE_KEY);
-}
 
 // ─── Provider ────────────────────────────────────────────────────────────────
 
@@ -62,9 +47,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [itemCount, setItemCount] = useState(0);
   const [subtotal, setSubtotal] = useState('0.00');
   const [loading, setLoading] = useState(false);
+  const [mergeError, setMergeError] = useState<string | null>(null);
+  const [mergeRejected, setMergeRejected] = useState<RejectedMergeLine[]>([]);
+  const [guestItemsRemaining, setGuestItemsRemaining] = useState(0);
+  const [mergeLoading, setMergeLoading] = useState(false);
+  const mergeRetryOf = useRef<string | undefined>(undefined);
+  const currentUserId = useRef(user?.id);
+  useEffect(() => { currentUserId.current = user?.id; }, [user?.id]);
 
   const loadGuestCart = useCallback(async () => {
-    const guestItems = getGuestCart();
+    const guestItems = await getGuestCart();
+    if (currentUserId.current) return;
     const itemCount = guestItems.reduce((sum, item) => sum + item.quantity, 0);
     setItemCount(itemCount);
 
@@ -108,17 +101,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
           slug: product.slug,
           price: variant?.price || product.price,
           image_url: variant?.image_url || product.image_url,
-          stock: variant?.stock ?? product.stock,
+          stock: guestItem.variant_id && (!variant || variant.is_active === false) ? 0 : variant?.stock ?? product.stock,
           variant_name: variant?.name || null,
           created_at: new Date().toISOString(),
         } as CartItem;
       }));
 
+      if (currentUserId.current) return;
       const cartItems = hydratedItems.filter(Boolean) as CartItem[];
       setItems(cartItems);
       setSubtotal(cartItems.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0).toFixed(2));
       setItemCount(cartItems.reduce((sum, item) => sum + item.quantity, 0));
     } catch {
+      if (currentUserId.current) return;
       setItems([]);
       setSubtotal('0.00');
     } finally {
@@ -132,6 +127,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const data = await api.get<{ success: boolean; cart: Cart }>('/api/cart');
+      if (currentUserId.current !== user.id) return;
       setItems(data.cart.items);
       setItemCount(data.cart.itemCount);
       setSubtotal(data.cart.total);
@@ -142,54 +138,67 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  // Load cart: backend for auth users, localStorage for guests
+  const transferGuestCart = useCallback(async (retryOf?: string) => {
+    if (!user) return;
+    const actor = user.id;
+    setMergeLoading(true); setMergeError(null);
+    try {
+      const prepared = await prepareGuestMerge(actor, retryOf);
+      let confirmed = prepared;
+      if (prepared.key && prepared.items) {
+        const result = await api.post<MergeResult>('/api/cart/merge', { userId: actor, items: prepared.items },
+          { headers: { 'Idempotency-Key': prepared.key } });
+        // Reconcile durable storage even if the UI has since changed account.
+        confirmed = await confirmGuestMerge(prepared.key, result);
+      }
+      if (currentUserId.current === actor) {
+        mergeRetryOf.current = confirmed.retryOf;
+        setMergeRejected(confirmed.rejected); setGuestItemsRemaining(confirmed.remaining);
+      }
+    } catch (error) {
+      if (currentUserId.current === actor) setMergeError(error instanceof Error ? error.message : 'Could not confirm your guest cart transfer. Retry safely.');
+    } finally {
+      if (currentUserId.current === actor) { setMergeLoading(false); await fetchCart(); }
+    }
+  }, [user, fetchCart]);
+
   useEffect(() => {
     if (authLoading) return;
-
-    if (user) {
-      // Merge guest cart into backend cart, then fetch
-      const guestItems = getGuestCart();
-      if (guestItems.length > 0) {
-        (async () => {
-          try {
-            for (const item of guestItems) {
-              await api.post('/api/cart', { productId: item.product_id, quantity: item.quantity, variantId: item.variant_id });
-            }
-            clearGuestCart();
-          } catch {
-            // ignore merge errors
-          }
-          fetchCart();
-        })();
-      } else {
-        fetchCart();
+    let active = true;
+    void (async () => {
+      // Skip effects cleaned up by a remount/account change before storage work.
+      await Promise.resolve();
+      if (!active) return;
+      if (user) await transferGuestCart();
+      else {
+        setMergeError(null); setMergeRejected([]); setGuestItemsRemaining(0); setMergeLoading(false);
+        mergeRetryOf.current = undefined;
+        await loadGuestCart().catch(error => {
+          if (active) setMergeError(error instanceof Error ? error.message : 'Could not read the saved cart.');
+        });
       }
-    } else {
-      void loadGuestCart();
-    }
-  }, [user, authLoading, fetchCart, loadGuestCart]);
+    })();
+    return () => { active = false; };
+  }, [user, authLoading, transferGuestCart, loadGuestCart]);
+
+  const retryGuestMerge = () => transferGuestCart(mergeRetryOf.current);
+
+  const applyCart = (cart: Cart) => { setItems(cart.items); setItemCount(cart.itemCount); setSubtotal(cart.total); };
 
   const addItem = async (productId: string, quantity = 1, variantId?: string | null) => {
     if (user) {
       try {
         const data = await api.post<{ success: boolean; cart: Cart }>('/api/cart', { productId, quantity, variantId });
-        setItems(data.cart.items);
-        setItemCount(data.cart.itemCount);
-        setSubtotal(data.cart.total);
-      } catch (err) {
-        if (err instanceof ApiError) throw err;
-      }
+        applyCart(data.cart);
+      } catch (err) { if (err instanceof ApiError) throw err; }
     } else {
-      const guestItems = getGuestCart();
-      const existing = guestItems.find(item => item.product_id === productId && item.variant_id === variantId);
-      const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-      if (existing) {
-        existing.quantity += quantity;
-        existing.expires_at = expiresAt;
-      } else {
-        guestItems.push({ product_id: productId, quantity, variant_id: variantId, expires_at: expiresAt });
-      }
-      setGuestCart(guestItems);
+      await mutateGuestCart(guestItems => {
+        const existing = guestItems.find(item => item.product_id === productId.toLowerCase() && (item.variant_id || null) === (variantId?.toLowerCase() || null));
+        const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+        if (existing) { existing.quantity += quantity; existing.expires_at = expiresAt; }
+        else guestItems.push({ product_id: productId, quantity, variant_id: variantId, expires_at: expiresAt });
+        return guestItems;
+      });
       await loadGuestCart();
     }
   };
@@ -198,19 +207,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (user) {
       try {
         const data = await api.patch<{ success: boolean; cart: Cart }>(`/api/cart/${itemId}`, { quantity });
-        setItems(data.cart.items);
-        setItemCount(data.cart.itemCount);
-        setSubtotal(data.cart.total);
-      } catch (err) {
-        if (err instanceof ApiError) throw err;
-      }
+        applyCart(data.cart);
+      } catch (err) { if (err instanceof ApiError) throw err; }
     } else {
-      const guestItems = getGuestCart();
-      const item = guestItems[itemId - 1];
-      if (!item) return;
-      item.quantity = quantity;
-      item.expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-      setGuestCart(guestItems);
+      await mutateGuestCart(guestItems => {
+        const item = guestItems[itemId - 1];
+        if (item) { item.quantity = quantity; item.expires_at = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(); }
+        return guestItems;
+      });
       await loadGuestCart();
     }
   };
@@ -219,33 +223,33 @@ export function CartProvider({ children }: { children: ReactNode }) {
     if (user) {
       try {
         const data = await api.delete<{ success: boolean; cart: Cart }>(`/api/cart/${itemId}`);
-        setItems(data.cart.items);
-        setItemCount(data.cart.itemCount);
-        setSubtotal(data.cart.total);
-      } catch (err) {
-        if (err instanceof ApiError) throw err;
-      }
+        applyCart(data.cart);
+      } catch (err) { if (err instanceof ApiError) throw err; }
     } else {
-      const guestItems = getGuestCart();
-      guestItems.splice(itemId - 1, 1);
-      setGuestCart(guestItems);
+      await mutateGuestCart(guestItems => { guestItems.splice(itemId - 1, 1); return guestItems; });
+      await loadGuestCart();
+    }
+  };
+
+  const completeCheckout = async (purchased: CheckoutRequestItem[]) => {
+    if (user) {
+      // Server consumed only the purchased snapshot; preserve later additions.
+      const data = await api.get<{ success: boolean; cart: Cart }>('/api/cart');
+      applyCart(data.cart);
+    } else {
+      await mutateGuestCart(guestItems => removePurchasedGuestItems(guestItems, purchased));
       await loadGuestCart();
     }
   };
 
   const clearCartState = () => {
-    setItems([]);
-    setItemCount(0);
-    setSubtotal('0.00');
-    if (!user) {
-      clearGuestCart();
-    }
+    setItems([]); setItemCount(0); setSubtotal('0.00');
+    if (!user) void mutateGuestCart(() => []).catch(error => setMergeError(error instanceof Error ? error.message : 'Could not clear the saved cart.'));
   };
 
   return (
-    <CartContext.Provider
-      value={{ items, itemCount, subtotal, loading, addItem, updateItem, removeItem, clearCart: clearCartState }}
-    >
+    <CartContext.Provider value={{ mergeError, mergeRejected, guestItemsRemaining, mergeLoading, retryGuestMerge,
+      items, itemCount, subtotal, loading, addItem, updateItem, removeItem, clearCart: clearCartState, completeCheckout, refreshCart: fetchCart }}>
       {children}
     </CartContext.Provider>
   );

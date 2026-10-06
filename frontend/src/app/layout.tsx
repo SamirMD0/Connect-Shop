@@ -11,6 +11,9 @@ import { Footer } from '@/components/layout/Footer';
 import { WhatsAppButton } from '@/components/common/WhatsAppButton';
 import { PhantomUiProvider } from '@/components/phantom/PhantomUiProvider';
 import { APP_NAME, SITE_URL } from '@/lib/constants';
+import { businessBrand } from '@/lib/business-config';
+import { getStoreSettings } from '@/lib/store-settings.server';
+import { StoreSettingsProvider } from '@/context/StoreSettingsContext';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -21,19 +24,11 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   applicationName: APP_NAME,
   title: {
-    default: `${APP_NAME} — Premium Electronics Store`,
+    default: businessBrand.title,
     template: `%s | ${APP_NAME}`,
   },
-  description:
-    'Shop smartphones, laptops, audio gear, appliances, gaming accessories, and more with cash-on-delivery support.',
-  keywords: [
-    'electronics store',
-    'online electronics shop',
-    'smartphones',
-    'laptops',
-    'cash on delivery',
-    APP_NAME,
-  ],
+  description: businessBrand.description,
+  keywords: businessBrand.keywords,
   alternates: {
     canonical: '/',
   },
@@ -41,39 +36,40 @@ export const metadata: Metadata = {
     type: 'website',
     url: SITE_URL,
     siteName: APP_NAME,
-    title: `${APP_NAME} — Premium Electronics Store`,
-    description:
-      'Browse electronics, appliances, accessories, and cash-on-delivery products from a small-business ecommerce store.',
+    title: businessBrand.title,
+    description: businessBrand.description,
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${APP_NAME} — Premium Electronics Store`,
-    description:
-      'Browse electronics, appliances, accessories, and cash-on-delivery products from a small-business ecommerce store.',
+    title: businessBrand.title,
+    description: businessBrand.description,
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const settings = await getStoreSettings();
   return (
-    <html lang="en" className="bg-bg-primary">
+    <html lang="en" className="bg-bg-primary" style={businessBrand.colors as React.CSSProperties}>
       <body className={`${inter.variable} flex min-h-screen flex-col bg-bg-primary font-sans antialiased`} suppressHydrationWarning>
-        <PhantomUiProvider />
-        <AuthProvider>
-          <WishlistProvider>
-            <CartProvider>
-              <ToastProvider>
-                <Navbar />
-                <main className="w-full flex-1">{children}</main>
-                <Footer />
-                <WhatsAppButton />
-              </ToastProvider>
-            </CartProvider>
-          </WishlistProvider>
-        </AuthProvider>
+        <StoreSettingsProvider initialSettings={settings}>
+          <PhantomUiProvider />
+          <AuthProvider>
+            <WishlistProvider>
+              <CartProvider>
+                <ToastProvider>
+                  <Navbar />
+                  <main className="w-full flex-1">{children}</main>
+                  <Footer />
+                  <WhatsAppButton />
+                </ToastProvider>
+              </CartProvider>
+            </WishlistProvider>
+          </AuthProvider>
+        </StoreSettingsProvider>
       </body>
     </html>
   );

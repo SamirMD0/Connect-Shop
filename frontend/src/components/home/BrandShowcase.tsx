@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import Link from 'next/link';
 import { Brand } from '@/lib/types';
 
@@ -26,6 +26,7 @@ export function BrandShowcase({ brands }: BrandShowcaseProps) {
             >
               <div className="relative h-14 w-[88px] sm:h-28 sm:w-full sm:max-w-[190px] lg:h-32">
                 <Image
+                  imagekitWidth={400}
                   src={brand.logo_url as string}
                   alt={brand.name}
                   fill

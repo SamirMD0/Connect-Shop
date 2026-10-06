@@ -432,6 +432,22 @@ CREATE TABLE IF NOT EXISTS order_items (
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items (order_id);
 
+-- Claims, order, stock, coupon usage and cart consumption commit/rollback together.
+-- Only hashes of the actor/key/request are stored; response has the same private
+-- order information already retained in orders and is never logged.
+CREATE TABLE IF NOT EXISTS checkout_requests (
+  scope_hash CHAR(64) NOT NULL,
+  key_hash CHAR(64) NOT NULL,
+  request_hash CHAR(64) NOT NULL,
+  order_id UUID UNIQUE REFERENCES orders(id) ON DELETE RESTRICT,
+  response JSONB,
+  cache_slugs TEXT[] NOT NULL DEFAULT '{}',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (scope_hash, key_hash),
+  CHECK ((order_id IS NULL AND response IS NULL) OR (order_id IS NOT NULL AND response IS NOT NULL))
+);
+
+
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id UUID REFERENCES product_variants (id) ON DELETE SET NULL;
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_name VARCHAR(255);
 
@@ -1025,3 +1041,59 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- Phase 4 inventory and variant integrity (also additive migration 014).
+-- Preserve variant identity and detect every inventory change, including purchases.
+ALTER TABLE products ADD COLUMN IF NOT EXISTS inventory_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS inventory_version INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE product_variants ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE;
+
+CREATE OR REPLACE FUNCTION advance_inventory_version() RETURNS TRIGGER AS $$
+BEGIN
+  NEW.inventory_version := OLD.inventory_version;
+  IF NEW.stock IS DISTINCT FROM OLD.stock THEN
+    NEW.inventory_version := OLD.inventory_version + 1;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS products_inventory_version ON products;
+CREATE TRIGGER products_inventory_version BEFORE UPDATE ON products
+  FOR EACH ROW EXECUTE FUNCTION advance_inventory_version();
+DROP TRIGGER IF EXISTS variants_inventory_version ON product_variants;
+CREATE TRIGGER variants_inventory_version BEFORE UPDATE ON product_variants
+  FOR EACH ROW EXECUTE FUNCTION advance_inventory_version();
+
+-- Soft retirement is the normal removal path. Prevent physical deletion from
+-- silently erasing the variant identity of historical order items.
+DO $$
+DECLARE constraint_name TEXT;
+BEGIN
+  FOR constraint_name IN
+    SELECT conname FROM pg_constraint
+    WHERE conrelid = 'order_items'::regclass AND confrelid = 'product_variants'::regclass
+      AND contype = 'f' AND conkey = ARRAY[(SELECT attnum FROM pg_attribute
+        WHERE attrelid = 'order_items'::regclass AND attname = 'variant_id')]::smallint[]
+  LOOP
+    EXECUTE format('ALTER TABLE order_items DROP CONSTRAINT %I', constraint_name);
+  END LOOP;
+  ALTER TABLE order_items ADD CONSTRAINT order_items_variant_id_fkey
+    FOREIGN KEY (variant_id) REFERENCES product_variants(id) ON DELETE RESTRICT;
+END;
+$$;
+
+-- Phase 5 atomic guest cart merge
+-- One durable receipt per authenticated user and merge attempt. Claims and
+-- accepted cart changes commit together; rollback releases the key.
+CREATE TABLE IF NOT EXISTS cart_merge_requests (
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  key_hash CHAR(64) NOT NULL,
+  request_hash CHAR(64) NOT NULL,
+  response JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (user_id, key_hash)
+);
+
+-- Phase 6 customer monetary configuration
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS currency VARCHAR(3) NOT NULL DEFAULT 'USD';

@@ -18,6 +18,7 @@ const registerSchema = z.object({
 export default function RegisterPage() {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
+  const [deliveryNotice, setDeliveryNotice] = useState('');
   const [error, setError] = useState('');
 
   async function submit(event: React.FormEvent) {
@@ -32,7 +33,11 @@ export default function RegisterPage() {
         return;
       }
 
-      await api.post('/api/auth/register', validation.data);
+      const result = await api.post<{ emailDeliveryStatus?: string }>('/api/auth/register', validation.data);
+      if (result.emailDeliveryStatus === 'failed') {
+        setDeliveryNotice('Your account was created, but the verification email could not be sent. Contact store support for help.');
+        return;
+      }
       window.location.href = '/account';
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Registration failed');
@@ -45,7 +50,7 @@ export default function RegisterPage() {
     <Container className="py-12">
       <div className="grid min-h-[70vh] overflow-hidden rounded-lg border border-border bg-white shadow-sm lg:grid-cols-[460px_1fr]">
         <div className="flex items-center p-6 sm:p-10">
-          <form onSubmit={submit} className="w-full space-y-5">
+          {deliveryNotice ? <div role="status" className="space-y-4 text-sm text-text-muted"><p>{deliveryNotice}</p><a href="/account" className="font-semibold text-accent">Continue to your account</a></div> : <form onSubmit={submit} className="w-full space-y-5">
             <div>
               <h1 className="text-3xl font-bold text-text-primary">Create account</h1>
               <p className="text-text-muted mt-1">Save addresses and track orders faster.</p>
@@ -80,7 +85,7 @@ export default function RegisterPage() {
             </div>
             <LoginButton className="w-full" />
             <p className="text-sm text-text-muted">Already registered? <Link className="font-medium text-accent" href="/auth/login">Sign in</Link></p>
-          </form>
+          </form>}
         </div>
         <div className="hidden bg-slate-950 p-10 text-white lg:flex lg:flex-col lg:justify-between">
           <div>

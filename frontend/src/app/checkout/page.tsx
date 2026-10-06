@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
@@ -9,8 +9,12 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { useToast } from '@/hooks/useToast';
-import { api, getErrorMessage } from '@/lib/api';
+import { api, ApiError, getErrorMessage } from '@/lib/api';
+import { prepareCheckoutAttempt, resetCheckoutAttempt, checkoutFollowUps, type CheckoutAttempt, type CheckoutRequest } from '@/lib/checkout-attempt';
 import { createWhatsAppUrl } from '@/lib/business-config';
+import { Money, useStoreSettings } from '@/context/StoreSettingsContext';
+import { useCheckoutQuote } from '@/hooks/useCheckoutQuote';
+import { expectedQuote } from '@/lib/checkout-quote';
 import { ShippingAddress, Order, UserAddress } from '@/lib/types';
 import DOMPurify from 'dompurify';
 import { z } from 'zod';
@@ -78,14 +82,6 @@ const shippingSchema = z.object({
   deliverySlot: z.string().trim().min(1, 'Delivery time slot is required').max(100),
 });
 
-const shippingByRegion: Record<string, number> = {
-  Beirut: 3,
-  'Mount Lebanon': 4,
-  North: 5,
-  South: 5,
-  Bekaa: 5,
-};
-
 const deliverySlots = [
   'Morning (9:00 AM - 12:00 PM)',
   'Afternoon (12:00 PM - 4:00 PM)',
@@ -104,9 +100,12 @@ function focusCheckoutField(field: string) {
 
 export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
-  const { items, subtotal, itemCount, clearCart, loading: cartLoading } = useCart();
+  const { items, itemCount, completeCheckout, refreshCart, loading: cartLoading } = useCart();
   const { addToast } = useToast();
+  const settings = useStoreSettings();
 
+  const submitting = useRef(false);
+  const attempt = useRef<CheckoutAttempt | null>(null);
   const [placing, setPlacing] = useState(false);
   const [orderPlaced, setOrderPlaced] = useState<Order | null>(null);
   const [addresses, setAddresses] = useState<UserAddress[]>([]);
@@ -127,10 +126,20 @@ export default function CheckoutPage() {
     city: '',
     state: '',
     zipCode: '',
-    country: 'Lebanon',
+    country: settings?.defaultCountry || '',
     notes: '',
     paymentMethod: 'cash_on_delivery',
   });
+
+  const quoted = useCheckoutQuote({
+    items: items.map(item => ({ productId: item.product_id, variantId: item.variant_id, quantity: item.quantity, ...(user ? { cartItemId: item.id } : {}) })),
+    shippingAddress: { city: form.city.trim(), state: form.state?.trim(), country: form.country.trim() },
+    couponCode: couponCode.trim().toUpperCase() || undefined, paymentMethod: form.paymentMethod,
+  }, user ? 'user:' + user.id : 'guest', !authLoading && !cartLoading && !orderPlaced);
+
+  useEffect(() => {
+    if (settings?.defaultCountry) setForm(current => current.country ? current : { ...current, country: settings.defaultCountry });
+  }, [settings?.defaultCountry]);
 
   useEffect(() => {
     if (!user) return;
@@ -139,7 +148,7 @@ export default function CheckoutPage() {
       .catch(() => setAddresses([]));
   }, [user]);
 
-  if (authLoading || cartLoading) {
+  if ((authLoading || cartLoading) && !orderPlaced) {
     return (
       <Container className="py-8">
         <div className="mb-8">
@@ -194,9 +203,11 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting.current || orderPlaced) return;
     setFormError('');
     setFieldErrors({});
 
+    if (!quoted.quote || quoted.loading) { setFormError('Confirm the current checkout totals before ordering.'); return; }
     if (itemCount === 0) {
       const message = 'Your cart is empty. Add at least one product before checkout.';
       setFormError(message);
@@ -253,36 +264,45 @@ export default function CheckoutPage() {
       return;
     }
 
+    submitting.current = true;
     setPlacing(true);
+    let confirmed = false;
     try {
-      const res = await api.post<{ success: boolean; order: Order; message: string }>(
-        '/api/orders',
-        { 
-          guestEmail: user ? undefined : validation.data.guestEmail,
-          items: user ? undefined : items.map(item => ({
-            productId: item.product_id,
-            variantId: item.variant_id,
-            quantity: item.quantity,
-          })),
-          shippingAddress: {
-            fullName: validation.data.fullName,
-            phone: validation.data.phone,
-            addressLine1: validation.data.addressLine1,
-            addressLine2: validation.data.addressLine2,
-            city: validation.data.city,
-            state: validation.data.state,
-            zipCode: validation.data.zipCode,
-            country: validation.data.country,
-            notes: validation.data.notes,
-          },
-          paymentMethod: validation.data.paymentMethod,
-          couponCode: validation.data.couponCode || undefined,
-          deliverySlot: validation.data.deliverySlot,
-        }
-      );
+      const request: CheckoutRequest = {
+        expectedQuote: expectedQuote(quoted.quote),
+        guestEmail: user ? undefined : validation.data.guestEmail,
+        items: items.map(item => ({
+          ...(user ? { cartItemId: item.id } : {}),
+          productId: item.product_id,
+          variantId: item.variant_id,
+          quantity: item.quantity,
+        })),
+        shippingAddress: {
+          fullName: validation.data.fullName,
+          phone: validation.data.phone,
+          addressLine1: validation.data.addressLine1,
+          addressLine2: validation.data.addressLine2,
+          city: validation.data.city,
+          state: validation.data.state,
+          zipCode: validation.data.zipCode,
+          country: validation.data.country,
+          notes: validation.data.notes,
+        },
+        paymentMethod: validation.data.paymentMethod,
+        couponCode: validation.data.couponCode || undefined,
+        deliverySlot: validation.data.deliverySlot,
+      };
+      attempt.current = await prepareCheckoutAttempt(user ? 'user:' + user.id : 'guest', request, attempt.current);
+      const res = await api.post<{ success: boolean; order: Order; message: string }>('/api/orders', request,
+        { headers: { 'Idempotency-Key': attempt.current.key } });
+      confirmed = true;
       setOrderPlaced(res.order);
+      resetCheckoutAttempt();
+      attempt.current = null;
+      addToast('Order placed successfully!', 'success');
+      const tasks: Array<() => Promise<unknown>> = [() => completeCheckout(request.items)];
       if (user && saveAddress) {
-        await api.post('/api/users/me/addresses', {
+        tasks.push(() => api.post('/api/users/me/addresses', {
           label: 'Checkout',
           recipientName: validation.data.fullName,
           phone: validation.data.phone,
@@ -293,23 +313,27 @@ export default function CheckoutPage() {
           zipCode: validation.data.zipCode,
           country: validation.data.country,
           isDefault: addresses.length === 0,
-        });
+        }));
       }
-      clearCart();
-      addToast('Order placed successfully!', 'success');
+      const followUps = await checkoutFollowUps(tasks);
+      if (followUps.some(result => result.status === 'rejected')) {
+        addToast('Your order is confirmed, but we could not refresh the cart or save the address.', 'info');
+      }
     } catch (error: unknown) {
+      if (confirmed) {
+        addToast('Your order is confirmed. Some follow-up work could not finish.', 'info');
+        return;
+      }
+      if (error instanceof ApiError && (error.code === 'QUOTE_CHANGED' || error.status === 400)) quoted.retry();
+      if (user && error instanceof ApiError && error.code === 'CART_CHANGED') { quoted.retry(); await refreshCart(); }
       const message = getErrorMessage(error, 'Failed to place order. Please try again.');
       setFormError(message);
       addToast(message, 'error');
     } finally {
+      submitting.current = confirmed;
       setPlacing(false);
     }
   };
-
-  const subtotalValue = parseFloat(subtotal || '0');
-  const shippingCost = subtotalValue >= 150 ? 0 : shippingByRegion[form.state || form.city] ?? 4;
-  const taxAmount = Math.round(subtotalValue * 0.11 * 100) / 100;
-  const estimatedTotal = (subtotalValue + shippingCost + taxAmount).toFixed(2);
 
   // Success screen
   if (orderPlaced) {
@@ -336,7 +360,7 @@ export default function CheckoutPage() {
             </div>
             <div className="mt-2 flex justify-between text-sm text-text-muted">
               <span>Total</span>
-              <span className="font-bold text-text-primary">${orderPlaced.total}</span>
+              <span className="font-bold text-text-primary">{<Money amount={orderPlaced.total} currency={orderPlaced.currency || 'USD'} />}</span>
             </div>
             {orderPlaced.delivery_slot && (
               <div className="mt-2 flex justify-between text-sm text-text-muted">
@@ -595,7 +619,7 @@ export default function CheckoutPage() {
                         aria-describedby={fieldErrors.state ? 'state-error' : undefined}
                       >
                         <option value="">Select region</option>
-                        {Object.keys(shippingByRegion).map(region => (
+                        {(settings?.shippingRegions || []).map(({ name: region }) => (
                           <option key={region} value={region}>{region}</option>
                         ))}
                       </select>
@@ -749,7 +773,7 @@ export default function CheckoutPage() {
                         <p className="text-xs text-text-muted">Qty: {item.quantity}</p>
                       </div>
                       <p className="text-sm font-semibold text-text-primary shrink-0">
-                        ${(parseFloat(item.price) * item.quantity).toFixed(2)}
+                        {quoted.quote ? <Money amount={Number(quoted.quote.items.find(line => line.productId === item.product_id && (line.variantId || null) === (item.variant_id || null))?.price) * item.quantity} currency={quoted.quote.currency} /> : '—'}
                       </p>
                     </div>
                   ))}
@@ -780,35 +804,39 @@ export default function CheckoutPage() {
                   </div>
                   <div className="flex justify-between text-text-muted">
                     <span>Subtotal</span>
-                    <span className="text-text-primary font-medium">${subtotal}</span>
+                    <span className="text-text-primary font-medium">{quoted.quote ? <Money amount={quoted.quote.subtotal} currency={quoted.quote.currency} /> : '—'}</span>
                   </div>
                   {couponCode.trim() && (
                     <div className="flex justify-between text-text-muted">
                       <span>Coupon</span>
-                      <span className="text-accent font-medium">Applied at order placement</span>
+                      <span className="text-accent font-medium">{quoted.quote ? <Money amount={quoted.quote.discount_amount} currency={quoted.quote.currency} /> : 'Checking coupon…'}</span>
                     </div>
                   )}
                   <div className="flex justify-between text-text-muted">
-                    <span>Tax (VAT 11%)</span>
-                    <span className="text-text-primary font-medium">${taxAmount.toFixed(2)}</span>
+                    <span>Tax</span>
+                    <span className="text-text-primary font-medium">{quoted.quote ? <Money amount={quoted.quote.tax_amount} currency={quoted.quote.currency} /> : '—'}</span>
                   </div>
                   <div className="flex justify-between text-text-muted">
                     <span>Delivery fee</span>
-                    <span className="text-text-primary font-medium">${shippingCost.toFixed(2)}</span>
+                    <span className="text-text-primary font-medium">{quoted.quote ? <Money amount={quoted.quote.shipping_cost} currency={quoted.quote.currency} /> : '—'}</span>
                   </div>
                   <div className="flex justify-between border-t border-border pt-4 text-lg font-bold text-text-primary">
-                    <span>Estimated total</span>
-                    <span>${estimatedTotal}</span>
+                    <span>Quoted total</span>
+                    <span>{quoted.quote ? <Money amount={quoted.quote.total} currency={quoted.quote.currency} /> : '—'}</span>
                   </div>
                 </div>
 
+                <div className="mt-4 text-sm text-text-muted" role="status" aria-live="polite">
+                  {quoted.loading ? 'Checking current prices, coupon and delivery charges…' : quoted.error || 'Totals will be revalidated when your order is placed.'}
+                  {quoted.error && <button type="button" onClick={quoted.retry} className="ml-2 font-semibold text-accent hover:underline">Retry totals</button>}
+                </div>
                 <Button
                   type="submit"
                   variant="primary"
                   size="lg"
                   className="mt-6 w-full"
                   loading={placing}
-                  disabled={placing}
+                  disabled={placing || quoted.loading || !quoted.quote}
                   aria-describedby="checkout-submit-help"
                 >
                   <ClipboardCheck className="h-4 w-4" aria-hidden="true" />

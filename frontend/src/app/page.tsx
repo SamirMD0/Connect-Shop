@@ -1,6 +1,6 @@
 import { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import Link from 'next/link';
 import { Container } from '@/components/layout/Container';
 import { HeroCarousel } from '@/components/home/HeroCarousel';
@@ -17,8 +17,10 @@ import { CountdownPromo } from '@/components/home/CountdownPromo';
 import { Testimonials } from '@/components/home/Testimonials';
 import { Newsletter } from '@/components/home/Newsletter';
 import { api } from '@/lib/api';
-import { APP_NAME } from '@/lib/constants';
-import { logServerRenderTiming } from '@/lib/perf';
+import { homepageCatalogUnavailable } from '@/lib/public-read';
+import { StorefrontUnavailable } from '@/components/ui/StorefrontUnavailable';
+import { businessBrand } from '@/lib/business-config';
+import { logServerRenderTiming, measureHomepageAggregateRequest } from '@/lib/perf';
 import {
   Product,
   Category,
@@ -36,20 +38,20 @@ import {
 import { ArrowRight } from 'lucide-react';
 
 export const metadata: Metadata = {
-  title: `${APP_NAME} | Premium Electronics & Gadgets`,
-  description: `Shop electronics, laptops, smartphones, appliances, and accessories at ${APP_NAME} with cash-on-delivery support.`,
+  title: businessBrand.title,
+  description: businessBrand.description,
   alternates: {
     canonical: '/',
   },
   openGraph: {
-    title: `${APP_NAME} | Premium Electronics & Gadgets`,
-    description: `Browse products, categories, and cash-on-delivery deals from ${APP_NAME}.`,
+    title: businessBrand.title,
+    description: businessBrand.description,
     type: 'website',
   },
   twitter: {
     card: 'summary_large_image',
-    title: `${APP_NAME} | Premium Electronics & Gadgets`,
-    description: `Browse products, categories, and cash-on-delivery deals from ${APP_NAME}.`,
+    title: businessBrand.title,
+    description: businessBrand.description,
   },
 };
 
@@ -474,7 +476,12 @@ export default async function HomePage() {
   let homepage: HomepageContent = emptyHomepageContent;
 
   try {
-    const homepageRes = await api.get<HomepageFullResponse>('/api/homepage/full', { cache: 'no-store' });
+    const homepageRes = await measureHomepageAggregateRequest(() => (
+      api.get<HomepageFullResponse>('/api/homepage/full', { cache: 'no-store' })
+    ));
+    if (homepageCatalogUnavailable(homepageRes.partialFailures)) {
+      throw new Error('Essential catalog section unavailable');
+    }
     const homepageData = homepageRes.data;
 
     featured = homepageData.featuredProducts || [];
@@ -492,29 +499,14 @@ export default async function HomePage() {
     if (homepageRes.partialFailures && homepageRes.partialFailures.length > 0) {
       console.warn('Homepage aggregate returned section fallbacks:', homepageRes.partialFailures);
     }
-  } catch (error) {
-    console.error('Error fetching homepage aggregate data:', error);
+  } catch {
+    console.error('Homepage catalog unavailable');
+    return <StorefrontUnavailable />;
   }
 
   const cmsHeroSlides = mapCmsHeroSlides(homepage.hero_carousel || []);
   if (cmsHeroSlides.length > 0) {
     slides = cmsHeroSlides;
-  }
-
-  // Provide fallback slides if API fails or is not implemented yet
-  if (slides.length === 0) {
-    slides = [
-      {
-        id: 1,
-        image_url: 'https://images.unsplash.com/photo-1550009158-9ebf69173e03?auto=format&fit=crop&q=80&w=2000',
-        title: 'Next-Gen Electronics',
-        subtitle: 'Discover the latest in tech innovation with our premium selection of devices.',
-        link_url: '/store',
-        button_text: 'Shop Now',
-        display_order: 1,
-        is_active: true
-      }
-    ];
   }
 
   const categoryImages = [
@@ -685,7 +677,7 @@ export default async function HomePage() {
 
       <CountdownPromo promo={homepage.countdown_promo} />
 
-      <Testimonials testimonials={homepage.testimonials} />
+      {homepage.testimonials.length > 0 && <Testimonials testimonials={homepage.testimonials} />}
 
       <section className="bg-white py-14 sm:py-16">
         <Container>

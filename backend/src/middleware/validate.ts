@@ -334,9 +334,12 @@ export const placeOrderRules: ValidationChain[] = [
     .withMessage("Guest email must be valid")
     .normalizeEmail(),
   body("items")
-    .optional()
     .isArray({ min: 1 })
-    .withMessage("Guest checkout requires cart items"),
+    .withMessage("Checkout requires cart items"),
+  body("items.*.cartItemId")
+    .if((_value, { req }) => Boolean(req.user))
+    .isInt({ min: 1 })
+    .withMessage("Authenticated checkout requires cart item IDs"),
   body("items.*.productId")
     .optional()
     .isUUID()
@@ -498,7 +501,10 @@ export const adminProductRules: ValidationChain[] = [
     .custom((value) => !value || isImageReference(value))
     .withMessage("Must be a valid URL or site image path"),
   body("category_id").isInt().withMessage("Category ID must be an integer"),
-  body("stock").isInt({ min: 0 }).withMessage("Stock must be 0 or greater"),
+  body("stock")
+    .if((_value, { req }) => req.method === 'POST' || req.body.stock !== undefined)
+    .isInt({ min: 0, max: 2147483647 }).withMessage("Stock must be 0 or greater").toInt(),
+  body("inventory_version").optional().isInt({ min: 0 }).toInt(),
   body("is_featured").optional().isBoolean(),
   body("brand_id")
     .optional({ nullable: true })
@@ -529,7 +535,9 @@ export const adminProductRules: ValidationChain[] = [
   body("variants.*.sku").optional().trim().isLength({ max: 100 }),
   body("variants.*.name").optional().trim().isLength({ max: 255 }),
   body("variants.*.price").optional().isFloat({ gt: 0 }),
-  body("variants.*.stock").optional().isInt({ min: 0 }),
+  body("variants.*.id").optional().isUUID(),
+  body("variants.*.stock").optional().isInt({ min: 0, max: 2147483647 }).toInt(),
+  body("variants.*.inventory_version").optional().isInt({ min: 0 }).toInt(),
   body("variants.*.attributes").optional().isObject(),
   body("variants.*.image_url")
     .optional({ nullable: true })
@@ -1063,4 +1071,18 @@ export const returnStatusRules: ValidationChain[] = [
   body("status")
     .isIn(["requested", "approved", "rejected", "refunded"])
     .withMessage("Invalid return status"),
+];
+
+// Quote needs the cart/location/coupon, not name, phone or full delivery address.
+export const checkoutQuoteRules: ValidationChain[] = [
+  body('shippingAddress.country').isString().trim().isLength({ min: 1, max: 100 }),
+  body('shippingAddress.city').optional().isString().trim().isLength({ max: 100 }),
+  body('shippingAddress.state').optional().isString().trim().isLength({ max: 100 }),
+  body('items').isArray({ min: 1 }),
+  body('items.*.productId').isUUID(),
+  body('items.*.variantId').optional({ nullable: true }).isUUID(),
+  body('items.*.quantity').isInt({ min: 1, max: 99 }).toInt(),
+  body('items.*.cartItemId').if((_value, { req }) => Boolean(req.user)).isInt({ min: 1 }).toInt(),
+  body('couponCode').optional({ nullable: true }).isString().trim().isLength({ max: 50 }).matches(/^[a-zA-Z0-9_-]*$/),
+  body('paymentMethod').optional().isIn(['cash_on_delivery', 'cod']),
 ];

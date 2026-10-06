@@ -1,9 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import Image, { ImageProps } from 'next/image';
+import { StoreImage as Image, type StoreImageProps } from './StoreImage';
 
-interface SafeImageProps extends Omit<ImageProps, 'src' | 'alt'> {
+interface SafeImageProps extends Omit<StoreImageProps, 'src' | 'alt'> {
   src?: string | null;
   alt: string;
   fallback: React.ReactNode;

@@ -59,6 +59,8 @@ export interface ProductVariant {
   name: string;
   price: string;
   stock: number;
+  inventory_version?: number;
+  is_active?: boolean;
   attributes: Record<string, unknown>;
   image_url: string | null;
   created_at: string;
@@ -84,6 +86,7 @@ export interface Product {
   category_name?: string;
   category_slug?: string;
   stock: number;
+  inventory_version?: number;
   rating: string;
   review_count: number;
   is_featured: boolean;
@@ -135,6 +138,7 @@ export interface Cart {
 
 // Guest cart item (stored in localStorage)
 export interface GuestCartItem {
+  line_id?: string;
   product_id: string;
   variant_id?: string | null;
   quantity: number;
@@ -168,10 +172,12 @@ export interface OrderItem {
 }
 
 export interface Order {
+  currency?: string;
   id: string;
   user_id: string | null;
   guest_email?: string | null;
   status: 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  allowed_statuses?: string[];
   subtotal?: string;
   tax_amount?: string;
   shipping_cost?: string;

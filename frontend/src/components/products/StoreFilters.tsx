@@ -1,6 +1,7 @@
 'use client';
 
 import { KeyboardEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import { useStoreMoney } from '@/context/StoreSettingsContext';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { CategoryFilter } from './CategoryFilter';
 import { SearchBar } from './SearchBar';
@@ -32,6 +33,7 @@ export function StoreFilters({
   specKey,
   specValue,
 }: Props) {
+  const money = useStoreMoney();
   const searchParams = useSearchParams();
   const router = useRouter();
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -150,7 +152,7 @@ export function StoreFilters({
       ? {
           key: 'price',
           label: 'Price',
-          value: `${minPrice ? `$${minPrice}` : 'Any'} - ${maxPrice ? `$${maxPrice}` : 'Any'}`,
+          value: `${minPrice ? money(minPrice) : 'Any'} - ${maxPrice ? money(maxPrice) : 'Any'}`,
           clear: () => updateParams({ min_price: null, max_price: null }),
         }
       : null,
@@ -323,7 +325,7 @@ export function StoreFilters({
                 <input
                   type="number"
                   min="0"
-                  placeholder="Min $"
+                  placeholder="Min price"
                   value={minPriceDraft}
                   onChange={(e) => setMinPriceDraft(e.target.value)}
                   onBlur={applyPriceRange}
@@ -335,7 +337,7 @@ export function StoreFilters({
                 <input
                   type="number"
                   min="0"
-                  placeholder="Max $"
+                  placeholder="Max price"
                   value={maxPriceDraft}
                   onChange={(e) => setMaxPriceDraft(e.target.value)}
                   onBlur={applyPriceRange}

@@ -16,6 +16,8 @@ export interface ProductVariant {
   name: string;
   price: string;
   stock: number;
+  inventory_version: number;
+  is_active: boolean;
   attributes: Record<string, any>;
   image_url: string | null;
   created_at: Date;
@@ -41,6 +43,7 @@ export interface Product {
   category_name?: string;
   category_slug?: string;
   stock: number;
+  inventory_version: number;
   rating: string;
   review_count: number;
   is_featured: boolean;
@@ -326,7 +329,8 @@ export async function updateProduct(id: string, data: {
   price: number;
   image_url: string | null;
   category_id: number;
-  stock: number;
+  stock?: number;
+  inventory_version?: number;
   is_featured: boolean;
   brand_id?: number | null;
   brand?: string | null;

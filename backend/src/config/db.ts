@@ -128,19 +128,28 @@ function sleep(ms: number): Promise<void> {
  * process once the attempts are exhausted.
  */
 export async function connectDB(): Promise<void> {
+  const readinessStartedAt = performance.now();
   const host = describeConnectionTarget(env.DATABASE_URL);
 
   for (let attempt = 1; attempt <= CONNECT_MAX_ATTEMPTS; attempt += 1) {
     let client: PoolClient | null = null;
     try {
       client = await pool.connect();
-      const result = await client.query('SELECT NOW() AS now, current_database() AS db');
-      const { now, db } = result.rows[0] as { now: string; db: string };
-      logger.info(`✅ PostgreSQL connected — database: "${db}" at ${now}`);
+      await client.query('SELECT NOW() AS now, current_database() AS db');
+      logger.info({
+        startupPhase: 'database',
+        outcome: 'ready',
+        attempts: attempt,
+        durationMs: Number((performance.now() - readinessStartedAt).toFixed(2)),
+      }, 'Startup readiness');
       return;
     } catch (err) {
       if (attempt === CONNECT_MAX_ATTEMPTS) {
-        logger.error({ err, host, attempts: attempt }, '❌ Failed to connect to PostgreSQL');
+        logger.error({
+          err, host, attempts: attempt,
+          startupPhase: 'database', outcome: 'failed',
+          durationMs: Number((performance.now() - readinessStartedAt).toFixed(2)),
+        }, '❌ Failed to connect to PostgreSQL');
         process.exit(1);
       }
 

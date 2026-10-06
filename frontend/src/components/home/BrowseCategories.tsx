@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import Link from 'next/link';
 import { Category } from '@/lib/types';
 
@@ -119,6 +119,7 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
                     >
                       <div className="mb-3 flex h-24 w-24 items-center justify-center rounded-full border border-slate-200/70 bg-white transition-transform duration-300 group-hover:scale-105">
                         <Image
+                          imagekitWidth={400}
                           src={cat.image_url || fallbackImages[categoryIndex % fallbackImages.length]}
                           alt={cat.name}
                           width={64}
@@ -145,6 +146,7 @@ export function BrowseCategories({ categories, fallbackImages }: BrowseCategorie
               >
                 <div className="mb-5 flex h-32 w-32 items-center justify-center rounded-full border border-slate-200/70 bg-white transition-transform duration-300 group-hover:scale-105">
                   <Image
+                    imagekitWidth={400}
                     src={cat.image_url || fallbackImages[index % fallbackImages.length]}
                     alt={cat.name}
                     width={82}

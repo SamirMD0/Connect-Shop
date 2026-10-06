@@ -1,5 +1,7 @@
 'use client';
 
+import { Money } from '@/context/StoreSettingsContext';
+
 import { useEffect, useMemo, useState } from 'react';
 import { Product } from '@/lib/types';
 import { RatingStars } from '@/components/products/RatingStars';
@@ -15,13 +17,12 @@ interface ProductDisplayProps {
 }
 
 export function ProductDisplay({ product }: ProductDisplayProps) {
-  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
-    product.variants && product.variants.length > 0 ? product.variants[0].id : null
-  );
+  const availableVariants = useMemo(() => product.variants?.filter(variant => variant.is_active !== false) || [], [product.variants]);
+  const [selectedVariantId, setSelectedVariantId] = useState<string | null>(availableVariants[0]?.id || null);
 
   const selectedVariant = useMemo(() => {
-    return product.variants?.find(variant => variant.id === selectedVariantId) || null;
-  }, [product.variants, selectedVariantId]);
+    return availableVariants.find(variant => variant.id === selectedVariantId) || availableVariants[0] || null;
+  }, [availableVariants, selectedVariantId]);
 
   const displayPrice = selectedVariant ? parseFloat(selectedVariant.price) : parseFloat(product.price);
   const displayStock = selectedVariant ? selectedVariant.stock : product.stock;
@@ -71,6 +72,7 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
       <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-36 lg:self-start">
         <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-white shadow-sm">
           <SafeImage
+            imagekitWidth={1280}
             src={mainImage}
             alt={product.name}
             fill
@@ -107,6 +109,7 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
                 )}
               >
                 <SafeImage
+                  imagekitWidth={160}
                   src={image}
                   alt={`${product.name} thumbnail ${index + 1}`}
                   fill
@@ -137,9 +140,9 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
         </div>
 
         <div className="mt-5 flex flex-wrap items-end gap-x-3 gap-y-2">
-          <p className="text-3xl font-bold text-text-primary sm:text-4xl">${displayPrice.toFixed(2)}</p>
+          <p className="text-3xl font-bold text-text-primary sm:text-4xl">{<Money amount={displayPrice} />}</p>
           {discountPercent && !selectedVariant && (
-            <p className="mb-1 text-base text-text-muted line-through">${compareAtPrice?.toFixed(2)}</p>
+            <p className="mb-1 text-base text-text-muted line-through">{<Money amount={compareAtPrice} />}</p>
           )}
           {discountPercent && !selectedVariant && (
             <span className="mb-1 text-sm font-bold text-danger">Save {discountPercent}%</span>
@@ -148,11 +151,11 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
 
         <div className="mt-4"><StockBadge stock={displayStock} /></div>
 
-        {product.variants && product.variants.length > 0 && (
+        {availableVariants.length > 0 && (
           <fieldset className="mt-6">
             <legend className="mb-3 text-sm font-semibold text-text-primary">Choose an option</legend>
             <div className="flex flex-wrap gap-2">
-              {product.variants.map(variant => (
+              {availableVariants.map(variant => (
                 <button
                   key={variant.id}
                   type="button"
@@ -166,7 +169,7 @@ export function ProductDisplay({ product }: ProductDisplayProps) {
                   )}
                 >
                   <span>{variant.name}</span>
-                  <span className="text-xs opacity-75">${parseFloat(variant.price).toFixed(2)}</span>
+                  <span className="text-xs opacity-75">{<Money amount={variant.price} />}</span>
                   {selectedVariantId === variant.id && <Check className="h-4 w-4" aria-hidden="true" />}
                 </button>
               ))}

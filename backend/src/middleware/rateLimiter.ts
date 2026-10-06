@@ -517,3 +517,9 @@ export const adminMutationLimiter = createIdentityLimiter({
   message: 'Too many admin changes. Please slow down.',
   skip: skipSafeMethods,
 });
+
+/** Quotes have their own bucket and cannot consume the order-attempt budget. */
+export const checkoutQuoteLimiter = createIdentityLimiter({
+  name: 'checkout-quote', prefix: 'rl:checkout-quote:', windowMs: 15 * 60 * 1000,
+  productionLimit: 120, developmentLimit: 1000, message: 'Too many quote requests. Please try again later.',
+});

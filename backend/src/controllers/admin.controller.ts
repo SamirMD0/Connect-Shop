@@ -350,7 +350,7 @@ export async function listOrders(req: Request, res: Response, next: NextFunction
 
 export async function updateOrderStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
   try {
-    const order = await adminService.updateOrderStatus(req.params.id, req.body.status);
+    const order = await adminService.updateOrderStatus(req.params.id, req.body.status, req.user!.id);
     if (!order) throw new NotFoundError('Order');
     res.json({ success: true, order });
   } catch (err) {

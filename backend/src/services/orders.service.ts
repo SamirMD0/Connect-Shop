@@ -4,6 +4,13 @@ import { query, withTransaction } from '../config/db';
 import { AppError } from '../utils/errors';
 import { addToCart } from './cart.service';
 import { invalidateProductCaches } from './products.service';
+import { lockUserCart } from './cartLock';
+import { checkoutIdentity, normalizeCheckoutItems, claimCheckout, finishCheckout, type CheckoutResult } from './checkoutIdempotency';
+import { withDeadline } from '../utils/deadline';
+import { env } from '../config/env';
+import { logger } from '../utils/logger';
+import { transitionOrder } from './orderStatus.service';
+import { businessRules, checkoutTotals, roundMoney } from '../config/business';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -21,11 +28,13 @@ export interface ShippingAddress {
 
 export interface CheckoutItemInput {
   productId: string;
+  cartItemId?: number;
   variantId?: string | null;
   quantity: number;
 }
 
 interface ResolvedOrderItem {
+  slug: string;
   product_id: string;
   variant_id: string | null;
   quantity: number;
@@ -73,24 +82,18 @@ export interface Order {
   estimated_delivery_date?: string | null;
   cancelled_at?: Date | null;
   total: string;
+  currency: string;
   shipping_address: ShippingAddress;
   payment_method: string;
   payment_status: string;
   created_at: Date;
   items?: OrderItem[];
   item_count?: number;
+  allowed_statuses?: string[];
   status_history?: Record<string, any>[];
   return_requests?: Record<string, any>[];
 }
 
-const TAX_RATE = 0.11;
-const SHIPPING_BY_REGION: Record<string, number> = {
-  beirut: 3,
-  'mount lebanon': 4,
-  north: 5,
-  south: 5,
-  bekaa: 5,
-};
 const CASH_ON_DELIVERY = 'cash_on_delivery';
 export const MAX_ACTIVE_COD_ORDERS = 2;
 export const ACTIVE_COD_ORDER_STATUSES = ['pending', 'confirmed', 'processing', 'out_for_delivery', 'shipped'];
@@ -111,12 +114,6 @@ function normalizeRegion(shippingAddress: ShippingAddress): string {
   return (shippingAddress.state || shippingAddress.city || '').trim().toLowerCase();
 }
 
-function calculateShippingCost(shippingAddress: ShippingAddress, subtotal: number): number {
-  if (subtotal >= 150) return 0;
-  const region = normalizeRegion(shippingAddress);
-  return SHIPPING_BY_REGION[region] ?? 4;
-}
-
 function normalizePaymentMethod(method?: string): string {
   const value = (method || CASH_ON_DELIVERY).trim();
 
@@ -134,10 +131,6 @@ function normalizePhoneForCodLimit(phone: string): string {
 
 function paymentStatusFor(_method: string): string {
   return 'pending';
-}
-
-function roundMoney(value: number): number {
-  return Math.round(value * 100) / 100;
 }
 
 function estimateDeliveryDate(shippingAddress: ShippingAddress): string {
@@ -311,10 +304,10 @@ async function resolveOrderItems(client: PoolClient, items: CheckoutItemInput[])
     if (item.variantId) {
       const variantResult = await client.query<ResolvedOrderItem>(
         `SELECT p.id AS product_id, pv.id AS variant_id, $3::int AS quantity,
-                p.name, pv.name AS variant_name, pv.price, pv.stock
+                p.name, p.slug, pv.name AS variant_name, pv.price, pv.stock
          FROM product_variants pv
          JOIN products p ON p.id = pv.product_id
-         WHERE pv.id = $1 AND p.id = $2
+         WHERE pv.id = $1 AND p.id = $2 AND pv.is_active
          FOR UPDATE OF pv`,
         [item.variantId, item.productId, item.quantity]
       );
@@ -325,7 +318,7 @@ async function resolveOrderItems(client: PoolClient, items: CheckoutItemInput[])
 
     const productResult = await client.query<ResolvedOrderItem>(
       `SELECT p.id AS product_id, NULL::uuid AS variant_id, $2::int AS quantity,
-              p.name, NULL::text AS variant_name, p.price, p.stock
+              p.name, p.slug, NULL::text AS variant_name, p.price, p.stock
        FROM products p
        WHERE p.id = $1
        FOR UPDATE`,
@@ -347,6 +340,7 @@ async function createOrderFromItems(
     paymentMethod: string;
     couponCode?: string;
     deliverySlot?: string | null;
+    expectedQuote?: ExpectedQuote;
   }
 ): Promise<Order> {
   const paymentMethod = normalizePaymentMethod(options.paymentMethod);
@@ -369,10 +363,15 @@ async function createOrderFromItems(
 
   const subtotal = roundMoney(options.items.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0));
   const { coupon, discount } = await applyCoupon(client, options.couponCode, subtotal);
-  const taxableAmount = Math.max(0, subtotal - discount);
-  const taxAmount = roundMoney(taxableAmount * TAX_RATE);
-  const shippingCost = calculateShippingCost(normalizedShippingAddress, subtotal);
-  const total = roundMoney(taxableAmount + taxAmount + shippingCost);
+  const { tax: taxAmount, shipping: shippingCost, total, currency } = checkoutTotals(subtotal, discount, normalizeRegion(normalizedShippingAddress));
+
+  if (options.expectedQuote) {
+    const actual = { subtotal: subtotal.toFixed(2), discount_amount: discount.toFixed(2), tax_amount: taxAmount.toFixed(2),
+      shipping_cost: shippingCost.toFixed(2), total: total.toFixed(2), currency };
+    if (JSON.stringify(normalizeExpectedQuote(options.expectedQuote)) !== JSON.stringify(actual)) {
+      throw new AppError('Checkout totals changed. Review the updated quote before ordering.', 409, true, 'QUOTE_CHANGED');
+    }
+  }
 
   const shippingAddress = {
     ...normalizedShippingAddress,
@@ -384,9 +383,9 @@ async function createOrderFromItems(
     `INSERT INTO orders (
        user_id, guest_email, status, subtotal, tax_amount, shipping_cost, discount_amount,
        coupon_code, total, shipping_address, payment_method, payment_status, delivery_slot,
-       estimated_delivery_date
+       estimated_delivery_date, currency
      )
-     VALUES ($1, $2, 'confirmed', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+     VALUES ($1, $2, 'confirmed', $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      RETURNING *`,
     [
       options.userId,
@@ -402,6 +401,7 @@ async function createOrderFromItems(
       paymentStatusFor(paymentMethod),
       options.deliverySlot || null,
       estimatedDeliveryDate,
+      currency,
     ]
   );
 
@@ -479,70 +479,113 @@ async function createOrderFromItems(
 
 // ─── Service Functions ───────────────────────────────────────────────────────
 
-async function invalidateCachesForProductIds(productIds: string[]): Promise<void> {
-  const uniqueProductIds = [...new Set(productIds)];
-  if (uniqueProductIds.length === 0) return;
-
-  const products = await query<{ slug: string }>(
-    `SELECT slug FROM products WHERE id = ANY($1::uuid[])`,
-    [uniqueProductIds]
-  );
-
-  await invalidateProductCaches(products.map((product) => product.slug));
+interface CheckoutOptions {
+  couponCode?: string;
+  deliverySlot?: string | null;
+  idempotencyKey?: string;
+  items?: CheckoutItemInput[];
+  expectedQuote?: ExpectedQuote;
 }
 
-/**
- * Place an order from the user's current cart.
- * Runs in a transaction:
- *  1. Read cart items (with product prices)
- *  2. Verify stock for every item
- *  3. Create the order
- *  4. Copy cart items → order_items (snapshot price at purchase time)
- *  5. Decrement product stock
- *  6. Clear the cart
- */
+function normalizedCheckout(userId: string | null, guestEmail: string | null, items: CheckoutItemInput[],
+  shippingAddress: ShippingAddress, paymentMethod: string, options: CheckoutOptions) {
+  const request = {
+    version: 1, guestEmail,
+    items: normalizeCheckoutItems(items, Boolean(userId)),
+    shippingAddress: normalizeShippingAddress(shippingAddress),
+    paymentMethod: normalizePaymentMethod(paymentMethod),
+    couponCode: options.couponCode?.trim().toUpperCase() || undefined,
+    deliverySlot: optionalText(options.deliverySlot) || null,
+  };
+  const identity = checkoutIdentity(userId ? 'user:' + userId.toLowerCase() : 'guest:' + guestEmail,
+    options.idempotencyKey, request);
+  // The quote is a price precondition, not new purchase intent. Keeping it out
+  // of the identity preserves same-key recovery when a committed response was
+  // lost and a reload obtained a newer quote. Replay returns the saved order.
+  return { request: { ...request, expectedQuote: normalizeExpectedQuote(options.expectedQuote) }, identity };
+}
+
+async function maintainCheckoutCache(result: CheckoutResult): Promise<CheckoutResult> {
+  try {
+    await withDeadline(() => invalidateProductCaches(result.cacheSlugs), env.REDIS_CACHE_TIMEOUT_MS);
+  } catch {
+    logger.warn('Committed checkout cache maintenance failed; replay can retry maintenance');
+  }
+  return result;
+}
+
+async function assertCartSnapshot(client: PoolClient, userId: string, expected: CheckoutItemInput[]) {
+    await lockUserCart(client, userId);
+    const cartResult = await client.query<{ id: number; product_id: string; variant_id: string | null; quantity: number }>(
+      `SELECT ci.id, ci.product_id, ci.variant_id, ci.quantity FROM cart_items ci
+       WHERE ci.user_id = $1 AND ci.expires_at > NOW() ORDER BY ci.id FOR UPDATE`, [userId]);
+    const actualItems = cartResult.rows.length ? normalizeCheckoutItems(cartResult.rows.map(item => ({ cartItemId: item.id,
+      productId: item.product_id, variantId: item.variant_id, quantity: item.quantity })), true) : [];
+    if (JSON.stringify(actualItems) !== JSON.stringify(expected)) {
+      throw new AppError('Your cart changed. Review it before placing your order.', 409, true, 'CART_CHANGED');
+    }
+    return cartResult;
+}
+
+export interface ExpectedQuote { subtotal: string; discount_amount: string; tax_amount: string; shipping_cost: string; total: string; currency: string }
+function normalizeExpectedQuote(value: ExpectedQuote | undefined): ExpectedQuote | undefined {
+  if (value === undefined) return undefined;
+  if (!value || typeof value !== 'object') throw new AppError('Invalid quote precondition.', 400);
+  const result = {} as ExpectedQuote;
+  for (const field of ['subtotal', 'discount_amount', 'tax_amount', 'shipping_cost', 'total'] as const) {
+    if (typeof value[field] !== 'string' || !/^\d{1,8}\.\d{2}$/.test(value[field])) throw new AppError('Invalid quote precondition.', 400);
+    result[field] = value[field];
+  }
+  if (typeof value.currency !== 'string' || !/^[A-Z]{3}$/.test(value.currency)) throw new AppError('Invalid quote currency.', 400);
+  result.currency = value.currency;
+  return result;
+}
+export interface CheckoutQuote {
+  subtotal: string; discount_amount: string; tax_amount: string; shipping_cost: string; total: string;
+  currency: string; coupon_code: string | null; tax_rate: number;
+  items: { productId: string; variantId: string | null; quantity: number; price: string }[];
+}
+/** Read-only quote: no coupon consumption, cart deletion, stock deduction or claim.
+ * Row locks are brief and use the same order/rules as checkout. Placement always
+ * resolves the current cart, stock, prices and coupon again. */
+export async function quoteCheckout(userId: string | null, input: CheckoutItemInput[],
+  location: Pick<ShippingAddress, 'city' | 'state' | 'country'>, couponCode?: string, paymentMethod?: string): Promise<CheckoutQuote> {
+  const items = normalizeCheckoutItems(input, Boolean(userId));
+  normalizePaymentMethod(paymentMethod);
+  if (!location || typeof location.country !== 'string' || !location.country.trim()
+    || (location.city != null && typeof location.city !== 'string') || (location.state != null && typeof location.state !== 'string')) throw new AppError('Invalid quote delivery location.', 400);
+  return withTransaction(async client => {
+    if (userId) await assertCartSnapshot(client, userId, items);
+    const resolved = await resolveOrderItems(client, items);
+    if (resolved.some(item => item.quantity > item.stock)) throw new AppError('Insufficient stock for this quote.', 400);
+    const subtotal = roundMoney(resolved.reduce((sum, item) => sum + parseFloat(item.price) * item.quantity, 0));
+    const { coupon, discount } = await applyCoupon(client, couponCode, subtotal);
+    const totals = checkoutTotals(subtotal, discount, location.state || location.city || '');
+    return { subtotal: subtotal.toFixed(2), discount_amount: discount.toFixed(2), tax_amount: totals.tax.toFixed(2),
+      shipping_cost: totals.shipping.toFixed(2), total: totals.total.toFixed(2), currency: totals.currency, coupon_code: coupon?.code || null,
+      tax_rate: businessRules.taxRate, items: resolved.map(item => ({ productId: item.product_id, variantId: item.variant_id, quantity: item.quantity, price: item.price })) };
+  });
+}
+
+/** All checkout effects and the idempotent response share one transaction. */
 export async function placeOrder(
   userId: string,
   shippingAddress: ShippingAddress,
   paymentMethod: string = CASH_ON_DELIVERY,
-  options: { couponCode?: string; deliverySlot?: string | null } = {}
-): Promise<Order> {
-  let affectedProductIds: string[] = [];
-
-  const order = await withTransaction(async (client) => {
-    const cartResult = await client.query<{
-      product_id: string;
-      variant_id: string | null;
-      quantity: number;
-    }>(
-      `SELECT ci.product_id, ci.variant_id, ci.quantity
-       FROM cart_items ci
-       WHERE ci.user_id = $1 AND ci.expires_at > NOW()`,
-      [userId]
-    );
-    const cartItems = await resolveOrderItems(client, cartResult.rows.map(item => ({
-      productId: item.product_id,
-      variantId: item.variant_id,
-      quantity: item.quantity,
-    })));
-    affectedProductIds = cartItems.map((item) => item.product_id);
-
-    const order = await createOrderFromItems(client, {
-      userId,
-      items: cartItems,
-      shippingAddress,
-      paymentMethod,
-      couponCode: options.couponCode,
-      deliverySlot: options.deliverySlot,
-    });
-
-    await client.query('DELETE FROM cart_items WHERE user_id = $1', [userId]);
-
-    return order;
+  options: CheckoutOptions = {}
+): Promise<CheckoutResult> {
+  const { request, identity } = normalizedCheckout(userId, null, options.items || [], shippingAddress, paymentMethod, options);
+  const result = await withTransaction(async (client) => {
+    const replay = await claimCheckout(client, identity);
+    if (replay) return replay;
+    const cartResult = await assertCartSnapshot(client, userId, request.items);
+    const cartItems = await resolveOrderItems(client, request.items);
+    const order = await createOrderFromItems(client, { userId, ...request, items: cartItems });
+    await client.query('DELETE FROM cart_items WHERE user_id = $1 AND id = ANY($2::int[])',
+      [userId, cartResult.rows.map(item => item.id)]);
+    return finishCheckout(client, identity, order, [...new Set(cartItems.map(item => item.slug))]);
   });
-
-  await invalidateCachesForProductIds(affectedProductIds);
-  return order;
+  return maintainCheckoutCache(result);
 }
 
 export async function placeGuestOrder(
@@ -550,26 +593,18 @@ export async function placeGuestOrder(
   items: CheckoutItemInput[],
   shippingAddress: ShippingAddress,
   paymentMethod: string = CASH_ON_DELIVERY,
-  options: { couponCode?: string; deliverySlot?: string | null } = {}
-): Promise<Order> {
-  let affectedProductIds: string[] = [];
-
-  const order = await withTransaction(async (client) => {
-    const resolvedItems = await resolveOrderItems(client, items);
-    affectedProductIds = resolvedItems.map((item) => item.product_id);
-    return createOrderFromItems(client, {
-      userId: null,
-      guestEmail,
-      items: resolvedItems,
-      shippingAddress,
-      paymentMethod,
-      couponCode: options.couponCode,
-      deliverySlot: options.deliverySlot,
-    });
+  options: CheckoutOptions = {}
+): Promise<CheckoutResult> {
+  const email = requireText(guestEmail, 'Guest email is required.').toLowerCase();
+  const { request, identity } = normalizedCheckout(null, email, items, shippingAddress, paymentMethod, options);
+  const result = await withTransaction(async (client) => {
+    const replay = await claimCheckout(client, identity);
+    if (replay) return replay;
+    const resolvedItems = await resolveOrderItems(client, request.items);
+    const order = await createOrderFromItems(client, { userId: null, ...request, items: resolvedItems });
+    return finishCheckout(client, identity, order, [...new Set(resolvedItems.map(item => item.slug))]);
   });
-
-  await invalidateCachesForProductIds(affectedProductIds);
-  return order;
+  return maintainCheckoutCache(result);
 }
 
 /**
@@ -641,25 +676,9 @@ export async function getReturnRequestsForOrder(orderId: string): Promise<Record
 }
 
 export async function cancelOrder(userId: string, orderId: string): Promise<Order> {
-  const rows = await query<Order>(
-    `UPDATE orders
-     SET status = 'cancelled', cancelled_at = NOW(), updated_at = NOW()
-     WHERE id = $1 AND user_id = $2 AND status IN ('confirmed', 'processing')
-     RETURNING *`,
-    [orderId, userId]
-  );
-
-  if (!rows[0]) {
-    throw new AppError('Order cannot be cancelled at this stage.', 400);
-  }
-
-  await query(
-    `INSERT INTO order_status_history (order_id, status, note)
-     VALUES ($1, 'cancelled', 'Cancelled by customer')`,
-    [orderId]
-  );
-
-  return rows[0];
+  const order = await transitionOrder(orderId, 'cancelled', { customerId: userId, note: 'Cancelled by customer' });
+  if (!order) throw new AppError('Order cannot be cancelled at this stage.', 400);
+  return order;
 }
 
 export async function createReturnRequest(userId: string, orderId: string, reason: string): Promise<Record<string, any>> {
@@ -706,19 +725,20 @@ export async function generateInvoicePdf(userId: string, orderId: string): Promi
   }
 
   const lines = [
-    'ElecSHOP Invoice',
+    businessRules.name + ' Invoice',
+    'Currency: ' + (order.currency || 'USD'),
     `Order: ${order.id}`,
     `Date: ${new Date(order.created_at).toLocaleDateString()}`,
     `Customer: ${order.shipping_address.fullName}`,
     `Phone: ${order.shipping_address.phone || ''}`,
     `Payment: ${order.payment_method}`,
-    `Subtotal: $${order.subtotal || '0.00'}`,
-    `Tax: $${order.tax_amount || '0.00'}`,
-    `Shipping: $${order.shipping_cost || '0.00'}`,
-    `Discount: $${order.discount_amount || '0.00'}`,
-    `Total: $${order.total}`,
+    `Subtotal: ${order.subtotal || '0.00'}`,
+    `Tax: ${order.tax_amount || '0.00'}`,
+    `Shipping: ${order.shipping_cost || '0.00'}`,
+    `Discount: ${order.discount_amount || '0.00'}`,
+    `Total: ${order.total}`,
     'Items:',
-    ...(order.items || []).map(item => `${item.quantity} x ${item.name || item.product_id} - $${item.price_at_purchase}`),
+    ...(order.items || []).map(item => `${item.quantity} x ${item.name || item.product_id} - ${item.price_at_purchase}`),
   ];
 
   return buildSimplePdf(lines);

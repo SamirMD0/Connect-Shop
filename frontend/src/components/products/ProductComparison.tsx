@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { X } from 'lucide-react';
+import { Money } from '@/context/StoreSettingsContext';
 import { Product } from '@/lib/types';
 import { api } from '@/lib/api';
 import { Button } from '@/components/ui/Button';
@@ -110,7 +111,7 @@ export function ProductComparison() {
             ))}
 
             {[
-              ['Price', (product: Product) => `$${parseFloat(product.price).toFixed(2)}`],
+              ['Price', (product: Product) => <Money amount={product.price} />],
               ['Rating', (product: Product) => `${parseFloat(product.rating).toFixed(1)} / 5`],
               ['Stock', (product: Product) => `${product.stock}`],
               ['Brand', (product: Product) => product.brand || '—'],

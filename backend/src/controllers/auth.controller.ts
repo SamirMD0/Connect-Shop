@@ -26,7 +26,6 @@ import { issueCsrfToken } from '../middleware/csrf';
 import { createMfaSetup, verifyMfaCode } from '../services/mfa.service';
 import {
   logSecurityEvent,
-  maskEmail,
   requestSecurityContext,
 } from '../services/securityEvent.service';
 import { logger } from '../utils/logger';
@@ -287,6 +286,7 @@ export async function register(req: Request, res: Response, next: NextFunction):
 
     res.status(201).json({
       success: true,
+      emailDeliveryStatus: user.emailDeliveryStatus,
       user: {
         id: user.id,
         email: user.email,
@@ -354,22 +354,15 @@ export async function verifyEmail(req: Request, res: Response, next: NextFunctio
 }
 
 export async function forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
-  try {
-    await requestPasswordReset(assertEmail(req.body.email));
-    res.json({ success: true, message: 'If an account exists, a reset link has been sent' });
-  } catch (err) {
-    void logSecurityEvent({
-      ...requestSecurityContext(req),
-      eventType: 'auth.password_reset_failed',
-      severity: 'warning',
-      metadata: {
-        reason: 'invalid_request',
-        emailHash: typeof req.body.email === 'string' ? getLoginIdentifierHash(req.body.email) : undefined,
-        emailMasked: maskEmail(req.body.email),
-      },
-    });
-    next(err);
-  }
+  let email: string;
+  try { email = assertEmail(req.body.email); } catch (error) { next(error); return; }
+  // Account lookup/delivery runs outside the response path so its failures or
+  // provider latency cannot reveal whether this address has an account.
+  void Promise.resolve().then(() => requestPasswordReset(email))
+    .catch(() => logger.warn('Password recovery could not be completed'));
+  // Same status/body for absent accounts, disabled delivery and provider/DB failure.
+  // Do not send recovery exceptions through the global error logger.
+  res.json({ success: true, message: 'If an eligible account exists, we will attempt to send a reset link.' });
 }
 
 export async function handleResetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {

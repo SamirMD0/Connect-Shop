@@ -1,4 +1,4 @@
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import { HomepageSectionItem } from '@/lib/types';
 
 const testimonials = [

@@ -1,5 +1,7 @@
 'use client';
 
+import { Money } from '@/context/StoreSettingsContext';
+
 import React, { useEffect, useState } from 'react';
 import { Eye } from 'lucide-react';
 import { api, ApiError } from '../../../lib/api';
@@ -32,6 +34,7 @@ interface CustomerOrder {
   id: string;
   status: string;
   total: string | number;
+  currency?: string;
 }
 
 interface CustomerDetail {
@@ -277,7 +280,7 @@ export default function AdminCustomers() {
               <div className="mt-3 grid gap-2 rounded-lg bg-white p-3 text-xs text-slate-500 sm:grid-cols-2">
                 <span>Role: <strong className="text-[#0B1B48]">{selectedDetail.user.role}</strong></span>
                 <span>Orders: <strong className="text-[#0B1B48]">{selectedDetail.totals.order_count}</strong></span>
-                <span className="sm:col-span-2">Total spent: <strong className="text-[#0B1B48]">${selectedDetail.totals.total_spent}</strong></span>
+                <span className="sm:col-span-2">Total spent: <strong className="text-[#0B1B48]">{<Money amount={selectedDetail.totals.total_spent} />}</strong></span>
               </div>
             </div>
 
@@ -300,7 +303,7 @@ export default function AdminCustomers() {
                   <div key={order.id} className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white p-3 text-slate-600">
                     <span className="font-mono">{String(order.id).slice(0, 8)}</span>
                     <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-semibold capitalize text-slate-600">{order.status}</span>
-                    <span className="font-semibold text-[#0B1B48]">${order.total}</span>
+                    <span className="font-semibold text-[#0B1B48]">{<Money amount={order.total} currency={order.currency || 'USD'} />}</span>
                   </div>
                 ))}
                 {selectedDetail.orders.length === 0 && <p className="text-slate-500">No orders yet.</p>}

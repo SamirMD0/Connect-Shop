@@ -1,0 +1,25 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "types": ["node", "pino-http"],
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false
+  },
+  "include": [
+    "checkout.idempotency.test.ts",
+    "customer-config.test.ts",
+    "business-rules.test.ts",
+    "email.delivery.test.ts",
+    "password-recovery.response.test.ts",
+    "checkout-quote.database.test.ts",
+    "cart-merge.policy.test.ts",
+    "cart-merge.database.test.ts",
+    "checkout.controller.test.ts",
+    "checkout.database.test.ts",
+    "inventory.database.test.ts",
+    "inventory.policy.test.ts",
+    "../src/middleware/auth.ts"
+  ]
+}

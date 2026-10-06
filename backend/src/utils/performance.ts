@@ -18,6 +18,7 @@ const CACHE_METRIC_NAMES: CacheMetricName[] = [
 
 const cacheMetrics = new Map<string, CacheMetricCounts>();
 let backgroundMonitorsStarted = false;
+let firstHomepageResponseLogged = false;
 
 export function isPerfLoggingEnabled(): boolean {
   return process.env.PERF_LOGGING_ENABLED === 'true';
@@ -111,6 +112,19 @@ export function performanceRequestLogger(req: Request, res: Response, next: Next
   res.on('finish', () => {
     const durationMs = performance.now() - start;
     const slowRequestMs = readNumberEnv('PERF_SLOW_REQUEST_MS', 500);
+
+    if (req.method === 'GET' && res.statusCode >= 200 && res.statusCode < 300
+      && res.locals.homepageAggregateSuccessful === true) {
+      const first = !firstHomepageResponseLogged;
+      firstHomepageResponseLogged = true;
+      logger.info({
+        ...(first ? { startupPhase: 'first_homepage' } : {}),
+        homepageResponse: first ? 'first' : 'warm',
+        durationMs: roundMilliseconds(durationMs),
+        processElapsedMs: roundMilliseconds(process.uptime() * 1000),
+        requestId: req.id,
+      }, 'Performance homepage response');
+    }
 
     if (durationMs < slowRequestMs) return;
 

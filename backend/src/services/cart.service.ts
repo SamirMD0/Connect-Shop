@@ -1,6 +1,7 @@
 // backend/src/services/cart.service.ts
 import { query } from '../config/db';
 import { AppError, NotFoundError } from '../utils/errors';
+import { withCartMutation } from './cartLock';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -31,14 +32,14 @@ export interface Cart {
 /**
  * Get the full cart for a user, including product details and computed total.
  */
-export async function getCart(userId: string): Promise<Cart> {
-  const items = await query<CartItem>(
+export async function getCart(userId: string, read: typeof query = query): Promise<Cart> {
+  const items = await read<CartItem>(
     `SELECT ci.*,
             p.name,
             p.slug,
             COALESCE(v.price, p.price) AS price,
             COALESCE(v.image_url, p.image_url) AS image_url,
-            COALESCE(v.stock, p.stock) AS stock,
+            CASE WHEN ci.variant_id IS NOT NULL AND (v.id IS NULL OR NOT v.is_active) THEN 0 ELSE COALESCE(v.stock, p.stock) END AS stock,
             v.name AS variant_name
      FROM cart_items ci
      JOIN products p ON p.id = ci.product_id
@@ -67,51 +68,62 @@ export async function addToCart(
   quantity: number,
   variantId?: string | null
 ): Promise<CartItem> {
-  const currentQuantityRows = await query<{ quantity: number }>(
-    `SELECT quantity
-     FROM cart_items
-     WHERE user_id = $1 AND product_id = $2 AND (
-       ($3::uuid IS NULL AND variant_id IS NULL) OR variant_id = $3::uuid
-     ) AND expires_at > NOW()`,
-    [userId, productId, variantId || null]
-  );
-  const currentQuantity = currentQuantityRows[0]?.quantity || 0;
-  const stock = await getAvailableStock(productId, variantId || null);
-  if (currentQuantity + quantity > stock) {
-    throw new AppError(`Insufficient stock. Only ${stock} available.`, 400);
-  }
+  return withCartMutation(userId, read => addToCartWithQuery(read, userId, productId, quantity, variantId));
+}
 
-  // Manual check for existing item to avoid unique constraint issues with variants
-  let existingQuery = `SELECT * FROM cart_items WHERE user_id = $1 AND product_id = $2 AND expires_at > NOW()`;
-  const existingParams: any[] = [userId, productId];
-  if (variantId) {
-    existingQuery += ` AND variant_id = $3`;
-    existingParams.push(variantId);
-  } else {
-    existingQuery += ` AND variant_id IS NULL`;
-  }
-
-  const existing = await query<CartItem>(existingQuery, existingParams);
-
-  if (existing.length > 0) {
-    const updated = await query<CartItem>(
-      `UPDATE cart_items
-       SET quantity = quantity + $1,
-           expires_at = NOW() + INTERVAL '48 hours'
-       WHERE id = $2
-       RETURNING *`,
-      [quantity, existing[0].id]
+/** Shared cart rules; merge supplies its already locked transaction. */
+export async function addToCartWithQuery(
+  query: typeof import('../config/db').query, userId: string, productId: string, quantity: number,
+  variantId?: string | null, options: { lockInventory?: boolean; maxQuantity?: number } = {}
+): Promise<CartItem> {
+    const currentQuantityRows = await query<{ quantity: number }>(
+      `SELECT quantity
+       FROM cart_items
+       WHERE user_id = $1 AND product_id = $2 AND (
+         ($3::uuid IS NULL AND variant_id IS NULL) OR variant_id = $3::uuid
+       ) AND expires_at > NOW()`,
+      [userId, productId, variantId || null]
     );
-    return updated[0];
-  } else {
-    const inserted = await query<CartItem>(
-      `INSERT INTO cart_items (user_id, product_id, quantity, variant_id, expires_at)
-       VALUES ($1, $2, $3, $4, NOW() + INTERVAL '48 hours')
-       RETURNING *`,
-      [userId, productId, quantity, variantId || null]
-    );
-    return inserted[0];
-  }
+    const currentQuantity = currentQuantityRows[0]?.quantity || 0;
+    const stock = await getAvailableStock(productId, variantId || null, query, options.lockInventory);
+    if (options.maxQuantity && currentQuantity + quantity > options.maxQuantity) {
+      throw new AppError('Cart quantity would exceed 99.', 400, true, 'QUANTITY_LIMIT');
+    }
+    if (currentQuantity + quantity > stock) {
+      throw new AppError(`Insufficient stock. Only ${stock} available.`, 400, true, 'INSUFFICIENT_STOCK');
+    }
+
+    // Manual check for existing item to avoid unique constraint issues with variants
+    let existingQuery = `SELECT * FROM cart_items WHERE user_id = $1 AND product_id = $2 AND expires_at > NOW()`;
+    const existingParams: any[] = [userId, productId];
+    if (variantId) {
+      existingQuery += ` AND variant_id = $3`;
+      existingParams.push(variantId);
+    } else {
+      existingQuery += ` AND variant_id IS NULL`;
+    }
+
+    const existing = await query<CartItem>(existingQuery, existingParams);
+
+    if (existing.length > 0) {
+      const updated = await query<CartItem>(
+        `UPDATE cart_items
+         SET quantity = quantity + $1,
+             expires_at = NOW() + INTERVAL '48 hours'
+         WHERE id = $2
+         RETURNING *`,
+        [quantity, existing[0].id]
+      );
+      return updated[0];
+    } else {
+      const inserted = await query<CartItem>(
+        `INSERT INTO cart_items (user_id, product_id, quantity, variant_id, expires_at)
+         VALUES ($1, $2, $3, $4, NOW() + INTERVAL '48 hours')
+         RETURNING *`,
+        [userId, productId, quantity, variantId || null]
+      );
+      return inserted[0];
+    }
 }
 
 /**
@@ -123,28 +135,30 @@ export async function updateCartItemQuantity(
   itemId: number,
   quantity: number
 ): Promise<CartItem | null> {
-  const existing = await query<{ product_id: string; variant_id: string | null }>(
-    `SELECT product_id, variant_id FROM cart_items WHERE id = $1 AND user_id = $2 AND expires_at > NOW()`,
-    [itemId, userId]
-  );
+  return withCartMutation(userId, async (query) => {
+    const existing = await query<{ product_id: string; variant_id: string | null }>(
+      `SELECT product_id, variant_id FROM cart_items WHERE id = $1 AND user_id = $2 AND expires_at > NOW()`,
+      [itemId, userId]
+    );
 
-  if (!existing[0]) return null;
+    if (!existing[0]) return null;
 
-  const stock = await getAvailableStock(existing[0].product_id, existing[0].variant_id);
-  if (quantity > stock) {
-    throw new AppError(`Insufficient stock. Only ${stock} available.`, 400);
-  }
+    const stock = await getAvailableStock(existing[0].product_id, existing[0].variant_id, query);
+    if (quantity > stock) {
+      throw new AppError(`Insufficient stock. Only ${stock} available.`, 400);
+    }
 
-  const rows = await query<CartItem>(
-    `UPDATE cart_items
-     SET quantity = $1
-         , expires_at = NOW() + INTERVAL '48 hours'
-     WHERE id = $2 AND user_id = $3
-     RETURNING *`,
-    [quantity, itemId, userId]
-  );
+    const rows = await query<CartItem>(
+      `UPDATE cart_items
+       SET quantity = $1
+           , expires_at = NOW() + INTERVAL '48 hours'
+       WHERE id = $2 AND user_id = $3
+       RETURNING *`,
+      [quantity, itemId, userId]
+    );
 
-  return rows[0] || null;
+    return rows[0] || null;
+  });
 }
 
 /**
@@ -155,21 +169,25 @@ export async function removeCartItem(
   userId: string,
   itemId: number
 ): Promise<boolean> {
-  const rows = await query<{ id: number }>(
-    `DELETE FROM cart_items
-     WHERE id = $1 AND user_id = $2
-     RETURNING id`,
-    [itemId, userId]
-  );
+  return withCartMutation(userId, async (query) => {
+    const rows = await query<{ id: number }>(
+      `DELETE FROM cart_items
+       WHERE id = $1 AND user_id = $2
+       RETURNING id`,
+      [itemId, userId]
+    );
 
-  return rows.length > 0;
+    return rows.length > 0;
+  });
 }
 
 /**
  * Clear all items from a user's cart.
  */
 export async function clearCart(userId: string): Promise<void> {
-  await query('DELETE FROM cart_items WHERE user_id = $1', [userId]);
+  return withCartMutation(userId, async (query) => {
+    await query('DELETE FROM cart_items WHERE user_id = $1', [userId]);
+  });
 }
 
 export async function cleanupExpiredCartItems(): Promise<number> {
@@ -202,10 +220,10 @@ export async function queueAbandonedCartRecovery(userId: string): Promise<void> 
   );
 }
 
-async function getAvailableStock(productId: string, variantId: string | null): Promise<number> {
+async function getAvailableStock(productId: string, variantId: string | null, query: typeof import('../config/db').query, lockInventory = false): Promise<number> {
   if (variantId) {
     const variants = await query<{ stock: number }>(
-      `SELECT stock FROM product_variants WHERE id = $1 AND product_id = $2`,
+      `SELECT stock FROM product_variants WHERE id = $1 AND product_id = $2 AND is_active${lockInventory ? ' FOR UPDATE' : ''}`,
       [variantId, productId]
     );
 
@@ -217,7 +235,7 @@ async function getAvailableStock(productId: string, variantId: string | null): P
   }
 
   const products = await query<{ stock: number }>(
-    `SELECT stock FROM products WHERE id = $1`,
+    `SELECT stock FROM products WHERE id = $1${lockInventory ? ' FOR UPDATE' : ''}`,
     [productId]
   );
 

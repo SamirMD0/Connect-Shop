@@ -1,7 +1,7 @@
 // backend/src/server.ts
 import './config/sentry';
 import app from './app';
-import { env } from './config/env';
+import { env, configurationDurationMs } from './config/env';
 import { connectDB, pool } from './config/db';
 import { logger } from './utils/logger';
 import { startMaintenanceScheduler } from './services/maintenance.service';
@@ -38,6 +38,12 @@ async function initializeDatabase(): Promise<void> {
  */
 async function main(): Promise<void> {
   try {
+    logger.info({
+      startupPhase: 'configuration',
+      outcome: 'ready',
+      durationMs: configurationDurationMs,
+    }, 'Startup readiness');
+
     // 1. Verify database connectivity
     await connectDB();
 
@@ -51,6 +57,11 @@ async function main(): Promise<void> {
 
     // 4. Start HTTP server
     const server = app.listen(env.PORT, () => {
+      logger.info({
+        startupPhase: 'listening',
+        outcome: 'ready',
+        processElapsedMs: Number((process.uptime() * 1000).toFixed(2)),
+      }, 'Startup readiness');
       logger.info(`\n🚀 ElecSHOP API server listening on port ${env.PORT}`);
       logger.info(`   Environment: ${env.NODE_ENV}`);
       logger.info(`   Frontend:    ${env.FRONTEND_URL}`);

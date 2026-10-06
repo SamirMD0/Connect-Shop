@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import { Money } from '@/context/StoreSettingsContext';
 import { useRouter } from 'next/navigation';
 import { Container } from './Container';
 import { CartIcon } from '@/components/cart/CartIcon';
@@ -16,10 +17,8 @@ import { api } from '@/lib/api';
 import { Category, Product } from '@/lib/types';
 import { SafeImage } from '@/components/ui/SafeImage';
 
-function formatSuggestionPrice(value: string) {
-  const price = parseFloat(value);
-  if (!Number.isFinite(price)) return value;
-  return `$${Number.isInteger(price) ? price.toFixed(0) : price.toFixed(2)}`;
+function formatSuggestionPrice(value: string | number | null | undefined) {
+  return <Money amount={value} compact />;
 }
 
 export function Navbar() {
@@ -96,7 +95,7 @@ export function Navbar() {
           <div className="flex min-w-0 items-center lg:flex-1 xl:gap-10">
             <Link className="flex shrink-0 items-center" href="/" aria-label={APP_NAME}>
               <span className="whitespace-nowrap text-[21px] font-bold leading-none text-text-primary sm:text-[26px] lg:text-[28px]">
-                ELECTRO<span className="text-accent"> SHOP</span>
+                {APP_NAME.split(' ').slice(0, -1).join(' ') || APP_NAME}<span className="text-accent">{APP_NAME.includes(' ') ? ' ' + APP_NAME.split(' ').at(-1) : ''}</span>
               </span>
             </Link>
 

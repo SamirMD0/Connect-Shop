@@ -1,11 +1,12 @@
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
+import { FreeShippingDescription } from '@/context/StoreSettingsContext';
 import { HomepageSectionItem } from '@/lib/types';
 
 const featureData = [
   {
     img: '/nextmerce/icons/icon-01.svg',
     title: 'Free Shipping',
-    description: 'Orders $50 or more',
+    description: <FreeShippingDescription />,
   },
   {
     img: '/nextmerce/icons/icon-02.svg',

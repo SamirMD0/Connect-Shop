@@ -1,5 +1,7 @@
 'use client';
 
+import { Money } from '@/context/StoreSettingsContext';
+
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Container } from '@/components/layout/Container';
@@ -197,7 +199,7 @@ export default function OrdersPage() {
                       {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
                     </Badge>
                     <div className="text-right hidden sm:block">
-                      <p className="text-sm font-bold text-text-primary">${parseFloat(order.total).toFixed(2)}</p>
+                      <p className="text-sm font-bold text-text-primary">{<Money amount={order.total} currency={order.currency || 'USD'} />}</p>
                       {order.item_count !== undefined && (
                         <p className="text-xs text-text-muted">{order.item_count} items</p>
                       )}
@@ -274,7 +276,7 @@ export default function OrdersPage() {
                             </div>
                           </div>
                           <span className="text-text-primary font-medium shrink-0">
-                            ${(parseFloat(item.price_at_purchase) * item.quantity).toFixed(2)}
+                            {<Money amount={Number(item.price_at_purchase) * item.quantity} currency={expandedOrder.currency || 'USD'} />}
                           </span>
                         </div>
                       ))}

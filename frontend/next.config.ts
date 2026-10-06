@@ -10,6 +10,8 @@ const isVercelBuild = Boolean(process.env.VERCEL);
 const nextConfig: NextConfig = {
   ...(isVercelBuild ? {} : { output: 'standalone' as const }),
   images: {
+    // StoreImage selectively resizes unsigned ImageKit URLs. Keep passthrough for
+    // local assets/uploads, SVG/GIF, signed URLs and other supported remote hosts.
     unoptimized: true,
     remotePatterns: [
       {

@@ -1,0 +1,32 @@
+# Separate customer store setup
+
+Each customer runs a separate frontend, backend, PostgreSQL database and integration credentials. This project remains a single store per deployment. Copy environment examples without copying another customer's secrets or records.
+
+## Infrastructure and domains
+
+1. Provision an empty customer PostgreSQL database and dedicated runtime/migration credentials. Set backend DATABASE_URL and, for a transaction pooler, DIRECT_DATABASE_URL to the direct migration connection. Confirm the database identity before any schema, migration, seed or admin-bootstrap command. INITIALIZE_DATABASE stays false in production. Use the existing npm run db:deploy locally or npm run migrate:prod from the backend build in an authorized deployment; these apply base schema and pending migrations. This phase did not deploy or apply anything to production. Migration 016 adds order currency and preserves historical USD orders.
+2. Configure the frontend's NEXT_PUBLIC_SITE_URL, NEXT_PUBLIC_API_URL and server-only INTERNAL_API_URL for that customer. Set backend FRONTEND_URL to the exact allowed frontend origin. Keep INTERNAL_SSR_API_SECRET private and identical on both servers. Generate a new SESSION_SECRET; use HTTPS and the existing secure session/CSRF flow.
+3. Configure separate Redis credentials/cache storage if enabled, ImageKit account/keys/folder and both image endpoints, Google OAuth credentials and the customer's exact GOOGLE_CALLBACK_URL, and optional Sentry project/token. Private database, email, ImageKit, OAuth and Sentry credentials must never use NEXT_PUBLIC_ variables. Redis may be absent; follow the existing operational requirements for rate limits.
+4. Build each frontend with that customer's public environment. Use existing hosting/build/start scripts and backup procedures. Review CMS content, product prices, legal pages, phone-region choices, delivery slots, shipping coverage and contact placeholders before handoff; configuration does not invent a delivery or returns policy.
+
+## Email
+
+Local development/test: explicitly set EMAIL_MODE=mock. Mock mode records only the message kind and never sends email or logs bodies/recovery links. Without an explicit delivery mode, enabled email features fail delivery rather than pretending to send. Production rejects mock mode.
+
+Production with email features: set EMAIL_MODE=resend, private RESEND_API_KEY, EMAIL_FROM to a mailbox on the customer's verified sender domain, optional EMAIL_REPLY_TO, and STORE_NAME for the sender display name. Complete domain verification with the provider before setting EMAIL_SENDER_VERIFIED=true. This flag is an operator attestation, not an external DNS verification performed by this application. EMAIL_TIMEOUT_MS bounds each attempt (default 5000 ms, maximum 30000). EMAIL_AUTH_ENABLED and EMAIL_ORDER_CONFIRMATIONS_ENABLED default true. Production starts only with valid configured delivery whenever either flag is true. Both may be explicitly false to disable those features; password recovery then remains generic and does not send.
+
+The service checks both thrown failures and returned provider errors. Transient failures get at most three attempts with the same opaque provider idempotency key; permanent sender/auth/quota failures stop immediately. Logs contain message kind/category only. An accepted response confirms provider acceptance, not inbox delivery. Password recovery always returns a generic response before background lookup/delivery; registration reports failed verification delivery without losing the account. A failed confirmation email cannot fail a committed COD order.
+
+There is no existing durable email worker/outbox. Retries run in the current process; a restart can lose pending delivery. Verification/recovery tokens are never printed in mock mode. Do not test using real customer addresses or production email credentials. Provider references: [send-email API](https://resend.com/docs/api-reference/emails/send-email), [errors](https://resend.com/docs/api-reference/errors), [24-hour idempotency window](https://resend.com/docs/dashboard/emails/idempotency-keys).
+
+## Branding and money
+
+Set matching backend STORE_NAME and frontend NEXT_PUBLIC_APP_NAME. Existing NEXT_PUBLIC_BUSINESS_PHONE/WHATSAPP/EMAIL/ADDRESS/HOURS configure contact details. NEXT_PUBLIC_META_TITLE/DESCRIPTION/KEYWORDS configure metadata. NEXT_PUBLIC_COLOR_* fields in the frontend example override existing semantic storefront colors; use quoted six-digit hex values. These are public build-time settings; rebuild after changes. Default colors/layouts are preserved.
+
+Currency/tax/shipping have one backend source: STORE_CURRENCY, STORE_LOCALE, STORE_DEFAULT_COUNTRY, STORE_TAX_RATE, STORE_SHIPPING_DEFAULT, STORE_FREE_SHIPPING_THRESHOLD and STORE_SHIPPING_BY_REGION (JSON region-to-cost map). Frontend price labels consume GET /api/v1/store/config; do not duplicate financial constants in frontend environment. If settings cannot load, the UI reports unavailable currency instead of assuming USD.
+
+Defaults preserve USD, 11% tax, default delivery 4, free delivery at subtotal 150, and existing regional rates. Configure a supported ISO currency with two decimals; the existing DECIMAL(10,2) storage and two-decimal rounding remain in use. There is no currency conversion: choose currency before loading a new customer's prices, then keep one currency for the deployment. Do not relabel an existing catalog or mixed-currency analytics by changing this variable. Historical orders retain their recorded currency (pre-migration orders use USD).
+
+Discount is capped at subtotal, tax applies after discount, and free-shipping eligibility uses subtotal before discount, preserving existing rules. Region matching is trimmed/lowercase and uses state before city; unknown regions use the configured default. Coverage restrictions remain a separate operational decision. POST /api/v1/orders/quote returns current item prices, coupon discount, tax, shipping, total and currency without purchasing or consuming a coupon. Quotes are private/no-store and never reserve stock. Checkout submits the displayed totals as a precondition; creation rechecks prices, cart, stock and coupons transactionally and returns QUOTE_CHANGED if totals differ. Retries of an unknown committed outcome retain the original checkout key even after a new quote. Cash on delivery is the only supported payment workflow.
+
+See [Phase 6 verification and handoff](../checkout/PHASE_6_EMAIL_CUSTOMER_HANDOFF.md) for checks and remaining limits.

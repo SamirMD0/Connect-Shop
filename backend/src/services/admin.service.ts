@@ -2,6 +2,9 @@
 import { query, withTransaction } from '../config/db';
 import { User } from './auth.service';
 import { Order } from './orders.service';
+import { transitionOrder } from './orderStatus.service';
+import { allowedOrderTransitions, ORDER_STATUS_VALUES, type AdminOrderStatus } from './orderTransitions';
+export { ORDER_STATUS_VALUES, type AdminOrderStatus } from './orderTransitions';
 import { AppError, ForbiddenError, NotFoundError } from '../utils/errors';
 import { AdminRepository } from '../repositories/admin.repository';
 import { delCache } from '../config/redis';
@@ -35,9 +38,6 @@ export interface OrderListResult {
   limit: number;
   totalPages: number;
 }
-
-export const ORDER_STATUS_VALUES = ['confirmed', 'processing', 'shipped', 'delivered', 'cancelled'] as const;
-export type AdminOrderStatus = typeof ORDER_STATUS_VALUES[number];
 
 export const ADMIN_ROLES = ['customer', 'support', 'manager', 'admin', 'super_admin'] as const;
 export type AdminRole = typeof ADMIN_ROLES[number];
@@ -142,7 +142,7 @@ export async function getAllOrders(
   );
 
   return {
-    orders,
+    orders: orders.map(order => ({ ...order, allowed_statuses: allowedOrderTransitions(order) })),
     total,
     page: safePage,
     limit: safeLimit,
@@ -150,26 +150,9 @@ export async function getAllOrders(
   };
 }
 
-export async function updateOrderStatus(id: string, status: string): Promise<Order | null> {
-  if (!ORDER_STATUS_VALUES.includes(status as AdminOrderStatus)) {
-    throw new AppError('Invalid order status', 400);
-  }
-
-  const rows = await query<Order>(
-    `UPDATE orders
-     SET status = $1, updated_at = NOW()
-     WHERE id = $2
-     RETURNING *`,
-    [status, id]
-  );
-  if (rows[0]) {
-    await query(
-      `INSERT INTO order_status_history (order_id, status, note)
-       VALUES ($1, $2, $3)`,
-      [id, status, 'Updated by admin']
-    );
-  }
-  return rows[0] || null;
+export async function updateOrderStatus(id: string, status: string, actorId?: string): Promise<Order | null> {
+  const order = await transitionOrder(id, status, { actorId, note: 'Updated by admin' });
+  return order ? { ...order, allowed_statuses: allowedOrderTransitions(order) } : null;
 }
 
 export async function updateOrderTracking(id: string, data: {
@@ -252,7 +235,7 @@ export async function getUserDetail(id: string): Promise<Record<string, any> | n
       [id]
     ),
     query(
-      `SELECT id, status, total, payment_status, created_at
+      `SELECT id, status, total, currency, payment_status, created_at
        FROM orders
        WHERE user_id = $1
        ORDER BY created_at DESC
@@ -462,7 +445,7 @@ export async function updateUserRole(
 }
 
 export async function getOrderDetail(id: string): Promise<Record<string, any> | null> {
-  const orders = await query<Record<string, any>>(
+  const orders = await query<Order>(
     `SELECT o.*,
             COALESCE(u.name, o.shipping_address ->> 'fullName') AS customer_name,
             COALESCE(u.email, o.guest_email) AS customer_email,
@@ -506,6 +489,7 @@ export async function getOrderDetail(id: string): Promise<Record<string, any> | 
   return {
     ...orders[0],
     items,
+    allowed_statuses: allowedOrderTransitions(orders[0]),
     status_history: history,
     return_requests: returns,
   };
@@ -522,7 +506,7 @@ export async function getInventoryAlerts(threshold = 5): Promise<Record<string, 
             p.name || ' - ' || pv.name AS name, pv.sku, pv.stock, COALESCE(pv.image_url, p.image_url) AS image_url, pv.created_at AS updated_at
      FROM product_variants pv
      JOIN products p ON p.id = pv.product_id
-     WHERE pv.stock <= $1
+     WHERE pv.stock <= $1 AND pv.is_active
      ORDER BY stock ASC, name ASC`,
     [threshold]
   );

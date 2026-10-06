@@ -9,6 +9,8 @@ import {
 } from '../services/cart.service';
 import { NotFoundError, AppError } from '../utils/errors';
 import { query } from '../config/db';
+import { mergeCart } from '../services/cartMerge.service';
+import { logger } from '../utils/logger';
 
 /**
  * GET /api/cart
@@ -112,4 +114,23 @@ export async function remove(req: Request, res: Response, next: NextFunction): P
   } catch (err) {
     next(err);
   }
+}
+
+/** POST /api/cart/merge: explicit whole-line partial acceptance, one transaction. */
+export async function merge(req: Request, res: Response, next: NextFunction): Promise<void> {
+  try {
+    if (typeof req.body?.userId !== 'string' || req.body.userId.toLowerCase() !== req.user!.id.toLowerCase()) {
+      throw new AppError('The signed-in account changed. Return to the account that started this transfer.', 409, true, 'MERGE_USER_CHANGED');
+    }
+    const result = await mergeCart(req.user!.id, req.get('Idempotency-Key'), req.body.items);
+    // The receipt includes the cart read inside the transaction. No required
+    // post-commit lookup or maintenance can make a committed merge appear failed.
+    res.json({ success: true, ...result });
+    if (result.accepted.length) {
+      // Preserve existing recovery scheduling; synchronous/asynchronous failures
+      // cannot affect the response, and replay can retry this best-effort work.
+      void Promise.resolve().then(() => queueAbandonedCartRecovery(req.user!.id))
+        .catch(() => logger.warn('Cart merge recovery scheduling failed'));
+    }
+  } catch (error) { next(error); }
 }

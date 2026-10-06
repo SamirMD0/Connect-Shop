@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Money } from '@/context/StoreSettingsContext';
 import { Product } from '@/lib/types';
 import { RatingStars } from './RatingStars';
 import { Button } from '@/components/ui/Button';
@@ -15,8 +16,8 @@ interface ProductCardProps {
   product: Product;
 }
 
-function formatPrice(value: number) {
-  return `$${Number.isInteger(value) ? value.toFixed(0) : value.toFixed(2)}`;
+function formatPrice(value: string | number | null | undefined) {
+  return <Money amount={value} compact />;
 }
 
 export function ProductCard({ product }: ProductCardProps) {
@@ -98,6 +99,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <Link href={`/store/${product.slug}`} className="block rounded-lg" aria-label={`View ${product.name}`}>
           <div className="relative aspect-square overflow-hidden rounded-lg bg-white">
             <SafeImage
+              imagekitWidth={768}
               src={product.image_url}
               alt={product.name}
               fill

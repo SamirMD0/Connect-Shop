@@ -1,5 +1,6 @@
-import Image from 'next/image';
+import { StoreImage as Image } from '@/components/ui/StoreImage';
 import Link from 'next/link';
+import { Money } from '@/context/StoreSettingsContext';
 import { Product } from '@/lib/types';
 import { RatingStars } from '@/components/products/RatingStars';
 
@@ -7,16 +8,8 @@ interface BestSellersProps {
   products: Product[];
 }
 
-function formatPrice(value: string | null | undefined) {
-  const parsed = Number.parseFloat(value || '0');
-
-  if (!Number.isFinite(parsed)) {
-    return '$0';
-  }
-
-  return `$${parsed.toLocaleString(undefined, {
-    maximumFractionDigits: parsed % 1 === 0 ? 0 : 2,
-  })}`;
+function formatPrice(value: string | number | null | undefined) {
+  return <Money amount={value} compact />;
 }
 
 export function BestSellers({ products }: BestSellersProps) {
@@ -66,6 +59,7 @@ export function BestSellers({ products }: BestSellersProps) {
                   <div className="relative flex h-[138px] w-[138px] shrink-0 items-center justify-center overflow-hidden rounded-md bg-white">
                     {product.image_url ? (
                       <Image
+                        imagekitWidth={300}
                         src={product.image_url}
                         alt={product.name}
                         fill

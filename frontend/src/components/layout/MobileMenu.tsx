@@ -1,5 +1,7 @@
 'use client';
 
+import { APP_NAME } from '@/lib/constants';
+
 import { useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/hooks/useAuth';
@@ -89,7 +91,7 @@ export function MobileMenu({ isOpen, onClose, categories = [] }: MobileMenuProps
       >
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div>
-            <span id="mobile-navigation-title" className="block text-sm font-semibold text-text-primary">ELECTRO SHOP Menu</span>
+            <span id="mobile-navigation-title" className="block text-sm font-semibold text-text-primary">{APP_NAME} Menu</span>
             <span className="text-xs text-text-muted">Browse categories and pages</span>
           </div>
           <button
