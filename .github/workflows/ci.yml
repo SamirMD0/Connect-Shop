@@ -132,6 +132,9 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Verify Next.js lint dependency compatibility
+        run: npm run test:lint-deps
+
       - name: Run frontend lint if available
         run: |
           if node -e "process.exit(require('./package.json').scripts?.lint ? 0 : 1)"; then
